@@ -1,0 +1,106 @@
+=====================================================
+    GSM Traders — NEW RECOVERY — NAVIGATION INDEX
+=====================================================
+Generated: 5-Oct-2026
+
+Location: d:\gsm-recovery\new_recovery\
+=====================================================
+
+HOW THIS FOLDER IS ARRANGED (correct order):
+
+01_master_data/        <- Reference tables (sorted A-Z / by order)
+   buyers_sorted.json    25 buyers, alphabetical
+   buyers_sorted.csv     Same data in Excel-readable format
+   products_sorted.json  4 products, by sort_order
+   products_sorted.csv   Same in CSV
+   suppliers_sorted.json 1 supplier (Athi)
+   suppliers_sorted.csv  Same in CSV
+
+02_sales/              <- All sales transactions (oldest -> newest by date)
+   buyer_sales_by_date.json   1,436 credit sales to buyers
+   buyer_sales_by_date.csv    CSV with total column
+   retail_sales_by_date.json  22 retail (cash) sales
+   retail_sales_by_date.csv   CSV with total column
+
+03_payments/           <- All buyer payments received (oldest -> newest)
+   buyer_payments_by_date.json  120 payments
+   buyer_payments_by_date.csv   CSV format
+
+04_per_buyer/          <- ONE FOLDER PER BUYER (25 folders)
+   Each buyer folder contains:
+     01_info.json         Buyer details + totals + balance due
+     02_sales.json        All their sales (sorted by date)
+     03_payments.json     All their payments (sorted by date)
+     04_timeline.json     Combined SALE/PAYMENT chronological log
+     04_timeline.csv      Same timeline in CSV
+
+   Example: 04_per_buyer/Gayathri__807fe35e/
+            (Buyer name + short ID to avoid duplicates)
+
+05_reports/            <- SUMMARIES & DASHBOARD
+   OVERVIEW.json              All grand totals in one file
+   REPORT_README.txt          Human-readable report (start here!)
+   buyer_ledger_summary.json  25 buyers with totals (sorted: highest balance due first)
+   buyer_ledger_summary.csv   Same in CSV
+   product_sales_summary.json 4 products ranked by revenue
+   product_sales_summary.csv  Same in CSV
+
+06_raw_backup/         <- EXACT ORIGINAL COPIES (unmodified, unsorted)
+   raw_buyers.json              Raw Supabase dump
+   raw_products.json
+   raw_suppliers.json
+   raw_buyer_sales.json
+   raw_retail_sales.json
+   raw_buyer_payments.json
+   raw_payments.json
+   raw_combined_2026-10-...json All tables in one timestamped snapshot
+
+=====================================================
+QUICK NUMBERS
+=====================================================
+  Total Sales Revenue:        Rs. 60,26,978
+    - Buyer credit sales:     Rs. 59,62,343  (1,436 entries)
+    - Retail cash sales:      Rs.    64,635  (22 entries)
+
+  Total Payments Received:    Rs.  6,42,520  (120 payments)
+  Outstanding Buyer Dues:     Rs. 53,19,823
+
+  Buyers: 25    Products: 4    Suppliers: 1
+
+=====================================================
+TOP BUYERS BY DUE AMOUNT
+=====================================================
+  1. Gayathri      (8838392356)    Rs. 38,60,830
+  2. Ramdas        (9544881703)    Rs.  3,68,500
+  3. hsn           (no phone)      Rs.  2,81,365
+  4. bala mama     (9944603610)    Rs.  2,58,090
+  5. Pushpa raj    (9092858395)    Rs.  1,27,144
+
+=====================================================
+TOP PRODUCTS BY REVENUE
+=====================================================
+  1. Malli          Rs. 37,01,746   (28,22,333 mootais)
+  2. Pudina         Rs. 21,15,097   (13,87,668.5 mootais)
+  3. Karuvepillai   Rs.  2,10,135   (4,663.5 mootais)
+
+=====================================================
+TO REFRESH / GET LATEST LIVE DATA FROM WEBSITE
+=====================================================
+
+Run this from the d:\gsm-recovery folder:
+
+   node run-new-recovery.js
+
+Choose option:
+   1 = Pull LIVE from Supabase (enter email & password when asked)
+   2 = Re-organize from the existing export/ folder on disk
+
+The script:
+   - Auto-discovers ALL your Supabase tables (no guessing)
+   - Pulls every page (won't cut off at 1,000 rows)
+   - Sorts everything into correct order (dates, names, sort_order)
+   - Creates per-buyer ledger + timeline with running balance
+   - Generates reports (CSV + JSON) + OVERVIEW summary
+   - Saves untouched raw backup for safety
+
+=====================================================

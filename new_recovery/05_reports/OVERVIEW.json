@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-10-05T11:05:39.978Z",
+  "buyers": 25,
+  "products": 4,
+  "suppliers": 1,
+  "buyer_sales_count": 1759,
+  "retail_sales_count": 22,
+  "payments_count": 142,
+  "totals": {
+    "buyer_sales_total": 6267380.5,
+    "retail_sales_total": 64635,
+    "total_sales_revenue": 6332015.5,
+    "total_payments_received": 707520,
+    "outstanding_balance": 5559860.5
+  }
+}

@@ -1,0 +1,7 @@
+date,type,product,mootais,rate,amount,notes
+2026-03-05,SALE,Pudina,9,90,810,
+2026-03-05,SALE,Malli,20,25,500,
+2026-03-05,SALE,Karuvepillai,10,52,520,
+2026-03-05,PAYMENT,,,,-1000,
+2026-07-29,SALE,Pudina,1360000,1,1360000,
+2026-07-29,SALE,Malli,2500000,1,2500000,

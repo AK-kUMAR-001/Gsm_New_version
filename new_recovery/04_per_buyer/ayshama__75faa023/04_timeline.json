@@ -1,0 +1,4862 @@
+[
+  {
+    "date": "2026-03-10",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 77,
+    "rate": 1000,
+    "amount": 77000,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-10",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 355,
+    "rate": 1,
+    "amount": 355,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-10",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 24,
+    "rate": 100,
+    "amount": 2400,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-11",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 35,
+    "amount": 350,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-11",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 5,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-11",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 40,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-11",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-12",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 35,
+    "amount": 350,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-12",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 5,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-12",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-12",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -500,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-13",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 35,
+    "amount": 350,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-13",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-13",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-13",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -500,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-14",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 35,
+    "amount": 350,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-14",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-14",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-15",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 35,
+    "amount": 350,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-15",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-15",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-16",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 30,
+    "rate": 35,
+    "amount": 1050,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-16",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-16",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-16",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1500,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-17",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-17",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-17",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 0.5,
+    "rate": 90,
+    "amount": 45,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-17",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -500,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-18",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-18",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-18",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 100,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-19",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-19",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 100,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-20",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-20",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-20",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 100,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-21",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 30,
+    "rate": 30,
+    "amount": 900,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-21",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 20,
+    "rate": 6,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-21",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 100,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-22",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-22",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-23",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-23",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-23",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 80,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-23",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 80,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-23",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-24",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-24",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 80,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-24",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -500,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-25",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-25",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-25",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 80,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-25",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-26",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-26",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-26",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 89,
+    "amount": 44.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-26",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-27",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-27",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-27",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 80,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-28",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-28",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-28",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-29",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-29",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-30",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-30",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-30",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-30",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-31",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-31",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-31",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-31",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-03-31",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-01",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-02",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-02",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-03",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-03",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-03",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-03",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -500,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-04",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-04",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-04",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-05",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 25,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-05",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-05",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-06",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-06",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-06",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-06",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-07",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-07",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-07",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-07",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-12",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1500,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-13",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 60,
+    "rate": 30,
+    "amount": 1800,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-13",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 60,
+    "rate": 6,
+    "amount": 360,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-13",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 3,
+    "rate": 50,
+    "amount": 150,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-13",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-14",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-14",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-14",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-15",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-15",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-15",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-16",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-16",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-16",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-16",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-17",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-17",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-17",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-17",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-18",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-18",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-18",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-19",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-19",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-19",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-20",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-20",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-20",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-20",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-21",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-21",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-21",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-22",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-22",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 30,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-22",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 60,
+    "amount": 30,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-22",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-26",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 40,
+    "rate": 6,
+    "amount": 240,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-26",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 40,
+    "rate": 30,
+    "amount": 1200,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-26",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 2,
+    "rate": 50,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-28",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 20,
+    "rate": 6,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-28",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 20,
+    "rate": 50,
+    "amount": 1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-28",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-28",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-30",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 20,
+    "rate": 6,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-30",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 20,
+    "rate": 50,
+    "amount": 1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-30",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-04-30",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-01",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-01",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-01",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-01",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-02",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-03",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 20,
+    "rate": 6,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-03",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 30,
+    "rate": 60,
+    "amount": 1800,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-03",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-04",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-04",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-04",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-04",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-05",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-05",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-05",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-05",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-06",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-06",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-06",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-06",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-07",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-07",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-07",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-07",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-08",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-08",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-08",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-09",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-09",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 60,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-09",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-10",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-10",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 50,
+    "amount": 500,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-10",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-11",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-11",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 50,
+    "amount": 500,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-11",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-11",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-12",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-12",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 50,
+    "amount": 500,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-12",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-12",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-13",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-13",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 50,
+    "amount": 500,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-13",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-13",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-18",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 50,
+    "rate": 6,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-18",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 50,
+    "rate": 40,
+    "amount": 2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-18",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 2.5,
+    "rate": 40,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-19",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-19",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-19",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-20",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-20",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-20",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-21",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-21",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-21",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-21",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-22",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-22",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-22",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-22",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-23",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-23",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-23",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-24",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-24",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-25",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-25",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-25",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-26",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-26",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-26",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-27",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-27",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-27",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-27",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-28",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-28",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-28",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 20,
+    "rate": 40,
+    "amount": 800,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-29",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-29",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-29",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-29",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-30",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-30",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-30",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-31",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-31",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-31",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-05-31",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-01",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 7,
+    "amount": 70,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-01",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-01",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-01",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 7,
+    "amount": 70,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-02",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-02",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-03",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-03",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-03",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-04",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 6,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-04",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-04",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-04",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-05",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 7,
+    "amount": 70,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-05",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-05",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-06",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 7,
+    "amount": 70,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-06",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-06",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-07",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 10,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-07",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-07",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-08",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 10,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-08",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-08",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-09",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 10,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-09",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-09",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-10",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 10,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-10",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-10",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-10",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-11",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 10,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-11",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-11",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-11",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-12",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 12,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-12",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-12",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-13",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 12,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-13",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-13",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-14",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 12,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-14",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-14",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-15",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 12,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-15",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-15",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-15",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-16",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 13,
+    "amount": 130,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-16",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-16",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-17",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-17",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-17",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-17",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-18",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-18",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-18",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-19",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-20",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 12,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-20",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 10,
+    "rate": 40,
+    "amount": 400,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-20",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-21",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-21",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-21",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-21",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-22",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-22",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-22",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-22",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-23",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-23",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-23",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-23",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-24",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-24",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-25",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-25",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-25",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-26",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 4,
+    "rate": 13,
+    "amount": 52,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-26",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-26",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-27",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-27",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-27",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-28",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-28",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 50,
+    "amount": 750,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-28",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-28",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-29",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-29",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-29",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-30",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-30",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 50,
+    "amount": 750,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-30",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-01",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-01",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 50,
+    "amount": 750,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-01",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-01",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-02",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-03",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-03",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-03",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-04",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-04",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-04",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-05",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-05",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-05",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-06",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-06",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-06",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-06",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-07",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-07",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-07",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-08",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-08",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-08",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-11",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 15,
+    "rate": 13,
+    "amount": 195,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-11",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 45,
+    "rate": 40,
+    "amount": 1800,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-11",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1.5,
+    "rate": 40,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-12",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-12",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-12",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-12",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -2000,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-13",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-13",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-13",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-14",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-14",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-14",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 25,
+    "amount": 12.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-15",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-15",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-15",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-16",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-16",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-16",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-17",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-17",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-17",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-22",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 25,
+    "rate": 12,
+    "amount": 300,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-22",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 75,
+    "rate": 40,
+    "amount": 3000,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-22",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 2.5,
+    "rate": 40,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-22",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-23",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 12,
+    "amount": 60,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-23",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 40,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-23",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-23",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-29",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 30,
+    "rate": 11,
+    "amount": 330,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-29",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 90,
+    "rate": 35,
+    "amount": 3150,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-29",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 3,
+    "rate": 30,
+    "amount": 90,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-30",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 11,
+    "amount": 55,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-30",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 35,
+    "amount": 525,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-30",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-31",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-31",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 35,
+    "amount": 525,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-31",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-01",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-01",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 35,
+    "amount": 525,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-01",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-02",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 35,
+    "amount": 525,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-03",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-03",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-03",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-04",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-04",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-04",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-05",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-05",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-05",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-06",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-06",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-06",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-07",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-07",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-07",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-08",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-08",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-08",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-09",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-09",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-09",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 30,
+    "amount": 15,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-10",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-10",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-10",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-11",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-11",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-11",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-12",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-12",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-12",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-13",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-13",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-13",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-14",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-14",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-14",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-15",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-15",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-15",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-16",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-16",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-16",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-17",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-17",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-17",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-18",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-18",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-18",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-19",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 10,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-19",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-19",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-20",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-24",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 20,
+    "rate": 8,
+    "amount": 160,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 60,
+    "rate": 30,
+    "amount": 1800,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-24",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 2,
+    "rate": 35,
+    "amount": 70,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-24",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 8,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-24",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-24",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-25",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 8,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-25",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-25",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-25",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-26",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 8,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-26",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-26",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-26",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-27",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 8,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-27",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-27",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 35,
+    "amount": 17.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-08-27",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 30,
+    "rate": 8,
+    "amount": 240,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-02",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 90,
+    "rate": 25,
+    "amount": 2250,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 3,
+    "rate": 30,
+    "amount": 90,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-02",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-04",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-07",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 25,
+    "rate": 8,
+    "amount": 200,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-07",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 75,
+    "rate": 25,
+    "amount": 1875,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-07",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 2.5,
+    "rate": 35,
+    "amount": 87.5,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-08",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 8,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-08",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 25,
+    "amount": 375,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-08",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 40,
+    "amount": 20,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-08",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-10",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 8,
+    "amount": 80,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-10",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 30,
+    "rate": 25,
+    "amount": 750,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-10",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-10",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-11",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 8,
+    "amount": 40,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-11",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 25,
+    "amount": 375,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-11",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-11",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-13",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 12,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-13",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 30,
+    "rate": 25,
+    "amount": 750,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-13",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-13",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-15",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 12,
+    "amount": 120,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-15",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 30,
+    "rate": 25,
+    "amount": 750,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-15",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-15",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-21",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 30,
+    "rate": 13,
+    "amount": 390,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-21",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 90,
+    "rate": 25,
+    "amount": 2250,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-21",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 3,
+    "rate": 50,
+    "amount": 150,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-21",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-22",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-22",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-22",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-22",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-23",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-23",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-23",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-23",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-24",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-24",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-24",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-25",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 5,
+    "rate": 13,
+    "amount": 65,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-25",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 15,
+    "rate": 30,
+    "amount": 450,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-25",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 0.5,
+    "rate": 50,
+    "amount": 25,
+    "notes": ""
+  },
+  {
+    "date": "2026-09-25",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-02",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 35,
+    "rate": 10,
+    "amount": 350,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-02",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 105,
+    "rate": 45,
+    "amount": 4725,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-02",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 3.5,
+    "rate": 50,
+    "amount": 175,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-02",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-02",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-04",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 10,
+    "rate": 10,
+    "amount": 100,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-04",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 30,
+    "rate": 40,
+    "amount": 1200,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-04",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 1,
+    "rate": 50,
+    "amount": 50,
+    "notes": ""
+  },
+  {
+    "date": "2026-10-04",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -1000,
+    "notes": ""
+  }
+]

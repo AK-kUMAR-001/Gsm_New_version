@@ -1,0 +1,1138 @@
+[
+  {
+    "id": "a6718b34-a9cb-49bb-af90-d99b8b1a55ac",
+    "buyer_id": "807fe35e-bf69-4ecc-9d61-7c43d01acb76",
+    "amount_paid": 1000,
+    "paid_at": "2026-03-05",
+    "notes": null,
+    "created_at": "2026-03-05T18:53:54.908924+00:00"
+  },
+  {
+    "id": "62ca43ac-ce3d-44ed-99f2-a020c6541e70",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 6000,
+    "paid_at": "2026-03-08",
+    "notes": null,
+    "created_at": "2026-03-11T02:17:18.856226+00:00"
+  },
+  {
+    "id": "2aefcc5d-64f3-44d0-9a1a-37fd853c9395",
+    "buyer_id": "3a7ab369-4d10-41e1-acad-e7a7d6661880",
+    "amount_paid": 10000,
+    "paid_at": "2026-03-09",
+    "notes": null,
+    "created_at": "2026-03-17T00:53:24.066984+00:00"
+  },
+  {
+    "id": "f7ac6180-4bc5-4989-8f1c-8dbe3e992bdf",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 1900,
+    "paid_at": "2026-03-11",
+    "notes": null,
+    "created_at": "2026-03-11T03:25:22.439108+00:00"
+  },
+  {
+    "id": "4b6746b7-3a24-490c-8e81-de67298f9a32",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-03-11",
+    "notes": null,
+    "created_at": "2026-03-11T16:09:55.283986+00:00"
+  },
+  {
+    "id": "81f1f2fb-e307-4447-9d47-5949690751e4",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 500,
+    "paid_at": "2026-03-12",
+    "notes": null,
+    "created_at": "2026-03-12T15:52:13.721826+00:00"
+  },
+  {
+    "id": "49311b73-69fd-4a7c-854f-fe90ee760e75",
+    "buyer_id": "bf47a47c-bcd9-4729-8b31-74b8df6dd919",
+    "amount_paid": 1500,
+    "paid_at": "2026-03-13",
+    "notes": null,
+    "created_at": "2026-03-14T00:54:47.553861+00:00"
+  },
+  {
+    "id": "012a499e-63c7-49a9-99a2-dd5511d5be83",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-13",
+    "notes": null,
+    "created_at": "2026-03-14T01:05:42.332479+00:00"
+  },
+  {
+    "id": "5cadbba9-de61-4c6f-98cf-30b8466f8608",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 500,
+    "paid_at": "2026-03-13",
+    "notes": null,
+    "created_at": "2026-03-14T13:11:57.020229+00:00"
+  },
+  {
+    "id": "1b913e79-9943-4d1e-960a-53577f4f706e",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2800,
+    "paid_at": "2026-03-15",
+    "notes": null,
+    "created_at": "2026-03-15T01:30:38.896946+00:00"
+  },
+  {
+    "id": "6f95b197-ed71-45a4-ad0a-4f0e50ae8923",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-16",
+    "notes": null,
+    "created_at": "2026-03-16T02:59:23.765235+00:00"
+  },
+  {
+    "id": "aa6880d3-ee5b-46bf-abe4-ed1164b3f22b",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1500,
+    "paid_at": "2026-03-16",
+    "notes": null,
+    "created_at": "2026-03-16T16:05:18.705889+00:00"
+  },
+  {
+    "id": "6124372d-e6b8-4763-88c7-1f93686b739c",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 6000,
+    "paid_at": "2026-03-16",
+    "notes": null,
+    "created_at": "2026-03-18T02:20:59.068574+00:00"
+  },
+  {
+    "id": "28ae3b7e-bac7-4c93-8672-5aa75008c859",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 500,
+    "paid_at": "2026-03-17",
+    "notes": null,
+    "created_at": "2026-03-17T18:13:48.132221+00:00"
+  },
+  {
+    "id": "0b08af02-ccc4-4ee2-90db-1a14aaa38a6f",
+    "buyer_id": "bf47a47c-bcd9-4729-8b31-74b8df6dd919",
+    "amount_paid": 1000,
+    "paid_at": "2026-03-17",
+    "notes": null,
+    "created_at": "2026-03-18T02:07:07.113659+00:00"
+  },
+  {
+    "id": "364d8dd6-7f43-4d45-a6be-93caa7f265d9",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-19",
+    "notes": null,
+    "created_at": "2026-03-19T03:18:30.363037+00:00"
+  },
+  {
+    "id": "7a86c441-4607-48bf-9a98-14f7e3150d2d",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 10000,
+    "paid_at": "2026-03-23",
+    "notes": null,
+    "created_at": "2026-03-23T06:32:10.781405+00:00"
+  },
+  {
+    "id": "2f4bab7a-4d7b-4651-8c0b-9d21eb71c46d",
+    "buyer_id": "3a7ab369-4d10-41e1-acad-e7a7d6661880",
+    "amount_paid": 20000,
+    "paid_at": "2026-03-23",
+    "notes": null,
+    "created_at": "2026-03-23T06:51:25.972523+00:00"
+  },
+  {
+    "id": "448811c8-2b7e-4e09-8ef2-781ba0a3c967",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-23",
+    "notes": null,
+    "created_at": "2026-03-23T12:55:21.3884+00:00"
+  },
+  {
+    "id": "7379e14c-53c3-4421-80b6-0775b7c2d32c",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-24",
+    "notes": null,
+    "created_at": "2026-03-24T04:03:20.013931+00:00"
+  },
+  {
+    "id": "0092430f-b3d3-48f9-ad94-b3204808ff13",
+    "buyer_id": "bf47a47c-bcd9-4729-8b31-74b8df6dd919",
+    "amount_paid": 3500,
+    "paid_at": "2026-03-24",
+    "notes": null,
+    "created_at": "2026-03-24T04:20:53.380385+00:00"
+  },
+  {
+    "id": "04c20784-dd0c-4ee4-ad63-9eee979cda1c",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 500,
+    "paid_at": "2026-03-24",
+    "notes": null,
+    "created_at": "2026-03-24T14:28:00.98183+00:00"
+  },
+  {
+    "id": "75609917-2f31-4cc7-a70d-212ff574c856",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-03-25",
+    "notes": null,
+    "created_at": "2026-03-25T14:00:45.823854+00:00"
+  },
+  {
+    "id": "8e8d96fd-07ec-42b8-abe7-aa656bb58fe8",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-03-26",
+    "notes": null,
+    "created_at": "2026-03-26T14:24:35.558521+00:00"
+  },
+  {
+    "id": "af879243-e1b2-4c03-8fac-84df5657fd7f",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2300,
+    "paid_at": "2026-03-29",
+    "notes": null,
+    "created_at": "2026-03-29T04:05:13.050695+00:00"
+  },
+  {
+    "id": "2a4f5ffc-4ef9-4565-b20c-29fa05fcf84c",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-03-30",
+    "notes": null,
+    "created_at": "2026-03-30T16:44:22.587816+00:00"
+  },
+  {
+    "id": "13cf17d2-1cfe-4748-801f-807e4e5c091a",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 1400,
+    "paid_at": "2026-03-30",
+    "notes": null,
+    "created_at": "2026-03-31T01:09:35.764721+00:00"
+  },
+  {
+    "id": "efeca57c-e20d-43c3-97b6-b7c9552da954",
+    "buyer_id": "3a7ab369-4d10-41e1-acad-e7a7d6661880",
+    "amount_paid": 15000,
+    "paid_at": "2026-03-30",
+    "notes": null,
+    "created_at": "2026-04-01T07:48:56.841863+00:00"
+  },
+  {
+    "id": "072aac3e-b9f3-45b3-9bd6-d137930f65b4",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-03-31",
+    "notes": null,
+    "created_at": "2026-03-31T15:46:00.834556+00:00"
+  },
+  {
+    "id": "8f3d10d6-9787-49fb-bb05-156728d4ca85",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-04-02",
+    "notes": null,
+    "created_at": "2026-04-02T12:19:57.587157+00:00"
+  },
+  {
+    "id": "83daca75-04db-4dd2-99e3-02fadb269c2f",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 500,
+    "paid_at": "2026-04-03",
+    "notes": null,
+    "created_at": "2026-04-03T16:13:08.322584+00:00"
+  },
+  {
+    "id": "16d7c075-cb7d-428d-a9ca-7f2d1d0869ae",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 8000,
+    "paid_at": "2026-04-03",
+    "notes": null,
+    "created_at": "2026-04-05T04:12:26.668168+00:00"
+  },
+  {
+    "id": "90fb7436-d6ce-444f-b5e8-cd1e9be20924",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-04-06",
+    "notes": null,
+    "created_at": "2026-04-06T12:44:57.531717+00:00"
+  },
+  {
+    "id": "f2773b07-09b5-40d7-a428-1ee388f4bd4c",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-04-07",
+    "notes": null,
+    "created_at": "2026-04-07T15:20:17.091432+00:00"
+  },
+  {
+    "id": "7e2af914-abd9-4e85-a896-8e7162ea34a7",
+    "buyer_id": "bf47a47c-bcd9-4729-8b31-74b8df6dd919",
+    "amount_paid": 5000,
+    "paid_at": "2026-04-08",
+    "notes": null,
+    "created_at": "2026-04-08T09:30:07.21425+00:00"
+  },
+  {
+    "id": "95068994-6150-480e-b083-174dd51efeac",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1500,
+    "paid_at": "2026-04-12",
+    "notes": null,
+    "created_at": "2026-04-12T16:06:48.871986+00:00"
+  },
+  {
+    "id": "cbe88773-4755-4696-9286-b80feeaaf555",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-04-13",
+    "notes": null,
+    "created_at": "2026-04-13T14:29:42.331239+00:00"
+  },
+  {
+    "id": "517e4b58-d41e-4b74-90ad-d78a86fd32c4",
+    "buyer_id": "3a7ab369-4d10-41e1-acad-e7a7d6661880",
+    "amount_paid": 10000,
+    "paid_at": "2026-04-15",
+    "notes": null,
+    "created_at": "2026-04-16T04:22:41.2118+00:00"
+  },
+  {
+    "id": "4192d446-ed20-4644-87ca-14b08964378d",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-04-16",
+    "notes": null,
+    "created_at": "2026-04-16T14:52:49.20173+00:00"
+  },
+  {
+    "id": "b12cc3d0-d4e5-4de3-aadb-ec0489c7247d",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-04-17",
+    "notes": null,
+    "created_at": "2026-04-17T14:58:17.815839+00:00"
+  },
+  {
+    "id": "78d5cefe-14ad-4551-9cb1-6c3ad8bea479",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-04-20",
+    "notes": null,
+    "created_at": "2026-04-20T15:01:49.791887+00:00"
+  },
+  {
+    "id": "9db2e50e-e2ec-4802-9f63-44a73a16e521",
+    "buyer_id": "bf47a47c-bcd9-4729-8b31-74b8df6dd919",
+    "amount_paid": 5000,
+    "paid_at": "2026-04-21",
+    "notes": null,
+    "created_at": "2026-04-21T10:28:32.521591+00:00"
+  },
+  {
+    "id": "69b76082-adf3-4973-ac2e-cfc9d62bcbce",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-04-22",
+    "notes": null,
+    "created_at": "2026-04-22T15:30:18.911046+00:00"
+  },
+  {
+    "id": "95a0e02b-aa78-4ef2-a620-8be590cdb0ef",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-04-28",
+    "notes": null,
+    "created_at": "2026-04-28T14:37:38.6465+00:00"
+  },
+  {
+    "id": "2c0e4109-8d7b-4e9d-9f89-67775b0f77a2",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 10000,
+    "paid_at": "2026-04-29",
+    "notes": null,
+    "created_at": "2026-05-06T03:46:46.066563+00:00"
+  },
+  {
+    "id": "846be28c-ccb4-4a40-beff-debef3ef79b6",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 8000,
+    "paid_at": "2026-04-30",
+    "notes": null,
+    "created_at": "2026-04-30T04:32:25.536214+00:00"
+  },
+  {
+    "id": "a2c6ed35-db70-4514-83a0-1bd8376b349f",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-04-30",
+    "notes": null,
+    "created_at": "2026-04-30T13:36:18.151824+00:00"
+  },
+  {
+    "id": "7ba86d34-5912-4cec-9059-53c11def14bf",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-01",
+    "notes": null,
+    "created_at": "2026-05-01T13:48:19.256597+00:00"
+  },
+  {
+    "id": "cec60e74-232d-4f75-879f-6bfa2df251c6",
+    "buyer_id": "f8a16629-2bba-46f7-bc4f-60929e8ddd94",
+    "amount_paid": 25000,
+    "paid_at": "2026-05-02",
+    "notes": null,
+    "created_at": "2026-05-11T03:57:59.36291+00:00"
+  },
+  {
+    "id": "d9203661-8ede-43e8-9858-5b999de31df4",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-04",
+    "notes": null,
+    "created_at": "2026-05-04T14:26:27.126177+00:00"
+  },
+  {
+    "id": "2b231066-3366-47e1-ad83-aff83575c269",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-05",
+    "notes": null,
+    "created_at": "2026-05-05T12:44:12.597982+00:00"
+  },
+  {
+    "id": "adf5428b-7fd2-435c-8000-a3a32302266c",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-06",
+    "notes": null,
+    "created_at": "2026-05-06T14:39:52.547207+00:00"
+  },
+  {
+    "id": "023a4e29-6e1f-462e-9ade-fdee6e155810",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-07",
+    "notes": null,
+    "created_at": "2026-05-07T14:41:17.72284+00:00"
+  },
+  {
+    "id": "b97e8529-9bdf-4728-b9f8-883ce5365c26",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-11",
+    "notes": null,
+    "created_at": "2026-05-11T13:58:21.979841+00:00"
+  },
+  {
+    "id": "08814a0f-04b3-442f-8181-489d918ec327",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-12",
+    "notes": null,
+    "created_at": "2026-05-12T13:32:29.664765+00:00"
+  },
+  {
+    "id": "11cb5303-c35d-4d4a-adb3-a6f3b1d699b1",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-13",
+    "notes": null,
+    "created_at": "2026-05-13T14:36:09.861144+00:00"
+  },
+  {
+    "id": "7358ecdd-12a2-485a-9341-187bc7a6a158",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 10000,
+    "paid_at": "2026-05-15",
+    "notes": null,
+    "created_at": "2026-05-17T04:31:04.432049+00:00"
+  },
+  {
+    "id": "a132abcc-c15f-4f1a-ac11-8e98b3532b04",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-21",
+    "notes": null,
+    "created_at": "2026-05-22T12:30:36.409169+00:00"
+  },
+  {
+    "id": "aa28d1b5-ccfd-4c45-879b-79a9ae7365b6",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-22",
+    "notes": null,
+    "created_at": "2026-05-22T17:38:45.939677+00:00"
+  },
+  {
+    "id": "43340b7f-027d-4967-a33f-ac107832ab34",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-27",
+    "notes": null,
+    "created_at": "2026-05-27T15:38:43.218186+00:00"
+  },
+  {
+    "id": "6c63d336-cb4e-4fe4-a776-d1accf206f2a",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-29",
+    "notes": null,
+    "created_at": "2026-05-30T02:18:20.931274+00:00"
+  },
+  {
+    "id": "873edad3-2e36-438a-a540-39ef1f9ac503",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-05-31",
+    "notes": null,
+    "created_at": "2026-05-31T16:04:12.182947+00:00"
+  },
+  {
+    "id": "6dfebf29-db4f-4d90-ade9-ddc8cf84f4b2",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-01",
+    "notes": null,
+    "created_at": "2026-06-01T15:38:21.665586+00:00"
+  },
+  {
+    "id": "14e46b1d-8b57-4510-b294-c18e7eae3536",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-02",
+    "notes": null,
+    "created_at": "2026-06-02T14:26:51.250921+00:00"
+  },
+  {
+    "id": "b022aa8e-207d-4e32-b205-8c61a5717d34",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-04",
+    "notes": null,
+    "created_at": "2026-06-04T15:06:14.264609+00:00"
+  },
+  {
+    "id": "98a9bbc7-8a9d-4b25-aee7-b0f5488f2837",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-10",
+    "notes": null,
+    "created_at": "2026-06-10T14:27:52.906986+00:00"
+  },
+  {
+    "id": "921696e3-04fa-4192-9dd5-7ff00578219f",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-11",
+    "notes": null,
+    "created_at": "2026-06-11T14:47:24.261108+00:00"
+  },
+  {
+    "id": "9737b7f6-68e5-466f-a408-fbff78b2a9b5",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-15",
+    "notes": null,
+    "created_at": "2026-06-15T14:42:57.811284+00:00"
+  },
+  {
+    "id": "a005f004-2a91-497c-b33d-9eec8f960063",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-17",
+    "notes": null,
+    "created_at": "2026-06-17T14:49:49.362485+00:00"
+  },
+  {
+    "id": "14627520-8842-42f3-9917-26a88732be4b",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-19",
+    "notes": null,
+    "created_at": "2026-06-20T06:30:52.6598+00:00"
+  },
+  {
+    "id": "1fdd2949-3b87-415a-a15b-12ff76b90612",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 20000,
+    "paid_at": "2026-06-20",
+    "notes": null,
+    "created_at": "2026-06-20T07:05:19.002041+00:00"
+  },
+  {
+    "id": "bf77aae8-11f3-4904-85b1-9520e69050ea",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-21",
+    "notes": null,
+    "created_at": "2026-06-21T13:44:07.231043+00:00"
+  },
+  {
+    "id": "38147a43-4541-4399-bccb-0e3f224d4982",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-22",
+    "notes": null,
+    "created_at": "2026-06-22T15:12:07.087847+00:00"
+  },
+  {
+    "id": "1fe37052-be05-4c15-b210-0237ae4a55c8",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 5900,
+    "paid_at": "2026-06-23",
+    "notes": null,
+    "created_at": "2026-06-23T07:50:24.653186+00:00"
+  },
+  {
+    "id": "02a3dbc5-d443-45b3-8c32-2a005fcb99e0",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-23",
+    "notes": null,
+    "created_at": "2026-06-23T14:10:19.877723+00:00"
+  },
+  {
+    "id": "e13db449-e722-4186-9756-692dadd73c6e",
+    "buyer_id": "0c95b534-4413-49f4-86ea-5eddfaa1a071",
+    "amount_paid": 17000,
+    "paid_at": "2026-06-24",
+    "notes": null,
+    "created_at": "2026-06-24T04:03:44.910593+00:00"
+  },
+  {
+    "id": "51308d47-abd7-40e2-8c4f-c6da77f0e546",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 5870,
+    "paid_at": "2026-06-24",
+    "notes": null,
+    "created_at": "2026-06-24T04:32:35.432416+00:00"
+  },
+  {
+    "id": "50a982b7-4ab1-4efd-a824-51c101ebec69",
+    "buyer_id": "fd3784c2-387c-42d6-9815-c97d1b55bdf1",
+    "amount_paid": 500,
+    "paid_at": "2026-06-25",
+    "notes": null,
+    "created_at": "2026-06-25T02:17:54.369139+00:00"
+  },
+  {
+    "id": "64ae00ed-129f-4026-a8ca-812b11af6da8",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "amount_paid": 500,
+    "paid_at": "2026-06-25",
+    "notes": null,
+    "created_at": "2026-06-25T02:24:04.435085+00:00"
+  },
+  {
+    "id": "0dde40c1-ef27-4f39-acc6-e420e6821652",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 1600,
+    "paid_at": "2026-06-25",
+    "notes": null,
+    "created_at": "2026-06-26T04:14:03.59084+00:00"
+  },
+  {
+    "id": "9b31a981-76c7-474c-bb6b-583f275de4b9",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 5350,
+    "paid_at": "2026-06-26",
+    "notes": null,
+    "created_at": "2026-06-26T04:14:21.500626+00:00"
+  },
+  {
+    "id": "27d0d451-1089-4f3b-b02f-fa678a520201",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 2800,
+    "paid_at": "2026-06-27",
+    "notes": null,
+    "created_at": "2026-06-28T05:33:57.630921+00:00"
+  },
+  {
+    "id": "7bb54cda-5385-45e0-82df-f6f7b7f72947",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 1800,
+    "paid_at": "2026-06-27",
+    "notes": null,
+    "created_at": "2026-06-28T05:34:07.740945+00:00"
+  },
+  {
+    "id": "9c05f7b7-b1b9-455f-8696-47d5f4193e20",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 4500,
+    "paid_at": "2026-06-28",
+    "notes": null,
+    "created_at": "2026-06-28T05:34:56.189961+00:00"
+  },
+  {
+    "id": "f16e59d3-e9ec-48cd-b386-f932883ae7bf",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 800,
+    "paid_at": "2026-06-28",
+    "notes": null,
+    "created_at": "2026-06-28T05:35:03.790835+00:00"
+  },
+  {
+    "id": "5cf23107-b774-473e-8504-6dd8fa1d183e",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-28",
+    "notes": null,
+    "created_at": "2026-06-28T15:13:37.083152+00:00"
+  },
+  {
+    "id": "3249a14e-9486-44b4-8250-fd3fd5e6cf43",
+    "buyer_id": "180a808c-0100-4567-accf-e9ebb61fe2eb",
+    "amount_paid": 20000,
+    "paid_at": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-06-29T01:34:26.987174+00:00"
+  },
+  {
+    "id": "5682b135-8c98-4988-8134-81711a79c4a2",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "amount_paid": 1000,
+    "paid_at": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-06-29T01:42:10.868885+00:00"
+  },
+  {
+    "id": "b3ba645b-cffd-4438-9522-4d1d95919b33",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 22400,
+    "paid_at": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-06-29T04:16:30.328212+00:00"
+  },
+  {
+    "id": "5cd7f03e-b08a-4b01-99a2-53a8801a70be",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 2400,
+    "paid_at": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-06-30T03:08:21.151795+00:00"
+  },
+  {
+    "id": "6d433f2c-ee7c-442a-8eb4-94403f123a35",
+    "buyer_id": "0c95b534-4413-49f4-86ea-5eddfaa1a071",
+    "amount_paid": 14500,
+    "paid_at": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-07-03T01:56:22.683881+00:00"
+  },
+  {
+    "id": "3462682b-eccf-4d9a-8719-b51957c77e47",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "amount_paid": 500,
+    "paid_at": "2026-06-30",
+    "notes": null,
+    "created_at": "2026-06-30T03:03:57.771913+00:00"
+  },
+  {
+    "id": "a077c867-49e8-4eb9-9be6-b7848452106c",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 3800,
+    "paid_at": "2026-06-30",
+    "notes": null,
+    "created_at": "2026-07-03T01:51:02.561+00:00"
+  },
+  {
+    "id": "9e2d14c7-78cc-47ed-b748-162cdff35e9d",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-07-01",
+    "notes": null,
+    "created_at": "2026-07-01T15:20:14.057483+00:00"
+  },
+  {
+    "id": "bb7d7bc5-d98a-4905-a140-87150600e281",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 4000,
+    "paid_at": "2026-07-01",
+    "notes": null,
+    "created_at": "2026-07-03T01:49:58.110011+00:00"
+  },
+  {
+    "id": "fc94a419-3447-4bfb-9ef5-9d36ac7a5dc2",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "amount_paid": 500,
+    "paid_at": "2026-07-02",
+    "notes": null,
+    "created_at": "2026-07-02T03:27:27.573427+00:00"
+  },
+  {
+    "id": "b7a59a89-aa07-4ae3-a792-624083c6f8f4",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 2300,
+    "paid_at": "2026-07-02",
+    "notes": null,
+    "created_at": "2026-07-03T01:49:41.616752+00:00"
+  },
+  {
+    "id": "cea799e8-1af4-4e4f-8876-163f19fc422b",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 6200,
+    "paid_at": "2026-07-03",
+    "notes": null,
+    "created_at": "2026-07-04T04:34:09.319054+00:00"
+  },
+  {
+    "id": "5632af4c-9608-49a8-b73d-fb967a10f8e7",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 8000,
+    "paid_at": "2026-07-04",
+    "notes": null,
+    "created_at": "2026-07-04T04:37:16.319925+00:00"
+  },
+  {
+    "id": "a48853d7-93db-466a-af80-aa7c4b1b89ff",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 6500,
+    "paid_at": "2026-07-05",
+    "notes": null,
+    "created_at": "2026-07-05T04:50:40.419098+00:00"
+  },
+  {
+    "id": "54db082e-4a01-4ea6-877d-b3f845116d78",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-07-06",
+    "notes": null,
+    "created_at": "2026-07-06T16:16:13.545889+00:00"
+  },
+  {
+    "id": "71ac7473-c7f1-487f-beac-104ea874b53c",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 6000,
+    "paid_at": "2026-07-08",
+    "notes": null,
+    "created_at": "2026-07-08T04:18:55.117584+00:00"
+  },
+  {
+    "id": "7d75999f-94fb-4ee9-b80c-aa07bfa5bb8c",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 15650,
+    "paid_at": "2026-07-08",
+    "notes": null,
+    "created_at": "2026-07-09T02:52:51.493668+00:00"
+  },
+  {
+    "id": "5dc1ebea-7995-4515-9258-05a4917605e2",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 2000,
+    "paid_at": "2026-07-09",
+    "notes": null,
+    "created_at": "2026-07-09T02:57:16.154642+00:00"
+  },
+  {
+    "id": "7034a397-566d-44da-b58e-c3c32b898aa3",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 2500,
+    "paid_at": "2026-07-10",
+    "notes": null,
+    "created_at": "2026-07-10T04:00:57.387489+00:00"
+  },
+  {
+    "id": "07b807ac-f09f-4090-a4a7-9752e490f472",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 7800,
+    "paid_at": "2026-07-11",
+    "notes": null,
+    "created_at": "2026-07-12T02:32:28.1089+00:00"
+  },
+  {
+    "id": "96f944d4-2695-49c6-869a-2720d289cd67",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 2000,
+    "paid_at": "2026-07-12",
+    "notes": null,
+    "created_at": "2026-07-12T14:09:50.421307+00:00"
+  },
+  {
+    "id": "02d9e815-134c-4b6a-8edc-723ffd624dce",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 11300,
+    "paid_at": "2026-07-12",
+    "notes": null,
+    "created_at": "2026-07-15T02:25:08.94462+00:00"
+  },
+  {
+    "id": "aa4684d4-c38c-43c4-9e73-e233fb55c663",
+    "buyer_id": "bc673bd2-fab6-4cf2-9d43-5fd5b4ff179d",
+    "amount_paid": 30000,
+    "paid_at": "2026-07-13",
+    "notes": null,
+    "created_at": "2026-07-14T15:56:22.02627+00:00"
+  },
+  {
+    "id": "ee778d40-4a95-4cf4-9e48-a1697e69e00a",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 4500,
+    "paid_at": "2026-07-14",
+    "notes": null,
+    "created_at": "2026-07-14T15:57:45.619359+00:00"
+  },
+  {
+    "id": "c5231a1f-1687-4d33-8d95-a6f6a64ef340",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 6500,
+    "paid_at": "2026-07-15",
+    "notes": null,
+    "created_at": "2026-07-17T04:19:23.796565+00:00"
+  },
+  {
+    "id": "c9dd9610-15e2-4774-a8fe-15e2bf84f95d",
+    "buyer_id": "180a808c-0100-4567-accf-e9ebb61fe2eb",
+    "amount_paid": 30000,
+    "paid_at": "2026-07-16",
+    "notes": null,
+    "created_at": "2026-07-17T04:17:22.034679+00:00"
+  },
+  {
+    "id": "9c220748-9945-4c08-a7f4-19b57b960617",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 4500,
+    "paid_at": "2026-07-16",
+    "notes": null,
+    "created_at": "2026-07-17T04:19:11.59719+00:00"
+  },
+  {
+    "id": "4debf282-81a6-429d-a51a-b3eece5c0ce8",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 6500,
+    "paid_at": "2026-07-17",
+    "notes": null,
+    "created_at": "2026-07-17T04:19:53.513555+00:00"
+  },
+  {
+    "id": "cef6b886-5623-4cfa-aa46-61a6e43764e9",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 30000,
+    "paid_at": "2026-07-18",
+    "notes": null,
+    "created_at": "2026-07-18T03:14:11.7516+00:00"
+  },
+  {
+    "id": "a2f05a3f-5e7e-4bb3-8df7-cfce0990b793",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 8050,
+    "paid_at": "2026-07-18",
+    "notes": null,
+    "created_at": "2026-07-18T04:40:22.247648+00:00"
+  },
+  {
+    "id": "5dc91728-b5bc-4b12-876e-fb815f0db0cb",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-07-22",
+    "notes": null,
+    "created_at": "2026-07-22T14:36:25.827328+00:00"
+  },
+  {
+    "id": "191e6343-b33b-4b12-89f5-d0f86a9d3496",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-07-23",
+    "notes": null,
+    "created_at": "2026-07-23T14:05:58.999879+00:00"
+  },
+  {
+    "id": "a9dcbabe-0458-4506-8d1f-0356ba5b01ae",
+    "buyer_id": "558e44a2-7354-46b6-9611-4e5f79481d55",
+    "amount_paid": 42600,
+    "paid_at": "2026-08-01",
+    "notes": null,
+    "created_at": "2026-08-01T03:01:58.351578+00:00"
+  },
+  {
+    "id": "13361bf3-f310-4f8f-bb0c-41ad344f3b71",
+    "buyer_id": "180a808c-0100-4567-accf-e9ebb61fe2eb",
+    "amount_paid": 45000,
+    "paid_at": "2026-08-01",
+    "notes": null,
+    "created_at": "2026-08-02T13:33:40.161396+00:00"
+  },
+  {
+    "id": "e01b41f1-5cbb-4c15-bbcf-7290fb310d5d",
+    "buyer_id": "2d9163e0-8285-4e25-8465-74b2b8fc185f",
+    "amount_paid": 15000,
+    "paid_at": "2026-08-09",
+    "notes": null,
+    "created_at": "2026-08-25T14:38:29.818384+00:00"
+  },
+  {
+    "id": "afb40b78-6736-40a1-88d1-78d4e445b81d",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-08-20",
+    "notes": null,
+    "created_at": "2026-08-20T14:20:28.912847+00:00"
+  },
+  {
+    "id": "9ec28b5a-1ad0-4cb4-978e-044755e56bc2",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-08-24",
+    "notes": null,
+    "created_at": "2026-08-24T14:16:45.56845+00:00"
+  },
+  {
+    "id": "26244e46-623e-4ad2-a558-dd94e15b51f9",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-08-25",
+    "notes": null,
+    "created_at": "2026-08-25T15:25:43.839847+00:00"
+  },
+  {
+    "id": "300e6fa2-b9b7-4667-9ae1-7167e5801ce1",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-08-26",
+    "notes": null,
+    "created_at": "2026-08-26T13:59:02.859929+00:00"
+  },
+  {
+    "id": "ac790135-3d7d-412c-b8ad-6484eda98582",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-08-27",
+    "notes": null,
+    "created_at": "2026-08-27T15:24:21.896389+00:00"
+  },
+  {
+    "id": "c2b01414-c813-42bb-babf-04e0cc77dd69",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-02",
+    "notes": null,
+    "created_at": "2026-09-02T14:45:36.682201+00:00"
+  },
+  {
+    "id": "b96d273e-2f47-4a7f-8563-bb430922cab2",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-04",
+    "notes": null,
+    "created_at": "2026-09-04T13:43:37.102576+00:00"
+  },
+  {
+    "id": "2dbcb342-2835-4a29-974d-f3c3d87f0cd8",
+    "buyer_id": "180a808c-0100-4567-accf-e9ebb61fe2eb",
+    "amount_paid": 30000,
+    "paid_at": "2026-09-08",
+    "notes": null,
+    "created_at": "2026-09-08T04:08:26.924759+00:00"
+  },
+  {
+    "id": "48e342dd-0fe0-45c2-8cad-2e7d413c4e2d",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-08",
+    "notes": null,
+    "created_at": "2026-09-08T14:28:25.473049+00:00"
+  },
+  {
+    "id": "fbaa4485-f26b-48ce-a407-a6f744a6ad36",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-10",
+    "notes": null,
+    "created_at": "2026-09-10T15:29:18.852879+00:00"
+  },
+  {
+    "id": "9f5b7885-2247-4dc0-a3f6-5160d123aee4",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-11",
+    "notes": null,
+    "created_at": "2026-09-11T15:04:51.649156+00:00"
+  },
+  {
+    "id": "8775f04d-88bf-4704-ae47-49dd492820c4",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-13",
+    "notes": null,
+    "created_at": "2026-09-13T14:38:36.033434+00:00"
+  },
+  {
+    "id": "1a695586-98c5-4162-b9a5-b7b4582951b9",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-15",
+    "notes": null,
+    "created_at": "2026-09-15T15:17:17.391807+00:00"
+  },
+  {
+    "id": "80abda1f-08f2-4ec0-9ff1-4b5d8c43ee19",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-21",
+    "notes": null,
+    "created_at": "2026-09-21T15:23:34.540435+00:00"
+  },
+  {
+    "id": "d0c784b5-de20-461e-a925-77563af8b358",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-22",
+    "notes": null,
+    "created_at": "2026-09-22T14:15:33.405985+00:00"
+  },
+  {
+    "id": "7afaf26f-da63-4431-a5e7-4efbcbd16f97",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-23",
+    "notes": null,
+    "created_at": "2026-09-24T13:49:10.005661+00:00"
+  },
+  {
+    "id": "677e2f85-30ae-446d-a2f0-900dd33f69f2",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-24",
+    "notes": null,
+    "created_at": "2026-09-24T13:49:55.028431+00:00"
+  },
+  {
+    "id": "14f676e6-f6df-406d-836c-d7b414d7072b",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-09-25",
+    "notes": null,
+    "created_at": "2026-09-25T15:50:43.908014+00:00"
+  },
+  {
+    "id": "76b4d396-321f-4ac6-a468-71132455d990",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-10-02",
+    "notes": null,
+    "created_at": "2026-10-02T14:14:46.719589+00:00"
+  },
+  {
+    "id": "5b8d88b6-cb34-41f0-99eb-18731c7ddb47",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-10-02",
+    "notes": null,
+    "created_at": "2026-10-02T14:15:02.885079+00:00"
+  },
+  {
+    "id": "17997179-2e85-4d64-b1ce-a1b4108fab6b",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-10-04",
+    "notes": null,
+    "created_at": "2026-10-04T13:37:19.858116+00:00"
+  }
+]

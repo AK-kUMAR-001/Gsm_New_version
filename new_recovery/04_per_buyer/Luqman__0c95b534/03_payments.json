@@ -1,0 +1,18 @@
+[
+  {
+    "id": "e13db449-e722-4186-9756-692dadd73c6e",
+    "buyer_id": "0c95b534-4413-49f4-86ea-5eddfaa1a071",
+    "amount_paid": 17000,
+    "paid_at": "2026-06-24",
+    "notes": null,
+    "created_at": "2026-06-24T04:03:44.910593+00:00"
+  },
+  {
+    "id": "6d433f2c-ee7c-442a-8eb4-94403f123a35",
+    "buyer_id": "0c95b534-4413-49f4-86ea-5eddfaa1a071",
+    "amount_paid": 14500,
+    "paid_at": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-07-03T01:56:22.683881+00:00"
+  }
+]

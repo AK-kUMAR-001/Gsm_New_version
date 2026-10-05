@@ -1,0 +1,12 @@
+[
+  {
+    "id": "d45e6169-f4bb-444f-ae89-f0ee4f47e7e3",
+    "buyer_id": "5b5cdba6-1fa8-4875-827b-f347b7c9171f",
+    "mootais": 78,
+    "price_per_mootai": 1000,
+    "sale_date": "2026-03-03",
+    "notes": null,
+    "created_at": "2026-03-09T07:04:23.565407+00:00",
+    "product": "Pudina"
+  }
+]

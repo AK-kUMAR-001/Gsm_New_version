@@ -1,0 +1,42 @@
+[
+  {
+    "id": "77d9339f-b690-4258-a1a1-c99a3f0493d2",
+    "buyer_id": "78f6ed9f-0b38-4edf-9ef4-2c507e7dbe5b",
+    "mootais": 10,
+    "price_per_mootai": 100,
+    "sale_date": "2026-03-12",
+    "notes": null,
+    "created_at": "2026-03-14T02:04:57.503953+00:00",
+    "product": "Karuvepillai"
+  },
+  {
+    "id": "5d715679-85f6-4909-b4e2-b9d0287e9a38",
+    "buyer_id": "78f6ed9f-0b38-4edf-9ef4-2c507e7dbe5b",
+    "mootais": 20,
+    "price_per_mootai": 6,
+    "sale_date": "2026-03-13",
+    "notes": null,
+    "created_at": "2026-03-14T02:02:42.227552+00:00",
+    "product": "Pudina"
+  },
+  {
+    "id": "77eba562-0fd5-4013-99e7-fef093624d6b",
+    "buyer_id": "78f6ed9f-0b38-4edf-9ef4-2c507e7dbe5b",
+    "mootais": 10,
+    "price_per_mootai": 35,
+    "sale_date": "2026-03-13",
+    "notes": null,
+    "created_at": "2026-03-14T02:03:35.582151+00:00",
+    "product": "Malli"
+  },
+  {
+    "id": "6818d6d2-e50c-4540-ba7c-2e4c4fd68fad",
+    "buyer_id": "78f6ed9f-0b38-4edf-9ef4-2c507e7dbe5b",
+    "mootais": 10,
+    "price_per_mootai": 100,
+    "sale_date": "2026-03-13",
+    "notes": null,
+    "created_at": "2026-03-14T02:03:45.986306+00:00",
+    "product": "Karuvepillai"
+  }
+]

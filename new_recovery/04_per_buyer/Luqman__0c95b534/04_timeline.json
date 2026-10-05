@@ -1,0 +1,245 @@
+[
+  {
+    "date": "2026-06-24",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 53,
+    "rate": 10,
+    "amount": 530,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 1,
+    "rate": 1300,
+    "amount": 1300,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-24",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 20,
+    "rate": 30,
+    "amount": 600,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-24",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 75,
+    "rate": 1000,
+    "amount": 75000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-24",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -17000,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-25",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 46,
+    "rate": 40,
+    "amount": 1840,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-25",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 21,
+    "rate": 30,
+    "amount": 630,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-25",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 116,
+    "rate": 10,
+    "amount": 1160,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-26",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 86,
+    "rate": 10,
+    "amount": 860,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-26",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 39,
+    "rate": 40,
+    "amount": 1560,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-26",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 13,
+    "rate": 30,
+    "amount": 390,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-27",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 55,
+    "rate": 10,
+    "amount": 550,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-27",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 28,
+    "rate": 40,
+    "amount": 1120,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-27",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 11,
+    "rate": 30,
+    "amount": 330,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-28",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 25,
+    "rate": 10,
+    "amount": 250,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-28",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 13,
+    "rate": 55,
+    "amount": 715,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-28",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 5,
+    "rate": 30,
+    "amount": 150,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-29",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 60,
+    "rate": 13,
+    "amount": 780,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-29",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 28,
+    "rate": 55,
+    "amount": 1540,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-29",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 12,
+    "rate": 30,
+    "amount": 360,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-29",
+    "type": "PAYMENT",
+    "product": "",
+    "mootais": "",
+    "rate": "",
+    "amount": -14500,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-30",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 64,
+    "rate": 11,
+    "amount": 704,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-30",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 34,
+    "rate": 55,
+    "amount": 1870,
+    "notes": ""
+  },
+  {
+    "date": "2026-06-30",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 8.5,
+    "rate": 30,
+    "amount": 255,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-01",
+    "type": "SALE",
+    "product": "Pudina",
+    "mootais": 61,
+    "rate": 11,
+    "amount": 671,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-01",
+    "type": "SALE",
+    "product": "Malli",
+    "mootais": 32,
+    "rate": 55,
+    "amount": 1760,
+    "notes": ""
+  },
+  {
+    "date": "2026-07-01",
+    "type": "SALE",
+    "product": "Karuvepillai",
+    "mootais": 12.5,
+    "rate": 30,
+    "amount": 375,
+    "notes": ""
+  }
+]

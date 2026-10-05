@@ -1,0 +1,142 @@
+[
+  {
+    "id": "d5f4bb6c-8e9b-48b5-8a1e-67724d8e627d",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 6,
+    "price_per_mootai": 13,
+    "sale_date": "2026-06-25",
+    "notes": null,
+    "created_at": "2026-06-25T02:23:31.799001+00:00",
+    "product": "Pudina"
+  },
+  {
+    "id": "74c8febe-30ff-4c2a-a6ac-0c20345de8fa",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 10,
+    "price_per_mootai": 40,
+    "sale_date": "2026-06-25",
+    "notes": null,
+    "created_at": "2026-06-25T02:23:31.799001+00:00",
+    "product": "Malli"
+  },
+  {
+    "id": "c600863e-a188-4843-913f-30e1e014fa79",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 3,
+    "price_per_mootai": 35,
+    "sale_date": "2026-06-25",
+    "notes": null,
+    "created_at": "2026-06-25T02:23:31.799001+00:00",
+    "product": "Karuvepillai"
+  },
+  {
+    "id": "514f1458-fecb-403f-a2a6-5ccde6ce9eb6",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 534,
+    "price_per_mootai": 10,
+    "sale_date": "2026-06-25",
+    "notes": null,
+    "created_at": "2026-06-25T02:23:53.502688+00:00",
+    "product": "Malli"
+  },
+  {
+    "id": "34c1d617-15f9-4911-bd10-b4b7fc637502",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 10,
+    "price_per_mootai": 13,
+    "sale_date": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-06-29T01:44:25.519304+00:00",
+    "product": "Pudina"
+  },
+  {
+    "id": "eb3c4e2b-baa4-4750-90d0-45a2644d3501",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 10,
+    "price_per_mootai": 45,
+    "sale_date": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-06-29T01:44:25.519304+00:00",
+    "product": "Malli"
+  },
+  {
+    "id": "2311ca59-6c97-489d-a60d-b2411178e260",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 5,
+    "price_per_mootai": 35,
+    "sale_date": "2026-06-29",
+    "notes": null,
+    "created_at": "2026-06-29T01:44:25.519304+00:00",
+    "product": "Karuvepillai"
+  },
+  {
+    "id": "a04a66b2-09a4-4afb-bcdc-18e7828ca79b",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 6,
+    "price_per_mootai": 13,
+    "sale_date": "2026-06-30",
+    "notes": null,
+    "created_at": "2026-06-30T03:04:29.781894+00:00",
+    "product": "Pudina"
+  },
+  {
+    "id": "6382d271-a69b-41c8-a2d7-781cbab385e1",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 6,
+    "price_per_mootai": 45,
+    "sale_date": "2026-06-30",
+    "notes": null,
+    "created_at": "2026-06-30T03:04:29.781894+00:00",
+    "product": "Malli"
+  },
+  {
+    "id": "34637fca-ab28-4ef5-bd82-c5e11b1a085d",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 3,
+    "price_per_mootai": 35,
+    "sale_date": "2026-06-30",
+    "notes": null,
+    "created_at": "2026-06-30T03:04:29.781894+00:00",
+    "product": "Karuvepillai"
+  },
+  {
+    "id": "73278dc2-d6e6-4142-b133-52766888818f",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 8,
+    "price_per_mootai": 13,
+    "sale_date": "2026-07-01",
+    "notes": null,
+    "created_at": "2026-07-02T03:21:14.595799+00:00",
+    "product": "Pudina"
+  },
+  {
+    "id": "ab95c769-ee59-4482-b835-cc0b297a0977",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 4,
+    "price_per_mootai": 45,
+    "sale_date": "2026-07-01",
+    "notes": null,
+    "created_at": "2026-07-02T03:21:14.595799+00:00",
+    "product": "Malli"
+  },
+  {
+    "id": "1d695fe4-409c-4126-9d3d-f2f4bfaef70f",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 3,
+    "price_per_mootai": 36,
+    "sale_date": "2026-07-01",
+    "notes": null,
+    "created_at": "2026-07-02T03:21:14.595799+00:00",
+    "product": "Karuvepillai"
+  },
+  {
+    "id": "6b0a46a2-8dc2-4505-996b-c47f5ac6efce",
+    "buyer_id": "e20a55e5-4299-458e-b609-9d9db8b9b8c6",
+    "mootais": 6,
+    "price_per_mootai": 45,
+    "sale_date": "2026-07-02",
+    "notes": null,
+    "created_at": "2026-07-02T03:21:28.122411+00:00",
+    "product": "Malli"
+  }
+]

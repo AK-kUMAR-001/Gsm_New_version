@@ -1,0 +1,10 @@
+[
+  {
+    "id": "cec60e74-232d-4f75-879f-6bfa2df251c6",
+    "buyer_id": "f8a16629-2bba-46f7-bc4f-60929e8ddd94",
+    "amount_paid": 25000,
+    "paid_at": "2026-05-02",
+    "notes": null,
+    "created_at": "2026-05-11T03:57:59.36291+00:00"
+  }
+]

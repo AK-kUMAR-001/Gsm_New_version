@@ -1,0 +1,74 @@
+[
+  {
+    "id": "f7ac6180-4bc5-4989-8f1c-8dbe3e992bdf",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 1900,
+    "paid_at": "2026-03-11",
+    "notes": null,
+    "created_at": "2026-03-11T03:25:22.439108+00:00"
+  },
+  {
+    "id": "012a499e-63c7-49a9-99a2-dd5511d5be83",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-13",
+    "notes": null,
+    "created_at": "2026-03-14T01:05:42.332479+00:00"
+  },
+  {
+    "id": "1b913e79-9943-4d1e-960a-53577f4f706e",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2800,
+    "paid_at": "2026-03-15",
+    "notes": null,
+    "created_at": "2026-03-15T01:30:38.896946+00:00"
+  },
+  {
+    "id": "6f95b197-ed71-45a4-ad0a-4f0e50ae8923",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-16",
+    "notes": null,
+    "created_at": "2026-03-16T02:59:23.765235+00:00"
+  },
+  {
+    "id": "364d8dd6-7f43-4d45-a6be-93caa7f265d9",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-19",
+    "notes": null,
+    "created_at": "2026-03-19T03:18:30.363037+00:00"
+  },
+  {
+    "id": "7379e14c-53c3-4421-80b6-0775b7c2d32c",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2000,
+    "paid_at": "2026-03-24",
+    "notes": null,
+    "created_at": "2026-03-24T04:03:20.013931+00:00"
+  },
+  {
+    "id": "af879243-e1b2-4c03-8fac-84df5657fd7f",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 2300,
+    "paid_at": "2026-03-29",
+    "notes": null,
+    "created_at": "2026-03-29T04:05:13.050695+00:00"
+  },
+  {
+    "id": "13cf17d2-1cfe-4748-801f-807e4e5c091a",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 1400,
+    "paid_at": "2026-03-30",
+    "notes": null,
+    "created_at": "2026-03-31T01:09:35.764721+00:00"
+  },
+  {
+    "id": "846be28c-ccb4-4a40-beff-debef3ef79b6",
+    "buyer_id": "7425a16c-bf53-4215-b8a1-71611020f03d",
+    "amount_paid": 8000,
+    "paid_at": "2026-04-30",
+    "notes": null,
+    "created_at": "2026-04-30T04:32:25.536214+00:00"
+  }
+]

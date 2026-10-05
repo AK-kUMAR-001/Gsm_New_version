@@ -1,0 +1,20 @@
+[
+  {
+    "product": "Malli",
+    "total_mootais": 2828711,
+    "total_revenue": 3918746,
+    "sales_count": 621
+  },
+  {
+    "product": "Pudina",
+    "total_mootais": 1395418.5,
+    "total_revenue": 2190462,
+    "sales_count": 662
+  },
+  {
+    "product": "Karuvepillai",
+    "total_mootais": 5033,
+    "total_revenue": 222807.5,
+    "sales_count": 498
+  }
+]
