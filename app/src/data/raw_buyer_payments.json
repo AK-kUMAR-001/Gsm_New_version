@@ -1134,5 +1134,21 @@
     "paid_at": "2026-08-01",
     "notes": null,
     "created_at": "2026-08-02T13:33:40.161396+00:00"
+  },
+  {
+    "id": "4a5036d9-c6b1-401c-ad7f-2bfa3597e63d",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-10-06",
+    "notes": null,
+    "created_at": "2026-10-08T14:55:42.095046+00:00"
+  },
+  {
+    "id": "e31220e1-7ea5-4413-bd97-98ee4a106fcb",
+    "buyer_id": "75faa023-b712-45fb-b6ea-52f6d0149bde",
+    "amount_paid": 1000,
+    "paid_at": "2026-10-08",
+    "notes": null,
+    "created_at": "2026-10-08T15:11:34.363412+00:00"
   }
 ]
