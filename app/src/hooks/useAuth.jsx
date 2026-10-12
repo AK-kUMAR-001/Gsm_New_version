@@ -3,25 +3,11 @@ import { supabase, SUPABASE_CONFIGURED } from '../lib/supabase.js';
 
 const AuthContext = createContext(null);
 
-const DEMO_USER = {
-  id: 'demo-owner-user',
-  email: 'demo@gsmtraders.in',
-  role: 'authenticated',
-};
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const demoRequested = params.get('demo') === '1' || localStorage.getItem('gsm_demo') === '1';
-    if (demoRequested) {
-      localStorage.setItem('gsm_demo', '1');
-      setUser(DEMO_USER);
-      setLoading(false);
-      return;
-    }
     if (!SUPABASE_CONFIGURED || !supabase) {
       setLoading(false);
       return;
@@ -42,12 +28,10 @@ export function AuthProvider({ children }) {
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error };
-    localStorage.removeItem('gsm_demo');
     return { user: data.user };
   };
 
   const signOut = async () => {
-    localStorage.removeItem('gsm_demo');
     if (supabase) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -56,7 +40,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, isAuthed: !!user, isDemo: user?.id === DEMO_USER.id }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, isAuthed: !!user }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,29 +12,16 @@ import {
   dataRefDate,
 } from '../lib/business.js';
 
-import demoData from '../data/demoData.js';
-
 const AppDataContext = createContext(null);
 
 const OFFLINE = {
-  buyers: demoData.buyers,
-  products: demoData.products,
-  suppliers: demoData.suppliers,
-  buyerSales: demoData.buyerSales,
-  retailSales: demoData.retailSales,
-  payments: demoData.payments,
+  buyers: [],
+  products: [],
+  suppliers: [],
+  buyerSales: [],
+  retailSales: [],
+  payments: [],
 };
-
-function isDemoModeOn() {
-  try {
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('demo') === '1') return true;
-    return localStorage.getItem('gsm_demo') === '1';
-  } catch (e) {
-    return false;
-  }
-}
 
 const isMissingTableError = (error) => error?.code === 'PGRST205' || error?.code === '42P01';
 
@@ -69,21 +56,20 @@ async function fetchPayments() {
 
 export function AppDataProvider({ children }) {
   const auth = useAuth();
-  const initialOffline = isDemoModeOn();
-  const [buyers, setBuyers] = useState(initialOffline ? OFFLINE.buyers : []);
-  const [products, setProducts] = useState(initialOffline ? OFFLINE.products : []);
-  const [suppliers, setSuppliers] = useState(initialOffline ? OFFLINE.suppliers : []);
-  const [buyerSales, setBuyerSales] = useState(initialOffline ? OFFLINE.buyerSales : []);
-  const [retailSales, setRetailSales] = useState(initialOffline ? OFFLINE.retailSales : []);
-  const [payments, setPayments] = useState(initialOffline ? OFFLINE.payments : []);
+  const [buyers, setBuyers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [buyerSales, setBuyerSales] = useState([]);
+  const [retailSales, setRetailSales] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [inventorySettings, setInventorySettings] = useState([]);
   const [inventorySummary, setInventorySummary] = useState([]);
   const [inventoryCounts, setInventoryCounts] = useState([]);
   const [inventoryMovements, setInventoryMovements] = useState([]);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [inventoryError, setInventoryError] = useState('');
-  const [loading, setLoading] = useState(!initialOffline);
-  const [offline, setOffline] = useState(initialOffline);
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
   const [dataLoadError, setDataLoadError] = useState('');
   const [toast, setToast] = useState(null);
 
@@ -93,48 +79,35 @@ export function AppDataProvider({ children }) {
     setTimeout(() => setToast((t) => (t && t.id === id ? null : t)), 3200);
   }, []);
 
-  const forceOffline = !!auth?.isDemo || initialOffline;
-
   const load = useCallback(async () => {
     let b, p, s, bs, rs, pay;
     let loadError = null;
-    if (forceOffline) {
-      b = OFFLINE.buyers;
-      p = OFFLINE.products;
-      s = OFFLINE.suppliers;
-      bs = OFFLINE.buyerSales;
-      rs = OFFLINE.retailSales;
-      pay = OFFLINE.payments;
-      setDataLoadError('');
+    setLoading(true);
+    const results = await Promise.all([
+      safeFetch('buyers'),
+      safeFetch('products'),
+      safeFetch('suppliers'),
+      safeFetch('buyer_sales'),
+      safeFetch('retail_sales'),
+      fetchPayments(),
+    ]);
+    const failed = results.find((result) => result.error);
+    if (failed) {
+      [b, p, s, bs, rs, pay] = [
+        OFFLINE.buyers,
+        OFFLINE.products,
+        OFFLINE.suppliers,
+        OFFLINE.buyerSales,
+        OFFLINE.retailSales,
+        OFFLINE.payments,
+      ];
+      setDataLoadError(`Live data could not be loaded: ${failed.error.message || 'Database request failed.'}`);
       setOffline(true);
+      loadError = failed.error;
     } else {
-      setLoading(true);
-      const results = await Promise.all([
-        safeFetch('buyers'),
-        safeFetch('products'),
-        safeFetch('suppliers'),
-        safeFetch('buyer_sales'),
-        safeFetch('retail_sales'),
-        fetchPayments(),
-      ]);
-      const failed = results.find((result) => result.error);
-      if (failed) {
-        [b, p, s, bs, rs, pay] = [
-          OFFLINE.buyers,
-          OFFLINE.products,
-          OFFLINE.suppliers,
-          OFFLINE.buyerSales,
-          OFFLINE.retailSales,
-          OFFLINE.payments,
-        ];
-        setDataLoadError(`Live data could not be loaded: ${failed.error.message || 'Database request failed.'}`);
-        setOffline(true);
-        loadError = failed.error;
-      } else {
-        [b, p, s, bs, rs, pay] = results.map((result) => result.data);
-        setDataLoadError('');
-        setOffline(false);
-      }
+      [b, p, s, bs, rs, pay] = results.map((result) => result.data);
+      setDataLoadError('');
+      setOffline(false);
     }
     setRefToday(dataRefDate(bs, rs, pay));
     setBuyers(b);
@@ -145,14 +118,27 @@ export function AppDataProvider({ children }) {
     setPayments(pay);
     setLoading(false);
     return loadError ? { error: loadError } : { data: true };
-  }, [forceOffline]);
+  }, []);
 
   useEffect(() => {
+    if (auth.loading) return;
+    if (!auth.isAuthed) {
+      setBuyers([]);
+      setProducts([]);
+      setSuppliers([]);
+      setBuyerSales([]);
+      setRetailSales([]);
+      setPayments([]);
+      setOffline(false);
+      setDataLoadError('');
+      setLoading(false);
+      return;
+    }
     load();
-  }, [load]);
+  }, [auth.loading, auth.isAuthed, load]);
 
   const loadInventory = useCallback(async () => {
-    if (forceOffline) {
+    if (offline) {
       setInventorySettings([]);
       setInventorySummary([]);
       setInventoryCounts([]);
@@ -189,7 +175,7 @@ export function AppDataProvider({ children }) {
     setInventoryMovements(movements.data || []);
     setInventoryLoading(false);
     return { data: true };
-  }, [forceOffline]);
+  }, [offline]);
 
   const updateInventoryLowStockThreshold = async (productId, threshold) => {
     if (offline) {
@@ -225,7 +211,7 @@ export function AppDataProvider({ children }) {
   };
 
   const refreshInventoryAfterSale = async () => {
-    if (forceOffline) return;
+    if (offline) return;
     const result = await loadInventory();
     if (result.error) showToast('Sale was saved, but the stock balance could not refresh.', 'warn');
   };
@@ -269,7 +255,7 @@ export function AppDataProvider({ children }) {
 
   const insertBuyer = async (input) => {
     if (offline) {
-      showToast('Demo mode — edits disabled. Log in to Supabase to save.', 'warn');
+      showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn');
       return { error: new Error('offline') };
     }
     const payload = { name: input.name, phone: input.phone || null, address: input.address || null };
@@ -281,7 +267,7 @@ export function AppDataProvider({ children }) {
   };
 
   const updateBuyer = async (id, patch) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
     const { data, error } = await supabase.from('buyers').update(patch).eq('id', id).select();
     if (error) { showToast('Could not update buyer: ' + error.message, 'error'); return { error }; }
     if (data?.[0]) setBuyers((prev) => prev.map((b) => (b.id === id ? { ...b, ...data[0] } : b)));
@@ -369,7 +355,7 @@ export function AppDataProvider({ children }) {
   };
 
   const updateProduct = async (id, patch) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
     const { data, error } = await supabase.from('products').update(patch).eq('id', id).select();
     if (error) { showToast('Could not update product: ' + error.message, 'error'); return { error }; }
     if (data?.[0]) setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...data[0] } : p)));
@@ -426,7 +412,7 @@ export function AppDataProvider({ children }) {
   };
 
   const insertBuyerSale = async (row) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
     const rpcResult = await supabase.rpc('inventory_record_buyer_sale', {
       p_id: row.id,
       p_buyer_id: row.buyer_id,
@@ -488,7 +474,7 @@ export function AppDataProvider({ children }) {
   };
 
   const insertPayment = async (row) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
     const tables = ['buyer_payments', 'payments'];
     for (const [index, tbl] of tables.entries()) {
       try {
@@ -513,7 +499,7 @@ export function AppDataProvider({ children }) {
   };
 
   const insertRetailSale = async (row, { showSuccessToast = true } = {}) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
     const { data, error } = await supabase.rpc('inventory_record_retail_sale', {
       p_id: row.id,
       p_product: row.product,

@@ -13,7 +13,7 @@ npm run dev
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `app/.env.local` to the credentials from the **new** Supabase project. Do not use the original application's project credentials. The anon key is intended for client-side use; never put a Supabase service-role key in this app.
 
-Without those environment variables, the app will display a configuration warning and the offline demo contains no customer or transaction records.
+Without those environment variables, the app will display a configuration warning and sign-in will remain unavailable. No sample customer data is included.
 
 ## Deploy to Vercel
 

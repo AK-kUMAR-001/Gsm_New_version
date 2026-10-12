@@ -120,16 +120,6 @@ export default function Login() {
         <p className="mt-8 text-sm text-white/50 text-center">
           Single-owner secure access · GSM Traders
         </p>
-        <button
-          type="button"
-          onClick={() => {
-            localStorage.setItem('gsm_demo', '1');
-            window.location.href = '/dashboard?demo=1';
-          }}
-          className="mt-4 text-sm text-white/60 hover:text-white underline underline-offset-2 decoration-dotted"
-        >
-          ↳ Try offline demo mode without customer records
-        </button>
       </div>
     </div>
   );
