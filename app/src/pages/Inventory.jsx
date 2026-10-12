@@ -7,9 +7,9 @@ import LowStockAlerts from '../components/LowStockAlerts.jsx';
 import { AlertTriangle, Check, ClipboardCheck, PackagePlus, RefreshCw } from 'lucide-react';
 
 const ACTION_LABELS = {
-  opening: 'Start stock tracking',
+  opening: 'Enter opening stock',
   count: 'Record morning count',
-  receipt: 'Record supplier receipt',
+  receipt: 'Add extra stock',
   damaged: 'Record damaged stock',
   correction: 'Correct stock',
 };
@@ -71,6 +71,7 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
   const requestId = useRef(null);
+  const damageRequestId = useRef(null);
   const handledRedirectKey = useRef('');
 
   useEffect(() => {
@@ -92,7 +93,8 @@ export default function Inventory() {
   ), [inventoryCounts]);
 
   useEffect(() => {
-    const targetName = location.state?.stockProductName;
+    const searchParams = new URLSearchParams(location.search);
+    const targetName = location.state?.stockProductName || searchParams.get('stockProductName');
     if (!targetName || !inventoryReady || inventoryError || !products.length ||
       handledRedirectKey.current === location.key) return;
     const target = products.find((item) => item.name === targetName);
@@ -100,24 +102,42 @@ export default function Inventory() {
 
     handledRedirectKey.current = location.key;
     const isTracked = settingsById.has(target.id);
-    setAction(isTracked ? 'count' : 'opening');
+    const requestedAction = location.state?.stockAction || searchParams.get('stockAction');
+    setAction(['opening', 'count', 'receipt', 'damaged'].includes(requestedAction)
+      ? requestedAction
+      : isTracked ? (countedIds.has(target.id) ? 'receipt' : 'count') : 'opening');
     setProductId(target.id);
     requestId.current = window.crypto.randomUUID();
-    setForm({ quantity: '', unitCost: '', supplierId: '', reason: '', notes: '' });
-    navigate(location.pathname, { replace: true, state: null });
-  }, [inventoryError, inventoryReady, location.key, location.pathname, location.state, navigate, products, settingsById]);
+    damageRequestId.current = window.crypto.randomUUID();
+    setForm({
+      quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
+      damagedQuantity: '', damageReason: '',
+    });
+    searchParams.delete('stockProductName');
+    searchParams.delete('stockAction');
+    const remainingQuery = searchParams.toString();
+    navigate({
+      pathname: location.pathname,
+      search: remainingQuery ? `?${remainingQuery}` : '',
+    }, { replace: true, state: null });
+  }, [countedIds, inventoryError, inventoryReady, location.key, location.pathname, location.search, location.state, navigate, products, settingsById]);
 
   const openAction = (nextAction, product) => {
     setAction(nextAction);
     setProductId(product.id);
     requestId.current = window.crypto.randomUUID();
-    setForm({ quantity: '', unitCost: '', supplierId: '', reason: '', notes: '' });
+    damageRequestId.current = window.crypto.randomUUID();
+    setForm({
+      quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
+      damagedQuantity: '', damageReason: '',
+    });
   };
   const closeAction = () => {
     setAction(null);
     setProductId('');
     setForm({});
     requestId.current = null;
+    damageRequestId.current = null;
   };
 
   const submitAction = async (event) => {
@@ -125,15 +145,24 @@ export default function Inventory() {
     if (!action || !productId) return;
     setSaving(true);
     const quantity = Number(form.quantity);
+    const damagedQuantity = Number(form.damagedQuantity || 0);
     let result;
     if (action === 'opening') {
-      result = await startInventoryTracking(productId, quantity, form.unitCost ? Number(form.unitCost) : null);
+      result = await startInventoryTracking(
+        productId,
+        quantity,
+        form.unitCost ? Number(form.unitCost) : null,
+        damagedQuantity,
+        form.damageReason.trim() || null,
+        damageRequestId.current,
+      );
     } else if (action === 'count') {
       result = await recordMorningCount(productId, quantity, form.unitCost ? Number(form.unitCost) : null);
     } else if (action === 'receipt') {
       result = await recordStockReceipt(
         productId, form.supplierId, quantity, Number(form.unitCost),
         form.notes.trim() || null, requestId.current,
+        damagedQuantity, form.damageReason.trim() || null, damageRequestId.current,
       );
     } else if (action === 'damaged') {
       result = await recordStockAdjustment(productId, 'spoilage', -quantity, form.reason.trim(), null, requestId.current);
@@ -152,7 +181,8 @@ export default function Inventory() {
   };
 
   const product = productsById.get(productId);
-  const tracked = product ? settingsById.has(product.id) : false;
+  const quantityInput = Number(form.quantity || 0);
+  const damagedQuantity = Number(form.damagedQuantity || 0);
   const movements = [...inventoryMovements].sort((a, b) => (
     String(b.created_at || '').localeCompare(String(a.created_at || ''))
   ));
@@ -236,7 +266,7 @@ export default function Inventory() {
                       </button>
                     )}
                     <button type="button" onClick={() => openAction('receipt', item)} className="btn-outline">
-                      <PackagePlus className="w-4 h-4" /> Receive stock
+                      <PackagePlus className="w-4 h-4" /> Add extra stock
                     </button>
                     <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline">
                       <AlertTriangle className="w-4 h-4" /> Damaged stock
@@ -249,20 +279,12 @@ export default function Inventory() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-ink-600">Enter the agreed physical opening count to begin. Opening unit cost is marked as an estimate.</p>
-                  <button type="button" onClick={() => openAction('opening', item)} className="btn-navy">
-                    <PackagePlus className="w-4 h-4" /> Set opening stock
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    title="Start stock tracking before recording damaged stock."
-                    className="btn-outline opacity-60"
-                  >
-                    <AlertTriangle className="w-4 h-4" /> Damaged stock
-                  </button>
                   <p className="text-xs text-ink-500">
-                    Start stock tracking first. Damaged stock entry will be available once tracking is enabled.
+                    Enter opening stock to enable sales. You can record damage on arrival here or record it later.
                   </p>
+                  <button type="button" onClick={() => openAction('opening', item)} className="btn-navy">
+                    <PackagePlus className="w-4 h-4" /> Enter opening stock
+                  </button>
                 </div>
               )}
             </article>
@@ -318,6 +340,16 @@ export default function Inventory() {
             {action === 'correction' && (
               <p className="text-xs text-ink-500">Use a positive quantity to add stock or a negative quantity to remove it.</p>
             )}
+            {action === 'opening' && (
+              <p className="text-xs text-ink-500">
+                Enter the quantity received. This also records today’s opening physical count.
+              </p>
+            )}
+            {action === 'receipt' && (
+              <p className="text-xs text-ink-500">
+                Add more stock to the current balance. Sales can resume once usable stock is available.
+              </p>
+            )}
             <div>
               <label className="label">
                 {action === 'count'
@@ -326,7 +358,9 @@ export default function Inventory() {
                     ? 'Quantity change (+ / −)'
                     : action === 'damaged'
                       ? 'Damaged quantity (Mootai)'
-                      : 'Quantity (Mootai)'}
+                      : action === 'opening'
+                        ? 'Opening quantity received (Mootai)'
+                        : 'Extra quantity received (Mootai)'}
                 <span className="text-red-500"> *</span>
               </label>
               <input
@@ -357,6 +391,38 @@ export default function Inventory() {
                   className="input"
                 />
               </div>
+            )}
+            {(action === 'opening' || action === 'receipt') && (
+              <>
+                <div>
+                  <label className="label">Damaged on arrival (Mootai)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={form.quantity || undefined}
+                    step="0.001"
+                    value={form.damagedQuantity || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, damagedQuantity: event.target.value }))}
+                    className="input"
+                    placeholder="0"
+                  />
+                  {damagedQuantity > quantityInput && (
+                    <p className="mt-1 text-xs text-red-700">Damaged quantity cannot exceed quantity received.</p>
+                  )}
+                </div>
+                {damagedQuantity > 0 && (
+                  <div>
+                    <label className="label">Damage reason</label>
+                    <input
+                      maxLength={500}
+                      value={form.damageReason || ''}
+                      onChange={(event) => setForm((current) => ({ ...current, damageReason: event.target.value }))}
+                      className="input"
+                      placeholder="e.g. damaged during transport"
+                    />
+                  </div>
+                )}
+              </>
             )}
             {action === 'receipt' && (
               <div>
@@ -400,8 +466,12 @@ export default function Inventory() {
             )}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={closeAction} disabled={saving} className="btn-outline flex-1">Cancel</button>
-              <button type="submit" disabled={saving} className="btn-navy flex-1">
-                {saving ? 'Saving…' : 'Save stock record'}
+              <button
+                type="submit"
+                disabled={saving || ((action === 'opening' || action === 'receipt') && damagedQuantity > quantityInput)}
+                className="btn-navy flex-1"
+              >
+                {saving ? 'Saving…' : action === 'receipt' ? 'Add extra stock' : 'Save stock record'}
               </button>
             </div>
           </form>

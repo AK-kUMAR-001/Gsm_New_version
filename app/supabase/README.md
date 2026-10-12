@@ -62,9 +62,14 @@ order:
 1. `202610110001_inventory_ledger.sql`
 2. `202610110002_delete_buyer_data.sql`
 3. `202610120001_low_stock_threshold.sql`
+4. `202610130002_allow_historical_untracked_sales.sql` (only when importing a
+   live backup into an existing ledger-enabled database)
+5. `202610130003_enforce_stock_before_sales.sql` after the import is complete
 
-The inventory migration is additive, but it adds sale triggers and changes tracked
-sales to require a same-day physical stock count before insertion.
+The inventory migration is additive and changes tracked sales to require a
+same-day physical stock count before insertion. The final enforcement migration
+also requires stock tracking for every newly recorded sale and rejects sales
+that exceed the usable balance. Existing sale rows are not rewritten.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 Mootais; set it to 0 to turn off the
@@ -83,10 +88,12 @@ current India Standard Time date before a sale can be recorded. The sale row and
 its stock deduction are written in one database transaction. Historical sales
 remain untracked and their costs are not inferred.
 
-After checking the imported records, run the inventory ledger, buyer-deletion,
-low-stock, and historical-untracked-sales migrations in that order. Buyer
-deletion follows the inventory ledger because it cooperates with the ledger's
-sale-protection triggers.
+For the live-data clone, run the historical-untracked-sales migration before
+syncing so the recovered past sales can be imported. After verifying the
+import, apply `202610130003_enforce_stock_before_sales.sql`; it closes the
+temporary allowance for new untracked sales without modifying historical rows.
+Buyer deletion follows the inventory ledger because it cooperates with the
+ledger's sale-protection triggers.
 
 ## Refreshing from a live backup
 
@@ -100,6 +107,9 @@ For a database where the inventory ledger migration has already been applied,
 run `202610130002_allow_historical_untracked_sales.sql` in the new project's
 SQL Editor before syncing. It preserves the today-and-count safeguards for
 stock-tracked products while allowing historical sales for untracked products.
+Once the sync and reconciliation are complete, run
+`202610130003_enforce_stock_before_sales.sql` to require stock tracking and
+sufficient stock for all future sales.
 The sync refuses new sales that would affect a tracked product or transaction
 IDs whose saved values differ between the backup and destination.
 

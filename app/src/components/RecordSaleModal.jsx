@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import { todayIST, getProductEmoji, currencyINR } from '../lib/business.js';
+import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from '../components/Modal.jsx';
 import { Receipt, IndianRupee } from 'lucide-react';
 
 export default function RecordSaleModal({ open, onClose, buyerId }) {
   const { activeProducts, insertBuyerSale, insertPayment } = useAppData();
-  const navigate = useNavigate();
   const [product, setProduct] = useState('');
   const [mootais, setMootais] = useState('');
   const [price_per_mootai, setPricePerMootai] = useState('');
@@ -35,6 +34,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   }, [open, activeProducts]);
 
   const total = (Number(mootais) || 0) * (Number(price_per_mootai) || 0);
+  const stockGuidance = saleStockGuidance(saveError, product);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -177,16 +177,22 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
 
         {saveError && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-            <p>{saveError.includes('inventory_record_buyer_sale')
+            <p>{stockGuidance?.message || (saveError.includes('inventory_record_buyer_sale')
               ? 'Stock controls are not active in the database yet. Apply the inventory migration before recording this sale.'
-              : saveError}</p>
-            <button
-              type="button"
-              onClick={() => navigate('/inventory', { state: { stockProductName: product } })}
-              className="mt-3 inline-flex items-center gap-2 font-semibold underline"
-            >
-              Go to stock entry
-            </button>
+              : saveError)}</p>
+            {stockGuidance && (
+              <a
+                href={`/inventory?${new URLSearchParams({
+                  stockProductName: product,
+                  stockAction: stockGuidance.action,
+                })}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-2 font-semibold underline"
+              >
+                {stockGuidance.button} (opens in a new tab)
+              </a>
+            )}
           </div>
         )}
 

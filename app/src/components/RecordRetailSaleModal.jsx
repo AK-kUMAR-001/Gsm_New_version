@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import { todayIST, getProductEmoji, currencyINR } from '../lib/business.js';
+import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from '../components/Modal.jsx';
 
 const emptyRow = () => ({ quantity: '', rate: '' });
@@ -12,7 +12,6 @@ function makeRequestIds(products) {
 
 export default function RecordRetailSaleModal({ open, onClose }) {
   const { activeProducts, insertRetailSale, showToast } = useAppData();
-  const navigate = useNavigate();
   const [saleDate, setSaleDate] = useState(todayIST());
   const [rows, setRows] = useState({});
   const [notes, setNotes] = useState('');
@@ -88,6 +87,7 @@ export default function RecordRetailSaleModal({ open, onClose }) {
   const failedProductName = entries.find(({ product }) => !savedProducts.current.has(product.name))?.product.name
     || entries[0]?.product.name
     || '';
+  const stockGuidance = saleStockGuidance(saveError, failedProductName);
 
   return (
     <Modal open={open} onClose={onClose} title="Record Retail Sale" maxWidth="max-w-2xl">
@@ -187,16 +187,22 @@ export default function RecordRetailSaleModal({ open, onClose }) {
 
         {(saveError || (invalidEntries && entries.length > 0)) && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-            <p>{saveError || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
+            <p>{stockGuidance?.message || saveError || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
             {saveError && (
               <>
-                <button
-                  type="button"
-                  onClick={() => navigate('/inventory', { state: { stockProductName: failedProductName } })}
-                  className="mt-2 font-semibold underline"
-                >
-                  Go to stock entry
-                </button>
+                {stockGuidance && (
+                  <a
+                    href={`/inventory?${new URLSearchParams({
+                      stockProductName: failedProductName,
+                      stockAction: stockGuidance.action,
+                    })}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block font-semibold underline"
+                  >
+                    {stockGuidance.button} (opens in a new tab)
+                  </a>
+                )}
                 {schemaFunctionMissing && (
                   <p className="mt-2 text-xs">Stock controls are not active in the database yet. Apply the inventory migration before recording this sale.</p>
                 )}

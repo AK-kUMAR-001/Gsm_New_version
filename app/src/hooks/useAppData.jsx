@@ -422,48 +422,7 @@ export function AppDataProvider({ children }) {
       p_sale_date: row.sale_date,
       p_notes: row.notes,
     });
-    let data = rpcResult.data;
-    let error = rpcResult.error;
-    const missingSaleRpc = error && (
-      error.code === 'PGRST202'
-      || error.code === '42883'
-      || error.message?.includes('inventory_record_buyer_sale')
-      || error.message?.includes('schema cache')
-    );
-
-    if (missingSaleRpc) {
-      const payload = {
-        id: row.id,
-        buyer_id: row.buyer_id,
-        product: row.product,
-        mootais: row.mootais,
-        price_per_mootai: row.price_per_mootai,
-        sale_date: row.sale_date,
-        notes: row.notes,
-      };
-      const fallback = await supabase.from('buyer_sales').insert([payload]).select().single();
-      data = fallback.data;
-      error = fallback.error;
-
-      if (error?.code === '23505') {
-        const existing = await supabase
-          .from('buyer_sales')
-          .select()
-          .eq('id', row.id)
-          .maybeSingle();
-        if (!existing.error && existing.data
-          && existing.data.buyer_id === row.buyer_id
-          && existing.data.product === row.product
-          && Number(existing.data.mootais) === Number(row.mootais)
-          && Number(existing.data.price_per_mootai) === Number(row.price_per_mootai)
-          && String(existing.data.sale_date).slice(0, 10) === row.sale_date
-          && (existing.data.notes || null) === (row.notes || null)) {
-          data = existing.data;
-          error = null;
-        }
-      }
-    }
-
+    const { data, error } = rpcResult;
     if (error) { showToast('Could not save sale: ' + error.message, 'error'); return { error }; }
     if (data) {
       setBuyerSales((prev) => [data, ...prev.filter((sale) => sale.id !== data.id)]);
@@ -534,12 +493,17 @@ export function AppDataProvider({ children }) {
     return { data, refreshError: refresh.error };
   };
 
-  const startInventoryTracking = (productId, quantity, estimatedUnitCost) =>
-    recordInventoryAction('inventory_start_tracking', {
+  const startInventoryTracking = (
+    productId, quantity, estimatedUnitCost, damagedQuantity, damageReason, damageRequestId,
+  ) =>
+    recordInventoryAction('inventory_start_tracking_with_count', {
       p_product_id: productId,
       p_opening_quantity: quantity,
       p_estimated_unit_cost: estimatedUnitCost,
-    }, 'Stock tracking started');
+      p_damaged_quantity: damagedQuantity,
+      p_damage_reason: damageReason,
+      p_damage_request_id: damageRequestId,
+    }, 'Opening stock and today’s physical count recorded');
 
   const recordMorningCount = (productId, quantity, surplusUnitCost) =>
     recordInventoryAction('inventory_record_morning_count', {
@@ -548,15 +512,20 @@ export function AppDataProvider({ children }) {
       p_surplus_unit_cost: surplusUnitCost,
     }, 'Morning stock count recorded');
 
-  const recordStockReceipt = (productId, supplierId, quantity, unitCost, notes, requestId) =>
-    recordInventoryAction('inventory_record_receipt', {
+  const recordStockReceipt = (
+    productId, supplierId, quantity, unitCost, notes, requestId, damagedQuantity, damageReason, damageRequestId,
+  ) =>
+    recordInventoryAction('inventory_record_receipt_with_damage', {
       p_product_id: productId,
       p_supplier_id: supplierId,
       p_quantity: quantity,
       p_unit_cost: unitCost,
       p_notes: notes,
       p_request_id: requestId,
-    }, 'Stock receipt recorded');
+      p_damaged_quantity: damagedQuantity,
+      p_damage_reason: damageReason,
+      p_damage_request_id: damageRequestId,
+    }, damagedQuantity > 0 ? 'Stock receipt and arrival damage recorded' : 'Extra stock receipt recorded');
 
   const recordStockAdjustment = (productId, movementType, quantityDelta, reason, unitCost, requestId) =>
     recordInventoryAction('inventory_record_adjustment', {
