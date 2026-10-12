@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "import:recovered-data": "node scripts/import-recovered-data.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",

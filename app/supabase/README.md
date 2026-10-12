@@ -43,6 +43,14 @@ The repository intentionally does not contain customer or transaction exports.
 The local recovery JSON files can be imported separately; never commit or upload
 them to the public GitHub repository.
 
+For the local recovery checkout, the app includes a guarded import command. Put
+the new project's URL and anon key in the ignored `app/.env.local` file, then
+run `npm run import:recovered-data` from the `app` directory. It signs in as the
+owner, verifies all six destination tables are empty, displays row counts without
+record contents, and requires typing `IMPORT` before writing. It refuses the
+original Supabase project URL. Do not run older root-level recovery scripts;
+they target the original Supabase project.
+
 After the data import has been checked, apply the app-specific migrations in this
 order:
 
