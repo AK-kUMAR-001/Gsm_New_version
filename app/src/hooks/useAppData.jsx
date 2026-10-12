@@ -9,7 +9,7 @@ import {
   buildRecentActivity,
   inPeriod,
   setRefToday,
-  dataRefDate,
+  realTodayIST,
 } from '../lib/business.js';
 
 const AppDataContext = createContext(null);
@@ -109,7 +109,7 @@ export function AppDataProvider({ children }) {
       setDataLoadError('');
       setOffline(false);
     }
-    setRefToday(dataRefDate(bs, rs, pay));
+    setRefToday(realTodayIST());
     setBuyers(b);
     setProducts(p);
     setSuppliers(s);
