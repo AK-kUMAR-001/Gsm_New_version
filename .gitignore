@@ -1,0 +1,15 @@
+# Dependencies and generated build output
+node_modules/
+app/dist/
+
+# Local recovery exports and financial backups
+/data/
+/backup_before_merge/
+/current_data/
+/new_recovery/
+app/src/data/raw_*.json
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example

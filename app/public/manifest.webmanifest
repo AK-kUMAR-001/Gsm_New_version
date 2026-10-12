@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "GSM Traders – Malli Leaf Business Manager",
+  "short_name": "GSM Traders",
+  "description": "Manage buyers, retail sales, reports, and daily stock for GSM Traders.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f9fafb",
+  "theme_color": "#17182f",
+  "icons": [
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
