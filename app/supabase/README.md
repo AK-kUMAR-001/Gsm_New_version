@@ -2,10 +2,13 @@
 
 ## New project setup
 
-Run `202610100001_core_schema.sql` first in the new project's Supabase SQL Editor.
-It creates the six core app tables, their indexes, and row-level security policies.
-The policies allow only the owner recorded in the private owner table to access
-business data.
+For a new project, run `202610100001_core_schema.sql` first in the project's
+Supabase SQL Editor. It creates the six core app tables, indexes, and owner
+configuration.
+
+If the initial core SQL was already run before this owner-policy upgrade was
+added, do not run the core SQL again; run only
+`202610130001_secure_owner_policies.sql` before importing data.
 
 After the core schema is installed:
 
@@ -33,9 +36,11 @@ After the core schema is installed:
    ```
 
    Run this once. Do not expose or grant access to the `app_private` schema.
-3. Disable public sign-ups in Supabase Auth. Only the configured owner should
+3. Run `202610130001_secure_owner_policies.sql` in SQL Editor. It checks that
+   the owner is configured and restricts business-table access to that owner.
+4. Disable public sign-ups in Supabase Auth. Only the configured owner should
    have an Auth account.
-4. Import the recovered data into the six tables and verify imported row counts
+5. Import the recovered data into the six tables and verify imported row counts
    and balances. Import master records (`buyers`, `products`, and `suppliers`)
    before sales and payments so their foreign keys resolve.
 
@@ -78,8 +83,10 @@ current India Standard Time date before a sale can be recorded. The sale row and
 its stock deduction are written in one database transaction. Historical sales
 remain untracked and their costs are not inferred.
 
-The migrations are ordered above; buyer deletion follows the inventory ledger
-because it cooperates with the ledger's sale-protection triggers.
+After checking the imported records, run the inventory ledger, buyer-deletion,
+and low-stock migrations in the order above. Buyer deletion follows the
+inventory ledger because it cooperates with the ledger's sale-protection
+triggers.
 
 The `202610110002_delete_buyer_data.sql` migration adds the buyer delete action.
 It permanently removes the buyer, all buyer sales and payments, and (if the
