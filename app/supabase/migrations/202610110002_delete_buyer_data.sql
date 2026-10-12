@@ -59,8 +59,8 @@ security definer
 set search_path = public
 as $$
 begin
-  if auth.uid() is null then
-    raise exception 'Sign in to delete a buyer.';
+  if not public.is_gsm_traders_owner() then
+    raise exception 'Only the configured GSM Traders owner can delete a buyer.';
   end if;
   if p_buyer_id is null then
     raise exception 'Choose a buyer to delete.';

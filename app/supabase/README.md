@@ -1,32 +1,77 @@
 # Supabase database changes
 
-The `migrations` directory contains the v0.2 inventory-ledger migration. It is
-additive, but it adds sale triggers and changes tracked sales to require a same-day
-physical stock count before insertion.
+## New project setup
+
+Run `202610100001_core_schema.sql` first in the new project's Supabase SQL Editor.
+It creates the six core app tables, their indexes, and row-level security policies.
+The policies allow only the owner recorded in the private owner table to access
+business data.
+
+After the core schema is installed:
+
+1. In Supabase Authentication → Users, create the one owner login.
+2. In SQL Editor, run the following query after replacing the placeholder with
+   that exact login email:
+
+   ```sql
+   do $$
+   declare
+     owner_id uuid;
+   begin
+     select u.id into owner_id
+     from auth.users as u
+     where lower(u.email) = lower('REPLACE_WITH_OWNER_LOGIN_EMAIL');
+
+     if owner_id is null then
+       raise exception 'No Auth user found for that email. Create the owner login first.';
+     end if;
+
+     insert into app_private.gsm_traders_owner (user_id)
+     values (owner_id);
+   end;
+   $$;
+   ```
+
+   Run this once. Do not expose or grant access to the `app_private` schema.
+3. Disable public sign-ups in Supabase Auth. Only the configured owner should
+   have an Auth account.
+4. Import the recovered data into the six tables and verify imported row counts
+   and balances. Import master records (`buyers`, `products`, and `suppliers`)
+   before sales and payments so their foreign keys resolve.
+
+The repository intentionally does not contain customer or transaction exports.
+The local recovery JSON files can be imported separately; never commit or upload
+them to the public GitHub repository.
+
+After the data import has been checked, apply the app-specific migrations in this
+order:
+
+1. `202610110001_inventory_ledger.sql`
+2. `202610110002_delete_buyer_data.sql`
+3. `202610120001_low_stock_threshold.sql`
+
+The inventory migration is additive, but it adds sale triggers and changes tracked
+sales to require a same-day physical stock count before insertion.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 Mootais; set it to 0 to turn off the
 warning for a product. The app displays warnings on the dashboard and Daily Stock
 In page and refreshes the balance after a successful sale.
 
-Neither migration has been applied to a database. Before applying them anywhere:
+These migrations have not been applied to the new database. Before applying them:
 
-1. Take and verify a database backup.
-2. Apply it to a non-production Supabase project first.
-3. Confirm the existing `products`, `suppliers`, `buyer_sales`, and `retail_sales`
-   schemas and authenticated-role policies match the migration assumptions.
-4. Test opening stock, morning counts, receipts, sales, spoilage, corrections,
-   retries, and overselling in that project.
-5. Reconcile balances before separately authorizing any production rollout.
+1. Verify the imported records and balances.
+2. Test opening stock, morning counts, receipts, sales, spoilage, corrections,
+   retries, and overselling in this new project.
+3. Reconcile balances before using inventory features for live business.
 
 Tracked products require an opening stock record and a physical count for the
 current India Standard Time date before a sale can be recorded. The sale row and
 its stock deduction are written in one database transaction. Historical sales
 remain untracked and their costs are not inferred.
 
-Apply the inventory-ledger migration before the low-stock-threshold migration.
-Both are unapplied; applying either migration is a database change and must be
-approved and tested separately.
+The migrations are ordered above; buyer deletion follows the inventory ledger
+because it cooperates with the ledger's sale-protection triggers.
 
 The `202610110002_delete_buyer_data.sql` migration adds the buyer delete action.
 It permanently removes the buyer, all buyer sales and payments, and (if the

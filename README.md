@@ -19,7 +19,7 @@ Without those environment variables, the app will display a configuration warnin
 
 Import this repository into the separate Vercel account and set the same two `VITE_` variables in the project's Environment Variables. Set the Vercel project root directory to `app`, then deploy.
 
-Create the new Supabase project and review/apply the SQL migrations in `app/supabase/migrations` to that project before using the app with business data. Configure appropriate authentication and row-level security policies in Supabase; client-side environment variables are not a substitute for database access policies.
+Create the new Supabase project, then follow [the Supabase setup guide](app/supabase/README.md) to create the core tables, set the single owner account, and apply the ordered migrations. Import and verify the business records before using the app. The public GitHub repository intentionally excludes those records.
 
 ## PDF sharing
 

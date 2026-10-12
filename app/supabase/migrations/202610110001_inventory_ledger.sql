@@ -40,23 +40,29 @@ alter table public.inventory_product_settings enable row level security;
 alter table public.inventory_stock_movements enable row level security;
 alter table public.inventory_daily_counts enable row level security;
 
+drop policy if exists "App owner can read inventory settings"
+  on public.inventory_product_settings;
 drop policy if exists "Authenticated users can read inventory settings"
   on public.inventory_product_settings;
-create policy "Authenticated users can read inventory settings"
+create policy "App owner can read inventory settings"
   on public.inventory_product_settings for select to authenticated
-  using (auth.uid() is not null);
+  using (public.is_gsm_traders_owner());
 
+drop policy if exists "App owner can read stock movements"
+  on public.inventory_stock_movements;
 drop policy if exists "Authenticated users can read stock movements"
   on public.inventory_stock_movements;
-create policy "Authenticated users can read stock movements"
+create policy "App owner can read stock movements"
   on public.inventory_stock_movements for select to authenticated
-  using (auth.uid() is not null);
+  using (public.is_gsm_traders_owner());
 
+drop policy if exists "App owner can read stock counts"
+  on public.inventory_daily_counts;
 drop policy if exists "Authenticated users can read stock counts"
   on public.inventory_daily_counts;
-create policy "Authenticated users can read stock counts"
+create policy "App owner can read stock counts"
   on public.inventory_daily_counts for select to authenticated
-  using (auth.uid() is not null);
+  using (public.is_gsm_traders_owner());
 
 revoke all on public.inventory_product_settings from anon, authenticated;
 revoke all on public.inventory_stock_movements from anon, authenticated;
@@ -105,8 +111,8 @@ security definer
 set search_path = public
 as $$
 begin
-  if auth.uid() is null then
-    raise exception 'Sign in to start stock tracking.';
+  if not public.is_gsm_traders_owner() then
+    raise exception 'Only the configured GSM Traders owner can start stock tracking.';
   end if;
   if p_opening_quantity is null or p_opening_quantity < 0 then
     raise exception 'Opening stock cannot be negative.';
@@ -158,8 +164,8 @@ declare
   v_count public.inventory_daily_counts;
   v_today date := public.inventory_today_ist();
 begin
-  if auth.uid() is null then
-    raise exception 'Sign in to record a stock count.';
+  if not public.is_gsm_traders_owner() then
+    raise exception 'Only the configured GSM Traders owner can record a stock count.';
   end if;
   if p_counted_quantity is null or p_counted_quantity < 0 then
     raise exception 'Counted stock cannot be negative.';
@@ -245,8 +251,8 @@ declare
   v_movement public.inventory_stock_movements;
   v_reason text := coalesce(nullif(trim(p_notes), ''), 'Supplier stock receipt');
 begin
-  if auth.uid() is null then
-    raise exception 'Sign in to record a supplier receipt.';
+  if not public.is_gsm_traders_owner() then
+    raise exception 'Only the configured GSM Traders owner can record a supplier receipt.';
   end if;
   if p_quantity is null or p_quantity <= 0 then
     raise exception 'Received quantity must be greater than zero.';
@@ -317,8 +323,8 @@ declare
   v_delta numeric(14, 3);
   v_reason text := trim(p_reason);
 begin
-  if auth.uid() is null then
-    raise exception 'Sign in to record a stock adjustment.';
+  if not public.is_gsm_traders_owner() then
+    raise exception 'Only the configured GSM Traders owner can record a stock adjustment.';
   end if;
   if p_movement_type not in ('spoilage', 'correction') then
     raise exception 'Choose damaged stock or correction.';
