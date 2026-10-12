@@ -71,7 +71,7 @@ level to tracked products. It defaults to 5 Mootais; set it to 0 to turn off the
 warning for a product. The app displays warnings on the dashboard and Daily Stock
 In page and refreshes the balance after a successful sale.
 
-These migrations have not been applied to the new database. Before applying them:
+Before applying the inventory and low-stock migrations to a new database:
 
 1. Verify the imported records and balances.
 2. Test opening stock, morning counts, receipts, sales, spoilage, corrections,
@@ -84,9 +84,32 @@ its stock deduction are written in one database transaction. Historical sales
 remain untracked and their costs are not inferred.
 
 After checking the imported records, run the inventory ledger, buyer-deletion,
-and low-stock migrations in the order above. Buyer deletion follows the
-inventory ledger because it cooperates with the ledger's sale-protection
-triggers.
+low-stock, and historical-untracked-sales migrations in that order. Buyer
+deletion follows the inventory ledger because it cooperates with the ledger's
+sale-protection triggers.
+
+## Refreshing from a live backup
+
+Use `npm run sync:live-backup -- "C:\path\to\gsm-traders-backup.json"` from
+the `app` directory to merge a version 1 GSM Traders backup into the new
+project. Put only the new project's URL and anon key in `.env.local`; this
+command rejects the original project URL and asks for the new project's owner
+login with the password entered without echoing it.
+
+For a database where the inventory ledger migration has already been applied,
+run `202610130002_allow_historical_untracked_sales.sql` in the new project's
+SQL Editor before syncing. It preserves the today-and-count safeguards for
+stock-tracked products while allowing historical sales for untracked products.
+The sync refuses new sales that would affect a tracked product or transaction
+IDs whose saved values differ between the backup and destination.
+
+The command previews counts, creates a private backup of the destination under
+`%USERPROFILE%\.gsm-traders-backups`, and requires typing `SYNC`. It upserts
+buyer/product/supplier master rows, adds missing sales and payments by ID, and
+never deletes destination-only rows. It verifies all final table counts and
+prints today's totals without showing customer or transaction details. The
+command is idempotent; if a network error interrupts it, inspect the result and
+rerun it with the same backup.
 
 The `202610110002_delete_buyer_data.sql` migration adds the buyer delete action.
 It permanently removes the buyer, all buyer sales and payments, and (if the
