@@ -653,6 +653,13 @@ export default function Reports() {
   const totalBuyer = useMemo(() => sumSales(filteredBuyerSales), [filteredBuyerSales]);
   const totalRetail = useMemo(() => sumSales(filteredRetailSales), [filteredRetailSales]);
   const combined = totalBuyer + totalRetail;
+  const periodLabel = period === 'week'
+    ? 'This week'
+    : period === 'month'
+      ? 'This month'
+      : period === '3months'
+        ? 'Last 3 months'
+        : 'All time';
 
   const filteredMovements = useMemo(
     () => (inventoryMovements || []).filter((movement) => {
@@ -846,7 +853,35 @@ export default function Reports() {
         onRequestDownload={() => requestDownload(`the ${selectedDate} daily closing CSV`, downloadDailyClosingCsv)}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section>
+        <h2 className="mb-3 text-lg font-bold text-ink-900">
+          Selected day totals · {formatReportDate(selectedDate, { day: 'numeric', month: 'long', year: 'numeric' })}
+        </h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL</div>
+            <div className="mt-2 text-4xl font-black tracking-tight text-brand-green-dark">
+              {currencyINR(dailyBuyerTotal + dailyRetailTotal)}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-sidebar-accent/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-sidebar-accent">BUYERS</div>
+            <div className="mt-2 text-4xl font-black tracking-tight text-sidebar-accent">
+              {currencyINR(dailyBuyerTotal)}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-brand-purple/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-brand-purple">RETAIL</div>
+            <div className="mt-2 text-4xl font-black tracking-tight text-brand-purple">
+              {currencyINR(dailyRetailTotal)}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-lg font-bold text-ink-900">Period totals · {periodLabel}</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL</div>
           <div className="mt-2 text-4xl font-black text-brand-green-dark tracking-tight">
@@ -865,7 +900,8 @@ export default function Reports() {
             {currencyINR(totalRetail)}
           </div>
         </div>
-      </div>
+        </div>
+      </section>
 
       {!offline && (
         <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">

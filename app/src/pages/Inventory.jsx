@@ -70,6 +70,7 @@ export default function Inventory() {
   const [action, setAction] = useState(null);
   const [productId, setProductId] = useState('');
   const [form, setForm] = useState({});
+  const [expandedProducts, setExpandedProducts] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
@@ -234,79 +235,98 @@ export default function Inventory() {
           const isTracked = settingsById.has(item.id);
           const stock = summaryById.get(item.id);
           const hasCount = countedIds.has(item.id);
+          const expanded = expandedProducts.has(item.id);
+          const toggleExpanded = () => setExpandedProducts((current) => {
+            const next = new Set(current);
+            if (next.has(item.id)) next.delete(item.id);
+            else next.add(item.id);
+            return next;
+          });
           return (
-            <article key={item.id} className="metric-card space-y-4">
+            <article key={item.id} className="group metric-card space-y-4">
               <header className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-ink-50 flex items-center justify-center text-2xl shrink-0">
+                <button
+                  type="button"
+                  onClick={toggleExpanded}
+                  aria-expanded={expanded}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ink-50 text-2xl">
                     {getProductEmoji(item.name, products)}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="font-bold text-ink-900 truncate">{item.name}</h2>
-                    <p className={`text-xs mt-0.5 ${isTracked ? 'text-green-700' : 'text-ink-500'}`}>
+                    <h2 className="truncate font-bold text-ink-900">{item.name}</h2>
+                    <p className={`mt-0.5 text-xs ${isTracked ? 'text-green-700' : 'text-ink-500'}`}>
                       {isTracked ? 'Stock tracking enabled' : 'Tracking not started'}
                     </p>
+                    <span className="mt-1 block text-xs text-ink-400 md:hidden">
+                      {expanded ? 'Tap to hide details' : 'Tap to show details'}
+                    </span>
                   </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  {isTracked && (
+                </button>
+                {isTracked && (
+                  <div className="flex shrink-0 flex-col items-end gap-2">
                     <button type="button" onClick={() => openAction('correction', item)} className="btn-outline !min-h-9 !px-3 !py-2">
                       <Pencil className="h-4 w-4" /> Edit stock
                     </button>
-                  )}
-                  {isTracked && (
                     <span className={`pill ${hasCount ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
                       {hasCount ? 'Count complete' : 'Count required'}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </header>
 
-              {isTracked ? (
-                <>
-                  <div className="rounded-2xl bg-ink-50 p-4 grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-ink-500">Available</p>
-                      <p className="font-bold text-ink-900 mt-1"><Quantity value={stock?.quantity_on_hand} /></p>
+              <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ${
+                expanded
+                  ? 'max-h-[900px] opacity-100'
+                  : 'max-h-0 opacity-0 md:group-hover:max-h-[900px] md:group-hover:opacity-100 md:group-focus-within:max-h-[900px] md:group-focus-within:opacity-100'
+              }`}>
+                {isTracked ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3 rounded-2xl bg-ink-50 p-4">
+                      <div>
+                        <p className="text-xs text-ink-500">Available</p>
+                        <p className="mt-1 font-bold text-ink-900"><Quantity value={stock?.quantity_on_hand} /></p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-ink-500">Average cost / Mootai</p>
+                        <p className="mt-1 font-bold text-ink-900">
+                          {stock?.average_unit_cost == null ? '—' : currencyINR(stock.average_unit_cost)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-ink-500">Average cost / Mootai</p>
-                      <p className="font-bold text-ink-900 mt-1">
-                        {stock?.average_unit_cost == null ? '—' : currencyINR(stock.average_unit_cost)}
-                      </p>
-                    </div>
-                  </div>
-                  <LowStockThreshold
-                    productId={item.id}
-                    value={settingsById.get(item.id)?.low_stock_threshold}
-                    onSave={(threshold) => updateInventoryLowStockThreshold(item.id, threshold)}
-                    disabled={offline}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {!hasCount && (
-                      <button type="button" onClick={() => openAction('count', item)} className="btn-navy">
-                        <ClipboardCheck className="w-4 h-4" /> Morning count
+                    <LowStockThreshold
+                      productId={item.id}
+                      value={settingsById.get(item.id)?.low_stock_threshold}
+                      onSave={(threshold) => updateInventoryLowStockThreshold(item.id, threshold)}
+                      disabled={offline}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {!hasCount && (
+                        <button type="button" onClick={() => openAction('count', item)} className="btn-navy">
+                          <ClipboardCheck className="w-4 h-4" /> Morning count
+                        </button>
+                      )}
+                      <button type="button" onClick={() => openAction('receipt', item)} className="btn-outline">
+                        <PackagePlus className="w-4 h-4" /> Add extra stock
                       </button>
-                    )}
-                    <button type="button" onClick={() => openAction('receipt', item)} className="btn-outline">
-                      <PackagePlus className="w-4 h-4" /> Add extra stock
-                    </button>
-                    <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline">
-                      <AlertTriangle className="w-4 h-4" /> Damaged stock
+                      <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline">
+                        <AlertTriangle className="w-4 h-4" /> Damaged stock
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-ink-600">Enter the agreed physical opening count to begin. Opening unit cost is marked as an estimate.</p>
+                    <p className="text-xs text-ink-500">
+                      Enter opening stock to enable sales. You can record damage on arrival here or record it later.
+                    </p>
+                    <button type="button" onClick={() => openAction('opening', item)} className="btn-navy">
+                      <PackagePlus className="w-4 h-4" /> Enter opening stock
                     </button>
                   </div>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-ink-600">Enter the agreed physical opening count to begin. Opening unit cost is marked as an estimate.</p>
-                  <p className="text-xs text-ink-500">
-                    Enter opening stock to enable sales. You can record damage on arrival here or record it later.
-                  </p>
-                  <button type="button" onClick={() => openAction('opening', item)} className="btn-navy">
-                    <PackagePlus className="w-4 h-4" /> Enter opening stock
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </article>
           );
         })}
