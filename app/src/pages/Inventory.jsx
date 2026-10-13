@@ -14,6 +14,8 @@ const ACTION_LABELS = {
   correction: 'Edit stock',
 };
 
+const STOCK_PRODUCT_ORDER = ['malli', 'pudina', 'karuvepillai', 'keerai', 'puundu'];
+
 function Quantity({ value }) {
   return <>{Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} Mootai</>;
 }
@@ -86,6 +88,16 @@ export default function Inventory() {
   }, [loadInventory]);
 
   const productsById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const stockProducts = useMemo(() => [...products].sort((a, b) => {
+    const aName = String(a.name || '').trim().toLocaleLowerCase();
+    const bName = String(b.name || '').trim().toLocaleLowerCase();
+    const aOrder = STOCK_PRODUCT_ORDER.indexOf(aName);
+    const bOrder = STOCK_PRODUCT_ORDER.indexOf(bName);
+    if (aOrder < 0 && bOrder < 0) return aName.localeCompare(bName);
+    if (aOrder < 0) return 1;
+    if (bOrder < 0) return -1;
+    return aOrder - bOrder;
+  }), [products]);
   const suppliersById = useMemo(() => new Map(suppliers.map((supplier) => [supplier.id, supplier])), [suppliers]);
   const settingsById = useMemo(() => new Map(inventorySettings.map((setting) => [setting.product_id, setting])), [inventorySettings]);
   const summaryById = useMemo(() => new Map(inventorySummary.map((row) => [row.product_id, row])), [inventorySummary]);
@@ -218,7 +230,7 @@ export default function Inventory() {
       <LowStockAlerts />
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {products.map((item) => {
+        {stockProducts.map((item) => {
           const isTracked = settingsById.has(item.id);
           const stock = summaryById.get(item.id);
           const hasCount = countedIds.has(item.id);
