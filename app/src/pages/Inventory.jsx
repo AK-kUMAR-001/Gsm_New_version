@@ -4,14 +4,14 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import { currencyINR, formatDateCompact, getProductEmoji, todayIST } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
-import { AlertTriangle, Check, ClipboardCheck, PackagePlus, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw } from 'lucide-react';
 
 const ACTION_LABELS = {
   opening: 'Enter opening stock',
   count: 'Record morning count',
   receipt: 'Add extra stock',
   damaged: 'Record damaged stock',
-  correction: 'Correct stock',
+  correction: 'Edit stock',
 };
 
 function Quantity({ value }) {
@@ -104,7 +104,7 @@ export default function Inventory() {
     handledRedirectKey.current = location.key;
     const isTracked = settingsById.has(target.id);
     const requestedAction = location.state?.stockAction || searchParams.get('stockAction');
-    setAction(['opening', 'count', 'receipt', 'damaged'].includes(requestedAction)
+    setAction(['opening', 'count', 'receipt', 'damaged', 'correction'].includes(requestedAction)
       ? requestedAction
       : isTracked ? (countedIds.has(target.id) ? 'receipt' : 'count') : 'opening');
     setRedirectNotice(location.state?.stockRedirectNotice || '');
@@ -236,11 +236,18 @@ export default function Inventory() {
                     </p>
                   </div>
                 </div>
-                {isTracked && (
-                  <span className={`pill shrink-0 ${hasCount ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                    {hasCount ? 'Count complete' : 'Count required'}
-                  </span>
-                )}
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  {isTracked && (
+                    <button type="button" onClick={() => openAction('correction', item)} className="btn-outline !min-h-9 !px-3 !py-2">
+                      <Pencil className="h-4 w-4" /> Edit stock
+                    </button>
+                  )}
+                  {isTracked && (
+                    <span className={`pill ${hasCount ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {hasCount ? 'Count complete' : 'Count required'}
+                    </span>
+                  )}
+                </div>
               </header>
 
               {isTracked ? (
@@ -274,9 +281,6 @@ export default function Inventory() {
                     </button>
                     <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline">
                       <AlertTriangle className="w-4 h-4" /> Damaged stock
-                    </button>
-                    <button type="button" onClick={() => openAction('correction', item)} className="btn-outline">
-                      Correct stock
                     </button>
                   </div>
                 </>
@@ -347,7 +351,10 @@ export default function Inventory() {
               </p>
             )}
             {action === 'correction' && (
-              <p className="text-xs text-ink-500">Use a positive quantity to add stock or a negative quantity to remove it.</p>
+              <p className="text-xs text-ink-500">
+                Enter the stock change: use a positive number to add stock or a negative number to remove it.
+                This records a correction in the stock history; it does not rewrite past sales or stock entries.
+              </p>
             )}
             {action === 'opening' && (
               <p className="text-xs text-ink-500">
