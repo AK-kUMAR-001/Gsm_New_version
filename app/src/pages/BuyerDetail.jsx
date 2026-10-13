@@ -4,7 +4,7 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import { currencyINR, formatDateCompact, getProductEmoji, inPeriod } from '../lib/business.js';
 import Avatar from '../components/Avatar.jsx';
 import PeriodPills from '../components/PeriodPills.jsx';
-import RecordSaleModal from '../components/RecordSaleModal.jsx';
+import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import DeleteBuyerModal from '../components/DeleteBuyerModal.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
@@ -305,7 +305,7 @@ export default function BuyerDetail() {
         </div>
       )}
 
-      <RecordSaleModal open={saleModalOpen} onClose={() => setSaleModalOpen(false)} buyerId={id} />
+      <QuickBuyerEntryModal open={saleModalOpen} onClose={() => setSaleModalOpen(false)} buyerId={id} />
       <RecordPaymentModal open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} buyerId={id} />
       <DeleteBuyerModal
         open={deleteModalOpen}

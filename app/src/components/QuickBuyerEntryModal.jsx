@@ -12,7 +12,7 @@ function newRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
 }
 
-export default function QuickBuyerEntryModal({ open, onClose }) {
+export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) {
   const {
     buyers, balancesById, activeProducts, insertBuyerSale, insertPayment, showToast,
   } = useAppData();
@@ -35,8 +35,8 @@ export default function QuickBuyerEntryModal({ open, onClose }) {
 
   useEffect(() => {
     if (!open) return;
-    setSelectedBuyerId('');
-    setChoosingBuyer(true);
+    setSelectedBuyerId(buyerId || '');
+    setChoosingBuyer(!buyerId);
     setQuery('');
     setSaleDate(todayIST());
     setRows(Object.fromEntries(activeProducts.map((product) => [product.name, emptyRow()])));
@@ -47,7 +47,7 @@ export default function QuickBuyerEntryModal({ open, onClose }) {
     requestIds.current = newRequestIds(activeProducts);
     savedProducts.current = new Set();
     failedPayment.current = false;
-  }, [open, activeProducts]);
+  }, [open, activeProducts, buyerId]);
 
   const filteredBuyers = useMemo(() => {
     const term = query.trim().toLowerCase();

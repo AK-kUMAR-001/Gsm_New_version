@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import { currencyINR, formatDateCompact } from '../lib/business.js';
 import AddBuyerModal from '../components/AddBuyerModal.jsx';
-import RecordSaleModal from '../components/RecordSaleModal.jsx';
+import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import BillAlertModal from '../components/BillAlertModal.jsx';
 import Avatar from '../components/Avatar.jsx';
@@ -368,7 +368,7 @@ export default function Buyers() {
       </div>
 
       <AddBuyerModal open={addOpen} onClose={() => setAddOpen(false)} />
-      <RecordSaleModal
+      <QuickBuyerEntryModal
         open={!!saleBuyerId}
         onClose={() => setSaleBuyerId(null)}
         buyerId={saleBuyerId}
