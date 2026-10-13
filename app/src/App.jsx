@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.jsx';
 import { useAppData } from './hooks/useAppData.jsx';
@@ -47,6 +47,41 @@ function PageLoading() {
 
 export default function App() {
   const { isAuthed, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    const handleEnterToNextField = (event) => {
+      if (event.key !== 'Enter' || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const current = event.target;
+      if (!(current instanceof HTMLInputElement) && !(current instanceof HTMLSelectElement)) return;
+      if (current instanceof HTMLInputElement && ['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'reset', 'search', 'submit'].includes(current.type)) return;
+      if (current.disabled || current.readOnly || !current.form) return;
+
+      const fields = [...current.form.querySelectorAll(
+        'input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="reset"]):not([type="search"]):not([type="submit"]), select, textarea'
+      )].filter((field) => (
+        !field.disabled
+        && !field.readOnly
+        && field.getClientRects().length > 0
+        && field.getAttribute('aria-hidden') !== 'true'
+      ));
+      const currentIndex = fields.indexOf(current);
+      const next = fields[currentIndex + 1];
+      if (!next) return;
+
+      if (current instanceof HTMLInputElement) {
+        event.preventDefault();
+        next.focus();
+      } else {
+        window.setTimeout(() => {
+          if (next.isConnected && !next.disabled) next.focus();
+        }, 0);
+      }
+    };
+
+    document.addEventListener('keydown', handleEnterToNextField);
+    return () => document.removeEventListener('keydown', handleEnterToNextField);
+  }, []);
+
   return (
     <div className="min-h-full">
       <Routes>
