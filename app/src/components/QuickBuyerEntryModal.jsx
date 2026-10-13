@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import { currencyINR, getProductEmoji, todayIST } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
@@ -15,6 +16,7 @@ export default function QuickBuyerEntryModal({ open, onClose }) {
   const {
     buyers, balancesById, activeProducts, insertBuyerSale, insertPayment, showToast,
   } = useAppData();
+  const navigate = useNavigate();
   const [selectedBuyerId, setSelectedBuyerId] = useState('');
   const [choosingBuyer, setChoosingBuyer] = useState(true);
   const [query, setQuery] = useState('');
@@ -70,10 +72,6 @@ export default function QuickBuyerEntryModal({ open, onClose }) {
   const total = validEntries.reduce((sum, entry) => sum + entry.quantity * entry.rate, 0);
   const hasSavedSales = savedProducts.current.size > 0;
   const valid = selectedBuyerId && validEntries.length > 0 && !invalidEntries && !saving;
-  const failedProductName = entries.find(({ product }) => !savedProducts.current.has(product.name))?.product.name
-    || entries[0]?.product.name
-    || '';
-  const stockGuidance = saleStockGuidance(errorMessage, failedProductName);
 
   const updateRow = (productName, field, value) => {
     setRows((current) => ({ ...current, [productName]: { ...current[productName], [field]: value } }));
@@ -100,8 +98,21 @@ export default function QuickBuyerEntryModal({ open, onClose }) {
         notes: notes.trim() || null,
       });
       if (result.error) {
+        const guidance = saleStockGuidance(result.error.message, product.name);
         setErrorMessage(`Sale for ${product.name} was not saved. ${result.error.message}`);
         setSaving(false);
+        if (guidance) {
+          const savedNames = [...savedProducts.current];
+          navigate('/inventory', {
+            state: {
+              stockProductName: product.name,
+              stockAction: guidance.action,
+              stockRedirectNotice: savedNames.length
+                ? `The sale for ${product.name} was not saved. Earlier sale entries for ${savedNames.join(', ')} were already saved; do not enter them again. Complete stock entry, then return to record the blocked sale.`
+                : 'This sale was not saved. Complete the stock entry, then return and enter the sale again.',
+            },
+          });
+        }
         return;
       }
       savedProducts.current.add(product.name);
@@ -301,19 +312,6 @@ export default function QuickBuyerEntryModal({ open, onClose }) {
           {(errorMessage || (invalidEntries && entries.length > 0)) && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
               <p>{stockGuidance?.message || errorMessage || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
-              {stockGuidance && (
-                <a
-                  href={`/inventory?${new URLSearchParams({
-                    stockProductName: failedProductName,
-                    stockAction: stockGuidance.action,
-                  })}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-block font-semibold underline"
-                >
-                  {stockGuidance.button} (opens in a new tab)
-                </a>
-              )}
             </div>
           )}
 

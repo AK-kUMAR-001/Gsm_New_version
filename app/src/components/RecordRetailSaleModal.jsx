@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import { todayIST, getProductEmoji, currencyINR } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
@@ -12,6 +13,7 @@ function makeRequestIds(products) {
 
 export default function RecordRetailSaleModal({ open, onClose }) {
   const { activeProducts, insertRetailSale, showToast } = useAppData();
+  const navigate = useNavigate();
   const [saleDate, setSaleDate] = useState(todayIST());
   const [rows, setRows] = useState({});
   const [notes, setNotes] = useState('');
@@ -71,8 +73,21 @@ export default function RecordRetailSaleModal({ open, onClose }) {
         notes: notes.trim() || null,
       }, { showSuccessToast: false });
       if (result.error) {
+        const guidance = saleStockGuidance(result.error.message, product.name);
         setSaveError(`Sale for ${product.name} was not saved. ${result.error.message}`);
         setBusy(false);
+        if (guidance) {
+          const savedNames = [...savedProducts.current];
+          navigate('/inventory', {
+            state: {
+              stockProductName: product.name,
+              stockAction: guidance.action,
+              stockRedirectNotice: savedNames.length
+                ? `The sale for ${product.name} was not saved. Earlier retail entries for ${savedNames.join(', ')} were already saved; do not enter them again. Complete stock entry, then return to record the blocked sale.`
+                : 'This sale was not saved. Complete the stock entry, then return and enter the sale again.',
+            },
+          });
+        }
         return;
       }
       savedProducts.current.add(product.name);
@@ -84,10 +99,6 @@ export default function RecordRetailSaleModal({ open, onClose }) {
   };
 
   const schemaFunctionMissing = saveError.includes('inventory_record_retail_sale');
-  const failedProductName = entries.find(({ product }) => !savedProducts.current.has(product.name))?.product.name
-    || entries[0]?.product.name
-    || '';
-  const stockGuidance = saleStockGuidance(saveError, failedProductName);
 
   return (
     <Modal open={open} onClose={onClose} title="Record Retail Sale" maxWidth="max-w-2xl">
@@ -187,22 +198,9 @@ export default function RecordRetailSaleModal({ open, onClose }) {
 
         {(saveError || (invalidEntries && entries.length > 0)) && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-            <p>{stockGuidance?.message || saveError || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
+            <p>{saveError || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
             {saveError && (
               <>
-                {stockGuidance && (
-                  <a
-                    href={`/inventory?${new URLSearchParams({
-                      stockProductName: failedProductName,
-                      stockAction: stockGuidance.action,
-                    })}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-block font-semibold underline"
-                  >
-                    {stockGuidance.button} (opens in a new tab)
-                  </a>
-                )}
                 {schemaFunctionMissing && (
                   <p className="mt-2 text-xs">Stock controls are not active in the database yet. Apply the inventory migration before recording this sale.</p>
                 )}

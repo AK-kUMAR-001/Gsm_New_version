@@ -70,6 +70,7 @@ export default function Inventory() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
+  const [redirectNotice, setRedirectNotice] = useState('');
   const requestId = useRef(null);
   const damageRequestId = useRef(null);
   const handledRedirectKey = useRef('');
@@ -106,6 +107,7 @@ export default function Inventory() {
     setAction(['opening', 'count', 'receipt', 'damaged'].includes(requestedAction)
       ? requestedAction
       : isTracked ? (countedIds.has(target.id) ? 'receipt' : 'count') : 'opening');
+    setRedirectNotice(location.state?.stockRedirectNotice || '');
     setProductId(target.id);
     requestId.current = window.crypto.randomUUID();
     damageRequestId.current = window.crypto.randomUUID();
@@ -125,6 +127,7 @@ export default function Inventory() {
   const openAction = (nextAction, product) => {
     setAction(nextAction);
     setProductId(product.id);
+    setRedirectNotice('');
     requestId.current = window.crypto.randomUUID();
     damageRequestId.current = window.crypto.randomUUID();
     setForm({
@@ -136,6 +139,7 @@ export default function Inventory() {
     setAction(null);
     setProductId('');
     setForm({});
+    setRedirectNotice('');
     requestId.current = null;
     damageRequestId.current = null;
   };
@@ -337,6 +341,11 @@ export default function Inventory() {
         {product && action && (
           <form onSubmit={submitAction} className="space-y-4">
             <p className="text-sm text-ink-600">{getProductEmoji(product.name, products)} {product.name}</p>
+            {redirectNotice && (
+              <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900" role="status">
+                {redirectNotice}
+              </p>
+            )}
             {action === 'correction' && (
               <p className="text-xs text-ink-500">Use a positive quantity to add stock or a negative quantity to remove it.</p>
             )}
