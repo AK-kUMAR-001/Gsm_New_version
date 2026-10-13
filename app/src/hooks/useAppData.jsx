@@ -537,6 +537,15 @@ export function AppDataProvider({ children }) {
       p_request_id: requestId,
     }, movementType === 'spoilage' ? 'Damaged stock recorded' : 'Stock correction recorded');
 
+  const setStockQuantity = (productId, quantity, reason, unitCost, requestId) =>
+    recordInventoryAction('inventory_set_stock_quantity', {
+      p_product_id: productId,
+      p_target_quantity: quantity,
+      p_reason: reason,
+      p_unit_cost: unitCost,
+      p_request_id: requestId,
+    }, 'Stock balance updated');
+
   const filterByPeriod = useCallback((rows, period, dateField) => {
     if (period === 'all' || !period) return rows;
     return (rows || []).filter((r) => inPeriod(r[dateField], period, 'dashboard'));
@@ -549,7 +558,7 @@ export function AppDataProvider({ children }) {
     loading, offline, dataLoadError, toast, showToast, load,
     inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
     insertBuyer, updateBuyer, deleteBuyer, updateProduct, insertProduct, deleteProduct, insertBuyerSale, insertPayment, insertRetailSale,
-    startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment,
+    startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     filterByPeriod,
   };
 

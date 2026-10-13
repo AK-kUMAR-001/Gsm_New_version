@@ -59,7 +59,7 @@ export default function Inventory() {
   const {
     products, suppliers, inventorySettings, inventorySummary, inventoryCounts,
     inventoryMovements, inventoryLoading, inventoryError, loadInventory,
-    startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment,
+    startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     updateInventoryLowStockThreshold,
     offline,
   } = useAppData();
@@ -171,10 +171,9 @@ export default function Inventory() {
     } else if (action === 'damaged') {
       result = await recordStockAdjustment(productId, 'spoilage', -quantity, form.reason.trim(), null, requestId.current);
     } else {
-      result = await recordStockAdjustment(
+      result = await setStockQuantity(
         productId,
-        'correction',
-        Number(form.quantity),
+        quantity,
         form.reason.trim(),
         form.unitCost ? Number(form.unitCost) : null,
         requestId.current,
@@ -185,6 +184,7 @@ export default function Inventory() {
   };
 
   const product = productsById.get(productId);
+  const currentStock = summaryById.get(productId);
   const quantityInput = Number(form.quantity || 0);
   const damagedQuantity = Number(form.damagedQuantity || 0);
   const movements = [...inventoryMovements].sort((a, b) => (
@@ -352,8 +352,8 @@ export default function Inventory() {
             )}
             {action === 'correction' && (
               <p className="text-xs text-ink-500">
-                Enter the stock change: use a positive number to add stock or a negative number to remove it.
-                This records a correction in the stock history; it does not rewrite past sales or stock entries.
+                Enter the corrected total stock balance, including 0 if the product is out of stock.
+                The difference is recorded as a correction; past sales and stock entries are not rewritten.
               </p>
             )}
             {action === 'opening' && (
@@ -371,7 +371,7 @@ export default function Inventory() {
                 {action === 'count'
                   ? 'Physical quantity counted'
                   : action === 'correction'
-                    ? 'Quantity change (+ / −)'
+                    ? 'Correct total available stock'
                     : action === 'damaged'
                       ? 'Damaged quantity (Mootai)'
                       : action === 'opening'
@@ -383,7 +383,7 @@ export default function Inventory() {
                 required
                 type="number"
                 step="0.001"
-                min={action === 'correction' ? undefined : action === 'damaged' ? '0.001' : '0'}
+                min={action === 'damaged' ? '0.001' : '0'}
                 value={form.quantity || ''}
                 onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
                 className="input"
@@ -396,9 +396,16 @@ export default function Inventory() {
                 <label className="label">
                   {action === 'receipt' ? 'Purchase cost per Mootai' : 'Estimated cost per Mootai'}
                   {action === 'receipt' && <span className="text-red-500"> *</span>}
+                  {action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0 && (
+                    <span className="text-red-500"> *</span>
+                  )}
                 </label>
                 <input
-                  required={action === 'receipt' || (action === 'opening' && Number(form.quantity) > 0)}
+                  required={
+                    action === 'receipt'
+                    || (action === 'opening' && Number(form.quantity) > 0)
+                    || (action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0)
+                  }
                   type="number"
                   min="0"
                   step="0.01"
