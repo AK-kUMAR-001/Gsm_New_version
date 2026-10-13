@@ -311,7 +311,7 @@ export default function QuickBuyerEntryModal({ open, onClose }) {
 
           {(errorMessage || (invalidEntries && entries.length > 0)) && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-              <p>{stockGuidance?.message || errorMessage || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
+              <p>{errorMessage || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
             </div>
           )}
 
