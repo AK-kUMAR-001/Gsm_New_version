@@ -116,65 +116,6 @@ function formatQuantity(value) {
   return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
 }
 
-function buildProductStockCostRows(products, movements, buyerSales, retailSales) {
-  const activeProducts = products.filter((product) => product.active !== false);
-  const productsByName = new Map(activeProducts.map((product) => [product.name, product]));
-  const rowsById = new Map(activeProducts.map((product) => [product.id, {
-    productId: product.id,
-    productName: product.name,
-    purchasedQuantity: 0,
-    purchasedCost: 0,
-    salesRevenue: 0,
-    trackedSalesRevenue: 0,
-    trackedSalesCost: 0,
-    damagedQuantity: 0,
-    damagedCost: 0,
-  }]));
-  const salesById = new Map();
-
-  for (const sale of buyerSales) {
-    const product = productsByName.get(sale.product);
-    const row = product && rowsById.get(product.id);
-    if (!row) continue;
-    const revenue = Number(sale.mootais ?? 0) * Number(sale.price_per_mootai ?? 0);
-    row.salesRevenue += revenue;
-    salesById.set(`buyer_sales:${sale.id}`, { row, revenue });
-  }
-  for (const sale of retailSales) {
-    const product = productsByName.get(sale.product);
-    const row = product && rowsById.get(product.id);
-    if (!row) continue;
-    const revenue = Number(sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0);
-    row.salesRevenue += revenue;
-    salesById.set(`retail_sales:${sale.id}`, { row, revenue });
-  }
-
-  for (const movement of movements) {
-    const row = rowsById.get(movement.product_id);
-    if (!row) continue;
-    const quantity = Number(movement.quantity_delta || 0);
-    const cost = Number(movement.cost_delta || 0);
-    if (movement.movement_type === 'receipt') {
-      row.purchasedQuantity += quantity;
-      row.purchasedCost += cost;
-    } else if (movement.movement_type === 'spoilage') {
-      row.damagedQuantity -= quantity;
-      row.damagedCost -= cost;
-    } else if (movement.movement_type === 'sale') {
-      const sale = salesById.get(`${movement.source_kind}:${movement.source_id}`);
-      if (!sale) continue;
-      sale.row.trackedSalesRevenue += sale.revenue;
-      sale.row.trackedSalesCost -= cost;
-    }
-  }
-
-  return Array.from(rowsById.values()).map((row) => ({
-    ...row,
-    finalProfit: row.trackedSalesRevenue - row.trackedSalesCost - row.damagedCost,
-    hasCostedSales: row.trackedSalesRevenue > 0 || row.trackedSalesCost > 0,
-  })).sort((a, b) => a.productName.localeCompare(b.productName));
-}
-
 function DailyActivitySection({ title, count, total, emptyText, children }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-sm">
@@ -631,15 +572,6 @@ export default function Reports() {
     () => buildProductPerformance(filteredBuyerSales, filteredRetailSales, filteredMovements, products),
     [filteredBuyerSales, filteredRetailSales, filteredMovements, products]
   );
-  const productStockCostRows = useMemo(
-    () => buildProductStockCostRows(products, filteredMovements, filteredBuyerSales, filteredRetailSales)
-      .filter((row) => (
-        (!productFilter || row.productName === productFilter)
-        && (!normalizedSearch || row.productName.toLocaleLowerCase().includes(normalizedSearch))
-      )),
-    [products, filteredMovements, filteredBuyerSales, filteredRetailSales, productFilter, normalizedSearch]
-  );
-
   const topBuyers = useMemo(
     () => topBuyersForPeriod(filteredBuyerSales, balances),
     [filteredBuyerSales, balances]
@@ -857,72 +789,6 @@ export default function Reports() {
           </p>
         )}
       </section>
-
-      {!offline && (
-        <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
-            <div>
-              <p className="mt-1 text-xs text-ink-500">
-                Profit uses sale revenue minus recorded cost of sold stock and damage.
-              </p>
-            </div>
-            {inventoryReport.trackedSalesCount > 0 && (
-              <span className="pill bg-sky-100 text-sky-800 text-xs">
-                Costs recorded for {inventoryReport.trackedRevenueCoverage.toFixed(1)}% of revenue
-              </span>
-            )}
-          </div>
-          {inventoryLoading ? (
-            <p className="text-sm text-ink-500">Loading stock and cost details…</p>
-          ) : inventoryError ? (
-            <p className="text-sm text-amber-800">
-              Inventory-aware reporting is unavailable until the v0.2 inventory migration is installed.
-            </p>
-          ) : productStockCostRows.length === 0 ? (
-            <p className="text-sm text-ink-500">No active products match this report.</p>
-          ) : (
-            <>
-              <div className="overflow-x-auto rounded-xl border border-ink-100">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="bg-ink-50 text-xs text-ink-500">
-                    <tr>
-                      <th className="px-3 py-2.5 font-semibold">Product</th>
-                      <th className="px-3 py-2.5 text-right font-semibold">Stock purchased</th>
-                      <th className="px-3 py-2.5 text-right font-semibold">Revenue</th>
-                      <th className="px-3 py-2.5 text-right font-semibold">Damaged</th>
-                      <th className="px-3 py-2.5 text-right font-semibold">Final profit</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-ink-100">
-                    {productStockCostRows.map((row) => (
-                      <tr key={row.productId}>
-                        <td className="px-3 py-2.5 font-medium text-ink-900">{row.productName}</td>
-                        <td className="px-3 py-2.5 text-right">
-                          <div>{formatQuantity(row.purchasedQuantity)} Mootai</div>
-                          <div className="text-xs text-ink-500">{currencyINR(row.purchasedCost)} cost</div>
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-medium">{currencyINR(row.salesRevenue)}</td>
-                        <td className="px-3 py-2.5 text-right">
-                          <div>{formatQuantity(row.damagedQuantity)} Mootai</div>
-                          <div className="text-xs text-ink-500">{currencyINR(row.damagedCost)} cost</div>
-                        </td>
-                        <td className={`px-3 py-2.5 text-right font-semibold ${row.hasCostedSales ? 'text-ink-900' : 'text-ink-400'}`}>
-                          {row.hasCostedSales ? currencyINR(row.finalProfit) : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {inventoryReport.trackedSalesCount > 0 && inventoryReport.trackedRevenueCoverage < 100 && (
-                <p className="mt-2 text-xs text-ink-500">
-                  Final profit is shown for sales with recorded stock cost only; uncosted historical sales are not estimated.
-                </p>
-              )}
-            </>
-          )}
-        </section>
-      )}
 
       <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
         <h3 className="font-bold text-ink-900 text-xl mb-5">Top Buyers</h3>
