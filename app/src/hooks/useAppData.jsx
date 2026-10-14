@@ -396,19 +396,28 @@ export function AppDataProvider({ children }) {
       showToast(error.message, 'warn');
       return { error };
     }
-    const { data, error } = await supabase.from('products').delete().eq('id', id).select('id');
+    const { data, error } = await supabase.rpc('inventory_delete_or_archive_product', {
+      p_product_id: id,
+    });
     if (error) {
       showToast('Could not delete product: ' + error.message, 'error');
       return { error };
     }
-    if (!data?.length) {
-      const missingRowError = new Error('No product was deleted. Check database delete permissions.');
+    if (data === 'archived') {
+      setProducts((prev) => prev.map((product) => (
+        product.id === id ? { ...product, active: false } : product
+      )));
+      showToast('Product has stock history, so it was archived to preserve the ledger.', 'info');
+      return { data: 'archived' };
+    }
+    if (data !== 'deleted') {
+      const missingRowError = new Error('The database did not confirm product deletion.');
       showToast(missingRowError.message, 'error');
       return { error: missingRowError };
     }
     setProducts((prev) => prev.filter((product) => product.id !== id));
     showToast('Product deleted', 'success');
-    return { data: true };
+    return { data: 'deleted' };
   };
 
   const insertBuyerSale = async (row) => {

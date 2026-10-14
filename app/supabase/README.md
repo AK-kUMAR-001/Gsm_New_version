@@ -67,6 +67,9 @@ order:
 5. `202610130003_enforce_stock_before_sales.sql` after the import is complete
 6. `202610130004_set_stock_quantity.sql` to enable setting an exact stock
    balance, including zero
+7. `202610140001_enforce_stock_and_archive_products.sql` to reassert
+   server-side sale stock checks and make deletion archive products with
+   inventory history instead of deleting referenced ledger records
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
@@ -97,7 +100,12 @@ temporary allowance for new untracked sales without modifying historical rows.
 Apply `202610130004_set_stock_quantity.sql` to enable the Inventory page's
 Edit stock action to set the exact available balance, including zero. This
 records only the balance difference as a correction; it does not rewrite past
-movements or sales.
+movements or sales. Apply
+`202610140001_enforce_stock_and_archive_products.sql` after it: buyer and retail
+sales then require an active, tracked product, today's physical count, and
+sufficient stock, enforced atomically by database triggers. Product deletion
+archives products with inventory history; products without stock history can
+still be permanently deleted.
 Buyer deletion follows the inventory ledger because it cooperates with the
 ledger's sale-protection triggers.
 

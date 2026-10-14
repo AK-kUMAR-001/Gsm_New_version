@@ -64,6 +64,7 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
   });
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const isPrimary = (form.sort_order ?? 0) <= 2;
   const displayEmoji = form.emoji || getProductEmoji(form.name || product.name, []);
@@ -109,10 +110,16 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
   };
 
   const handleDelete = async () => {
-    if (isOffline || saving || !window.confirm(`Delete ${product.name}? Products used by stock records cannot be deleted.`)) return;
+    if (isOffline || saving || !window.confirm(`Delete ${product.name}? If it has stock history, it will be archived to preserve the ledger.`)) return;
     setSaving(true);
-    await onDelete(product.id);
+    setDeleteError('');
+    const result = await onDelete(product.id);
     setSaving(false);
+    if (result?.error) {
+      setDeleteError(result.error.message || 'The product could not be deleted.');
+    } else if (result?.data === 'archived') {
+      setForm((current) => ({ ...current, active: false }));
+    }
   };
 
   return (
@@ -267,6 +274,11 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
             </div>
           </div>
         </div>
+      )}
+      {deleteError && (
+        <p className="border-t border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          {deleteError}
+        </p>
       )}
     </div>
   );
