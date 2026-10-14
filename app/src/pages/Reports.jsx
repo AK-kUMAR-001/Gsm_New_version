@@ -862,7 +862,6 @@ export default function Reports() {
         <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
             <div>
-              <h2 className="font-semibold text-ink-900">Stock, sales & profit by product · {periodLabel}</h2>
               <p className="mt-1 text-xs text-ink-500">
                 Profit uses sale revenue minus recorded cost of sold stock and damage.
               </p>
