@@ -116,6 +116,65 @@ function formatQuantity(value) {
   return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
 }
 
+function buildProductStockCostRows(products, movements, buyerSales, retailSales) {
+  const activeProducts = products.filter((product) => product.active !== false);
+  const productsByName = new Map(activeProducts.map((product) => [product.name, product]));
+  const rowsById = new Map(activeProducts.map((product) => [product.id, {
+    productId: product.id,
+    productName: product.name,
+    purchasedQuantity: 0,
+    purchasedCost: 0,
+    salesRevenue: 0,
+    trackedSalesRevenue: 0,
+    trackedSalesCost: 0,
+    damagedQuantity: 0,
+    damagedCost: 0,
+  }]));
+  const salesById = new Map();
+
+  for (const sale of buyerSales) {
+    const product = productsByName.get(sale.product);
+    const row = product && rowsById.get(product.id);
+    if (!row) continue;
+    const revenue = Number(sale.mootais ?? 0) * Number(sale.price_per_mootai ?? 0);
+    row.salesRevenue += revenue;
+    salesById.set(`buyer_sales:${sale.id}`, { row, revenue });
+  }
+  for (const sale of retailSales) {
+    const product = productsByName.get(sale.product);
+    const row = product && rowsById.get(product.id);
+    if (!row) continue;
+    const revenue = Number(sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0);
+    row.salesRevenue += revenue;
+    salesById.set(`retail_sales:${sale.id}`, { row, revenue });
+  }
+
+  for (const movement of movements) {
+    const row = rowsById.get(movement.product_id);
+    if (!row) continue;
+    const quantity = Number(movement.quantity_delta || 0);
+    const cost = Number(movement.cost_delta || 0);
+    if (movement.movement_type === 'receipt') {
+      row.purchasedQuantity += quantity;
+      row.purchasedCost += cost;
+    } else if (movement.movement_type === 'spoilage') {
+      row.damagedQuantity -= quantity;
+      row.damagedCost -= cost;
+    } else if (movement.movement_type === 'sale') {
+      const sale = salesById.get(`${movement.source_kind}:${movement.source_id}`);
+      if (!sale) continue;
+      sale.row.trackedSalesRevenue += sale.revenue;
+      sale.row.trackedSalesCost -= cost;
+    }
+  }
+
+  return Array.from(rowsById.values()).map((row) => ({
+    ...row,
+    finalProfit: row.trackedSalesRevenue - row.trackedSalesCost - row.damagedCost,
+    hasCostedSales: row.trackedSalesRevenue > 0 || row.trackedSalesCost > 0,
+  })).sort((a, b) => a.productName.localeCompare(b.productName));
+}
+
 function DailyActivitySection({ title, count, total, emptyText, children }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-sm">
@@ -572,6 +631,14 @@ export default function Reports() {
     () => buildProductPerformance(filteredBuyerSales, filteredRetailSales, filteredMovements, products),
     [filteredBuyerSales, filteredRetailSales, filteredMovements, products]
   );
+  const productStockCostRows = useMemo(
+    () => buildProductStockCostRows(products, filteredMovements, filteredBuyerSales, filteredRetailSales)
+      .filter((row) => (
+        (!productFilter || row.productName === productFilter)
+        && (!normalizedSearch || row.productName.toLocaleLowerCase().includes(normalizedSearch))
+      )),
+    [products, filteredMovements, filteredBuyerSales, filteredRetailSales, productFilter, normalizedSearch]
+  );
 
   const topBuyers = useMemo(
     () => topBuyersForPeriod(filteredBuyerSales, balances),
@@ -795,89 +862,68 @@ export default function Reports() {
         <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
             <div>
-              <h2 className="font-bold text-ink-900 text-xl">Stock & cost report</h2>
-              <p className="text-sm text-ink-500 mt-1">
-                Cost and profit include only sales with recorded inventory costs.
+              <h2 className="font-semibold text-ink-900">Stock, sales & profit by product · {periodLabel}</h2>
+              <p className="mt-1 text-xs text-ink-500">
+                Profit uses sale revenue minus recorded cost of sold stock and damage.
               </p>
             </div>
             {inventoryReport.trackedSalesCount > 0 && (
-              <span className="pill bg-sky-100 text-sky-800">
-                {inventoryReport.trackedRevenueCoverage.toFixed(1)}% of sales revenue costed
+              <span className="pill bg-sky-100 text-sky-800 text-xs">
+                Costs recorded for {inventoryReport.trackedRevenueCoverage.toFixed(1)}% of revenue
               </span>
             )}
           </div>
           {inventoryLoading ? (
-            <p className="text-sm text-ink-500">Loading inventory movements…</p>
+            <p className="text-sm text-ink-500">Loading stock and cost details…</p>
           ) : inventoryError ? (
             <p className="text-sm text-amber-800">
               Inventory-aware reporting is unavailable until the v0.2 inventory migration is installed.
             </p>
+          ) : productStockCostRows.length === 0 ? (
+            <p className="text-sm text-ink-500">No active products match this report.</p>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-                <ReportCostCard label="Stock purchased" amount={inventoryReport.receiptCost} />
-                <ReportCostCard label="Damaged stock cost" amount={inventoryReport.spoilageCost} />
-                <ReportCostCard label="Tracked sales cost" amount={inventoryReport.trackedSaleCost} />
-                <ReportCostCard
-                  label="Gross profit on tracked sales"
-                  amount={inventoryReport.trackedSalesCount ? inventoryReport.trackedGrossProfit : null}
-                />
-                <ReportCostCard
-                  label="Profit after wastage"
-                  amount={inventoryReport.trackedSalesCount ? inventoryReport.tradingProfit : null}
-                />
+              <div className="overflow-x-auto rounded-xl border border-ink-100">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-ink-50 text-xs text-ink-500">
+                    <tr>
+                      <th className="px-3 py-2.5 font-semibold">Product</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Stock purchased</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Revenue</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Damaged</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Final profit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ink-100">
+                    {productStockCostRows.map((row) => (
+                      <tr key={row.productId}>
+                        <td className="px-3 py-2.5 font-medium text-ink-900">{row.productName}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div>{formatQuantity(row.purchasedQuantity)} Mootai</div>
+                          <div className="text-xs text-ink-500">{currencyINR(row.purchasedCost)} cost</div>
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-medium">{currencyINR(row.salesRevenue)}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div>{formatQuantity(row.damagedQuantity)} Mootai</div>
+                          <div className="text-xs text-ink-500">{currencyINR(row.damagedCost)} cost</div>
+                        </td>
+                        <td className={`px-3 py-2.5 text-right font-semibold ${row.hasCostedSales ? 'text-ink-900' : 'text-ink-400'}`}>
+                          {row.hasCostedSales ? currencyINR(row.finalProfit) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
               {inventoryReport.trackedSalesCount > 0 && inventoryReport.trackedRevenueCoverage < 100 && (
-                <p className="text-xs text-ink-500 mt-3">
-                  Gross profit is partial because some sales have no recorded cost. Historical costs are not estimated.
+                <p className="mt-2 text-xs text-ink-500">
+                  Final profit is shown for sales with recorded stock cost only; uncosted historical sales are not estimated.
                 </p>
               )}
             </>
           )}
         </section>
       )}
-
-      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-        <h3 className="font-bold text-ink-900 text-xl mb-4">Product income by sale type</h3>
-        <div className="divide-y divide-ink-100 max-h-[420px] overflow-y-auto">
-          {productPerformance.length === 0 && (
-            <div className="text-center text-ink-400 text-sm py-10">No sales in this period</div>
-          )}
-          {productPerformance.map((row) => {
-            const emoji = getProductEmoji(row.product, products);
-            return (
-              <div
-                key={row.product}
-                className="flex flex-col gap-2 px-2 py-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-2xl shrink-0">{emoji}</span>
-                    <div className="font-bold text-ink-900 truncate">{row.product}</div>
-                  </div>
-                  <div className="text-sm font-bold text-ink-700 shrink-0">
-                    Total {currencyINR(row.wholesale_revenue + row.retail_revenue)}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl bg-green-50 px-3 py-2">
-                    <div className="font-semibold text-green-800">Wholesale</div>
-                    <div className="text-ink-600">{row.wholesale_quantity} Mootai · {currencyINR(row.wholesale_revenue)}</div>
-                  </div>
-                  <div className="rounded-xl bg-purple-50 px-3 py-2">
-                    <div className="font-semibold text-purple-800">Retail</div>
-                    <div className="text-ink-600">{row.retail_quantity} Mootai · {currencyINR(row.retail_revenue)}</div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap justify-between gap-x-3 text-xs text-ink-500">
-                  <span>Wastage cost: {currencyINR(row.spoilage_cost)}</span>
-                  <span>Profit on tracked sales: {row.trading_profit == null ? 'Not tracked' : currencyINR(row.trading_profit)}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
         <h3 className="font-bold text-ink-900 text-xl mb-5">Top Buyers</h3>
