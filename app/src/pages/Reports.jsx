@@ -78,10 +78,6 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       .filter((movement) => movement.movement_date < date)
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const todaysMovements = productMovements.filter((movement) => movement.movement_date === date);
-    const openingToday = todaysMovements
-      .filter((movement) => movement.movement_type === 'opening')
-      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
-    const opening = openingBeforeDate + openingToday;
     const receipts = todaysMovements
       .filter((movement) => movement.movement_type === 'receipt')
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
@@ -106,7 +102,6 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     return {
       productId: setting.product_id,
       productName: product?.name || 'Unknown product',
-      opening,
       receipts,
       buyerSold,
       buyerRevenue: salesRevenue.buyerRevenue,
@@ -165,7 +160,7 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Opening is carried stock before today&apos;s movements; morning count is the physical quantity entered today. Sales values use each bill&apos;s price, and received stock cost uses its recorded purchase cost.
+            Morning count is the physical stock quantity entered today. Sales values use each bill&apos;s price, and received stock cost uses its recorded purchase cost.
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
@@ -181,11 +176,11 @@ function DailyClosingSummary({
 
       {offline || inventoryError ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Stock opening and balance quantities are unavailable until the inventory database migration is applied and loaded.
+          Stock balance quantities are unavailable until the inventory database migration is applied and loaded.
         </div>
       ) : rows.length === 0 ? (
         <p className="rounded-2xl bg-ink-50 p-4 text-sm text-ink-600">
-          No tracked products yet. Start stock tracking to include opening and balance quantities.
+          No tracked products yet. Start stock tracking to include balance quantities.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-100">
@@ -193,21 +188,22 @@ function DailyClosingSummary({
             <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
-                <th className="px-4 py-3 text-right font-bold">Opening</th>
+                <th className="px-4 py-3 font-bold">Morning count</th>
                 <th className="px-4 py-3 text-right font-bold">Received</th>
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
                 <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
                 <th className="px-4 py-3 text-right font-bold">Balance (Mootai)</th>
-                <th className="px-4 py-3 font-bold">Morning count</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
               {rows.map((row) => (
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
-                  <td className="px-4 py-3 text-right">{formatQuantity(row.opening)}</td>
+                  <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
+                    {row.countRecorded ? `${formatQuantity(row.countedQuantity)} Mootai` : 'Count not recorded'}
+                  </td>
                   <td className="px-4 py-3 text-right text-green-700">
                     <div>{formatQuantity(row.receipts)} Mootai</div>
                     <div className="mt-1 text-xs text-ink-500">{currencyINR(row.receiptCost)} cost</div>
@@ -223,9 +219,6 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)}</td>
                   <td className="px-4 py-3 text-right">{formatQuantity(row.corrections)}</td>
                   <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.balance)}</td>
-                  <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
-                    {row.countRecorded ? `${formatQuantity(row.countedQuantity)} Mootai` : 'Count not recorded'}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -677,7 +670,8 @@ export default function Reports() {
     const rows = dailyStockClosingRows.map((row) => ({
       date: selectedDate,
       product: row.productName,
-      opening_stock_mootai: row.opening,
+      morning_count_mootai: row.countedQuantity ?? '',
+      morning_count_recorded: row.countRecorded,
       stock_received_mootai: row.receipts,
       stock_received_cost: row.receiptCost,
       buyer_sales_mootai: row.buyerSold,
@@ -688,8 +682,6 @@ export default function Reports() {
       damaged_stock_mootai: row.damaged,
       stock_corrections_mootai: row.corrections,
       balance_stock_mootai: row.balance,
-      morning_count_mootai: row.countedQuantity ?? '',
-      morning_count_recorded: row.countRecorded,
     }));
     downloadCsv(`daily-stock-${selectedDate}.csv`, rows);
   };
