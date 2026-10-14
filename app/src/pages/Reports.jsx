@@ -8,6 +8,8 @@ import {
   inPeriod,
   parseDateStr,
   realTodayIST,
+  KATTU_PER_MOOTAI,
+  KG_PER_MOOTAI,
 } from '../lib/business.js';
 import PeriodPills from '../components/PeriodPills.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
@@ -262,6 +264,12 @@ function DailyClosingSummary({
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">
                     <div>{formatQuantity(row.retailSold)} Mootai</div>
+                    <div className="mt-1 text-xs text-ink-500">
+                      <strong className="font-bold text-ink-700">
+                        {formatQuantity(row.retailSold * KATTU_PER_MOOTAI)} Kattu
+                      </strong>
+                      <span> / {formatQuantity(row.retailSold * KG_PER_MOOTAI)} kg</span>
+                    </div>
                     <div className="mt-1 text-xs text-ink-500">{currencyINR(row.retailRevenue)} sales</div>
                   </td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)}</td>
@@ -314,7 +322,7 @@ function ActivityEntry({ title, subtitle, amount, timestamp, emoji, note }) {
   );
 }
 
-function WeekDatePicker({ value, onChange }) {
+function WeekDatePicker({ value, selectedDate, onChange }) {
   const dates = getWeekDates(value);
   const today = realTodayIST();
   const firstDate = parseDateStr(dates[0]);
@@ -366,7 +374,7 @@ function WeekDatePicker({ value, onChange }) {
 
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {dates.map((day) => {
-          const selected = day === value;
+          const selected = day === selectedDate;
           const future = day > today;
           return (
             <button
@@ -440,6 +448,7 @@ function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances) {
 
 export default function Reports() {
   const [period, setPeriod] = useState('week');
+  const [reportScope, setReportScope] = useState('day');
   const [selectedDate, setSelectedDate] = useState(realTodayIST);
   const [buyerFilter, setBuyerFilter] = useState('');
   const [productFilter, setProductFilter] = useState('');
@@ -649,8 +658,8 @@ export default function Reports() {
     [filteredBuyerSales, filteredRetailSales, filteredMovements, products]
   );
   const topBuyers = useMemo(
-    () => topBuyersForPeriod(filteredBuyerSales, balances),
-    [filteredBuyerSales, balances]
+    () => topBuyersForPeriod(reportScope === 'day' ? dailyBuyerSales : filteredBuyerSales, balances),
+    [reportScope, dailyBuyerSales, filteredBuyerSales, balances]
   );
 
   return (
@@ -687,9 +696,22 @@ export default function Reports() {
         </div>
       </div>
 
-      <WeekDatePicker value={selectedDate} onChange={setSelectedDate} />
+      <WeekDatePicker
+        value={selectedDate}
+        selectedDate={reportScope === 'day' ? selectedDate : null}
+        onChange={(date) => {
+          setSelectedDate(date);
+          setReportScope('day');
+        }}
+      />
 
-      <PeriodPills value={period} onChange={setPeriod} />
+      <PeriodPills
+        value={reportScope === 'period' ? period : null}
+        onChange={(value) => {
+          setPeriod(value);
+          setReportScope('period');
+        }}
+      />
 
       <section className="grid grid-cols-1 gap-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-sm md:grid-cols-3">
         <label className="relative min-w-0">
@@ -723,7 +745,7 @@ export default function Reports() {
         </p>
       </section>
 
-      <div>
+      {reportScope === 'day' && <div>
         <h2 className="mb-3 text-lg font-bold text-ink-900">
           Entries for {formatReportDate(selectedDate, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </h2>
@@ -764,7 +786,17 @@ export default function Reports() {
                 <ActivityEntry
                   key={sale.id}
                   title={sale.product || 'Retail sale'}
-                  subtitle={`${quantity} Mootai × ${currencyINR(rate)}`}
+                  subtitle={(
+                    <>
+                      <strong className="font-bold text-ink-700">
+                        {formatQuantity(quantity * KATTU_PER_MOOTAI)} Kattu
+                      </strong>
+                      <span className="ml-1 text-xs text-ink-500">
+                        / {formatQuantity(quantity * KG_PER_MOOTAI)} kg
+                      </span>
+                      <span> · {currencyINR(rate)} per Mootai</span>
+                    </>
+                  )}
                   amount={quantity * rate}
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
@@ -791,9 +823,9 @@ export default function Reports() {
             ))}
           </DailyActivitySection>
         </div>
-      </div>
+      </div>}
 
-      <DailyClosingSummary
+      {reportScope === 'day' && <DailyClosingSummary
         date={selectedDate}
         buyerSalesTotal={dailyBuyerTotal}
         retailSalesTotal={dailyRetailTotal}
@@ -803,52 +835,52 @@ export default function Reports() {
         offline={offline}
         inventoryError={inventoryError}
         onRequestDownload={() => requestDownload(`the ${selectedDate} daily stock CSV`, downloadDailyStockCsv)}
-      />
+      />}
 
-      <section>
+      {reportScope === 'day' && <section>
         <h2 className="mb-3 text-lg font-bold text-ink-900">
           Selected day totals · {formatReportDate(selectedDate, { day: 'numeric', month: 'long', year: 'numeric' })}
         </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL</div>
-            <div className="mt-2 text-4xl font-black tracking-tight text-brand-green-dark">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+          <div className="rounded-2xl border border-brand-green/20 bg-white p-3 shadow-sm sm:p-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-green-dark">TOTAL</div>
+            <div className="mt-1 text-2xl font-black tracking-tight text-brand-green-dark sm:text-3xl">
               {currencyINR(dailyBuyerTotal + dailyRetailTotal)}
             </div>
           </div>
-          <div className="rounded-3xl border border-sidebar-accent/20 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-sidebar-accent">BUYERS</div>
-            <div className="mt-2 text-4xl font-black tracking-tight text-sidebar-accent">
+          <div className="rounded-2xl border border-sidebar-accent/20 bg-white p-3 shadow-sm sm:p-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-sidebar-accent">BUYERS</div>
+            <div className="mt-1 text-2xl font-black tracking-tight text-sidebar-accent sm:text-3xl">
               {currencyINR(dailyBuyerTotal)}
             </div>
           </div>
-          <div className="rounded-3xl border border-brand-purple/20 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-brand-purple">RETAIL</div>
-            <div className="mt-2 text-4xl font-black tracking-tight text-brand-purple">
+          <div className="rounded-2xl border border-brand-purple/20 bg-white p-3 shadow-sm sm:p-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-purple">RETAIL</div>
+            <div className="mt-1 text-2xl font-black tracking-tight text-brand-purple sm:text-3xl">
               {currencyINR(dailyRetailTotal)}
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
-      <section>
+      {reportScope === 'period' && <section>
         <h2 className="mb-3 text-lg font-bold text-ink-900">Period totals · {periodLabel}</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL REVENUE</div>
-            <div className="mt-2 text-4xl font-black text-brand-green-dark tracking-tight">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-brand-green/20 bg-white p-3 shadow-sm sm:p-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-green-dark">TOTAL REVENUE</div>
+            <div className="mt-1 text-2xl font-black tracking-tight text-brand-green-dark sm:text-3xl">
               {currencyINR(combined)}
             </div>
           </div>
-          <div className="rounded-3xl border border-sidebar-accent/20 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-sidebar-accent">BUYER REVENUE</div>
-            <div className="mt-2 text-4xl font-black text-sidebar-accent tracking-tight">
+          <div className="rounded-2xl border border-sidebar-accent/20 bg-white p-3 shadow-sm sm:p-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-sidebar-accent">BUYER REVENUE</div>
+            <div className="mt-1 text-2xl font-black tracking-tight text-sidebar-accent sm:text-3xl">
               {currencyINR(totalBuyer)}
             </div>
           </div>
-          <div className="rounded-3xl border border-brand-purple/20 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-brand-purple">RETAIL REVENUE</div>
-            <div className="mt-2 text-4xl font-black text-brand-purple tracking-tight">
+          <div className="rounded-2xl border border-brand-purple/20 bg-white p-3 shadow-sm sm:p-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-purple">RETAIL REVENUE</div>
+            <div className="mt-1 text-2xl font-black tracking-tight text-brand-purple sm:text-3xl">
               {currencyINR(totalRetail)}
             </div>
           </div>
@@ -859,18 +891,17 @@ export default function Reports() {
               : null}
           />
         </div>
-        {inventoryReport.trackedSalesCount > 0 && inventoryReport.trackedRevenueCoverage < 100 && (
-          <p className="mt-2 text-xs text-ink-500">
-            Gross profit is sale revenue minus recorded stock cost. It covers {inventoryReport.trackedRevenueCoverage.toFixed(1)}% of revenue; sales without recorded stock cost are excluded.
-          </p>
-        )}
-      </section>
+      </section>}
 
       <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-        <h3 className="font-bold text-ink-900 text-xl mb-5">Top Buyers</h3>
+        <h3 className="font-bold text-ink-900 text-xl mb-5">
+          Top Buyers · {reportScope === 'day'
+            ? formatReportDate(selectedDate, { day: 'numeric', month: 'long', year: 'numeric' })
+            : periodLabel}
+        </h3>
 
         {topBuyers.length === 0 && (
-          <div className="text-center text-ink-500 text-sm py-10">No data for this period</div>
+          <div className="text-center text-ink-500 text-sm py-10">No data for this selection</div>
         )}
 
         {topBuyers.length > 0 && (

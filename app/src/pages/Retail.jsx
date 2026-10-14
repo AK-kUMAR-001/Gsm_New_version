@@ -1,9 +1,19 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { currencyINR, formatDateCompact, getProductEmoji } from '../lib/business.js';
+import {
+  currencyINR,
+  formatDateCompact,
+  getProductEmoji,
+  KATTU_PER_MOOTAI,
+  KG_PER_MOOTAI,
+} from '../lib/business.js';
 import PeriodPills, { RETAIL_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import { Plus, RefreshCw, TrendingUp, Package, ShoppingBag, ChevronRight } from 'lucide-react';
+
+function formatQuantity(value) {
+  return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
+}
 
 export default function Retail() {
   const { retailSales, products, filterByPeriod, load } = useAppData();
@@ -114,8 +124,13 @@ export default function Retail() {
               <Package className="w-6 h-6" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total Mootais</div>
-              <div className="text-2xl font-extrabold text-ink-900 mt-1">{stats.mootais}</div>
+              <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total Kattu</div>
+              <div className="mt-1 text-2xl font-extrabold text-ink-900">
+                {formatQuantity(stats.mootais * KATTU_PER_MOOTAI)} Kattu
+              </div>
+              <div className="text-xs text-ink-500">
+                {formatQuantity(stats.mootais * KG_PER_MOOTAI)} kg
+              </div>
             </div>
           </div>
         </div>
@@ -175,7 +190,10 @@ export default function Retail() {
                   <div className="col-span-2 row-start-2 justify-self-center flex items-center gap-1.5 whitespace-nowrap text-base md:text-lg text-ink-700 sm:col-auto sm:row-auto">
                     <span>{group.sales.length} sales</span>
                     <span className="text-ink-400">·</span>
-                    <span>{group.totalQty} M</span>
+                    <span>{formatQuantity(group.totalQty * KATTU_PER_MOOTAI)} Kattu</span>
+                    <span className="text-xs text-ink-500">
+                      ({formatQuantity(group.totalQty * KG_PER_MOOTAI)} kg)
+                    </span>
                   </div>
 
                   <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 min-w-0 sm:col-auto sm:row-auto">
@@ -201,8 +219,16 @@ export default function Retail() {
                               <div className="text-lg sm:text-xl font-bold text-ink-900 truncate">
                                 {sale.product || '(Unknown)'}
                               </div>
-                              <div className="text-sm sm:text-base text-ink-500">
-                                {sale.qty} M × {currencyINR(sale.rate)}/M
+                              <div className="flex items-baseline gap-1.5">
+                                <strong className="text-sm font-bold text-ink-800">
+                                  {formatQuantity(sale.qty * KATTU_PER_MOOTAI)} Kattu
+                                </strong>
+                                <span className="text-xs text-ink-500">
+                                  / {formatQuantity(sale.qty * KG_PER_MOOTAI)} kg
+                                </span>
+                              </div>
+                              <div className="text-xs text-ink-500">
+                                {currencyINR(sale.rate)} per Mootai
                               </div>
                             </div>
                           </div>

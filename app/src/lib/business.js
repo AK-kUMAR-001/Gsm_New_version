@@ -1,5 +1,8 @@
 const INDIAN_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
+export const KATTU_PER_MOOTAI = 50;
+export const KG_PER_MOOTAI = 30;
+
 const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
