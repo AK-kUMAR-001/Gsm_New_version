@@ -70,19 +70,16 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     current.retailRevenue += quantity * Number(sale.price_per_mootai ?? 0);
     salesByProduct.set(sale.product, current);
   }
-  return settings.map((setting) => {
+  return settings.filter((setting) => {
+    const product = productsById.get(setting.product_id);
+    return product && product.active !== false;
+  }).map((setting) => {
     const product = productsById.get(setting.product_id);
     const productMovements = movements.filter((movement) => movement.product_id === setting.product_id);
     const openingBeforeDate = productMovements
       .filter((movement) => movement.movement_date < date)
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const todaysMovements = productMovements.filter((movement) => movement.movement_date === date);
-    const receipts = todaysMovements
-      .filter((movement) => movement.movement_type === 'receipt')
-      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
-    const receiptCost = todaysMovements
-      .filter((movement) => movement.movement_type === 'receipt')
-      .reduce((sum, movement) => sum + Number(movement.cost_delta || 0), 0);
     const buyerSold = todaysMovements
       .filter((movement) => movement.movement_type === 'sale' && movement.source_kind === 'buyer_sales')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
@@ -101,13 +98,11 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     return {
       productId: setting.product_id,
       productName: product?.name || 'Unknown product',
-      receipts,
       buyerSold,
       buyerRevenue: salesRevenue.buyerRevenue,
       retailSold,
       retailRevenue: salesRevenue.retailRevenue,
       sold,
-      receiptCost,
       damaged,
       corrections,
       balance: openingBeforeDate + todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
@@ -159,7 +154,7 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Morning count is the physical stock quantity entered today. Sales values use each bill&apos;s price, and received stock cost uses its recorded purchase cost.
+            Morning count is the physical stock entered today. Balance includes stock movements through this date, including receipts, sales, damage, and corrections. Sales values use each bill&apos;s price.
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
@@ -188,7 +183,6 @@ function DailyClosingSummary({
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
                 <th className="px-4 py-3 font-bold">Morning count</th>
-                <th className="px-4 py-3 text-right font-bold">Received</th>
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
@@ -202,10 +196,6 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
                     {row.countRecorded ? `${formatQuantity(row.countedQuantity)} Mootai` : 'Count not recorded'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-green-700">
-                    <div>{formatQuantity(row.receipts)} Mootai</div>
-                    <div className="mt-1 text-xs text-ink-500">{currencyINR(row.receiptCost)} cost</div>
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">
                     <div>{formatQuantity(row.buyerSold)} Mootai</div>
@@ -537,8 +527,6 @@ export default function Reports() {
       product: row.productName,
       morning_count_mootai: row.countedQuantity ?? '',
       morning_count_recorded: row.countRecorded,
-      stock_received_mootai: row.receipts,
-      stock_received_cost: row.receiptCost,
       buyer_sales_mootai: row.buyerSold,
       buyer_sales_value: row.buyerRevenue,
       retail_sales_mootai: row.retailSold,
@@ -900,7 +888,7 @@ export default function Reports() {
 
         {topBuyers.length > 0 && (
           <div className="max-h-[520px] divide-y divide-ink-100 overflow-y-auto">
-            {topBuyers.slice(0, 10).map((buyer, index) => {
+            {topBuyers.slice(0, 3).map((buyer, index) => {
               const rankBadge = TOP_BUYER_RANK_BADGES[index] || 'bg-ink-100 text-ink-600';
               return (
                 <div
