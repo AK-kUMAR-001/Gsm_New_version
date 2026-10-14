@@ -106,6 +106,12 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       .filter((movement) => movement.movement_date < date)
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const todaysMovements = productMovements.filter((movement) => movement.movement_date === date);
+    const stockIn = todaysMovements
+      .filter((movement) => movement.movement_type === 'receipt')
+      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
+    const stockInCost = todaysMovements
+      .filter((movement) => movement.movement_type === 'receipt')
+      .reduce((sum, movement) => sum + Number(movement.cost_delta || 0), 0);
     const damaged = todaysMovements
       .filter((movement) => movement.movement_type === 'spoilage')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
@@ -122,7 +128,6 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       .filter((movement) => movement.movement_type === 'spoilage')
       .reduce((sum, movement) => sum - Number(movement.cost_delta || 0), 0);
     const count = countsByProduct.get(setting.product_id);
-    const sold = buyerSold + retailSold;
     const salesRevenue = salesByProduct.get(product?.name) || {
       buyerQuantity: 0,
       buyerRevenue: 0,
@@ -136,9 +141,12 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     const totalRevenue = salesRevenue.buyerRevenue + salesRevenue.retailRevenue;
     const buyerSold = salesRevenue.buyerQuantity;
     const retailSold = salesRevenue.retailQuantity;
+    const sold = buyerSold + retailSold;
     return {
       productId: setting.product_id,
       productName: product?.name || 'Unknown product',
+      stockIn,
+      stockInCost,
       buyerSold,
       buyerRevenue: salesRevenue.buyerRevenue,
       retailSold,
@@ -227,6 +235,7 @@ function DailyClosingSummary({
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
                 <th className="px-4 py-3 font-bold">Morning count</th>
+                <th className="px-4 py-3 text-right font-bold">Stock in (recorded)</th>
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
@@ -240,6 +249,12 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
                     {row.countRecorded ? `${formatQuantity(row.countedQuantity)} Mootai` : 'Count not recorded'}
+                  </td>
+                  <td className="px-4 py-3 text-right text-green-700">
+                    <div>{formatQuantity(row.stockIn)} Mootai</div>
+                    {row.stockInCost > 0 && (
+                      <div className="mt-1 text-xs text-ink-500">{currencyINR(row.stockInCost)} cost</div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">
                     <div>{formatQuantity(row.buyerSold)} Mootai</div>
@@ -584,6 +599,8 @@ export default function Reports() {
       product: row.productName,
       morning_count_mootai: row.countedQuantity ?? '',
       morning_count_recorded: row.countRecorded,
+      stock_in_recorded_mootai: row.stockIn,
+      stock_in_recorded_cost: row.stockInCost,
       buyer_sales_mootai: row.buyerSold,
       buyer_sales_value: row.buyerRevenue,
       retail_sales_mootai: row.retailSold,
