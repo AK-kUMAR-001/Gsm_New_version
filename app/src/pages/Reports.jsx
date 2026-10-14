@@ -53,11 +53,24 @@ function sortEntriesByCreatedAt(entries) {
   ));
 }
 
-function buildDailyStockClosingRows(settings, movements, counts, products, date) {
+function buildDailyStockClosingRows(settings, movements, counts, products, date, buyerSales, retailSales) {
   const productsById = new Map(products.map((product) => [product.id, product]));
   const countsByProduct = new Map(
     counts.filter((count) => count.stock_date === date).map((count) => [count.product_id, count])
   );
+  const salesByProduct = new Map();
+  for (const sale of buyerSales) {
+    const current = salesByProduct.get(sale.product) || { buyerRevenue: 0, retailRevenue: 0 };
+    const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
+    current.buyerRevenue += quantity * Number(sale.price_per_mootai ?? 0);
+    salesByProduct.set(sale.product, current);
+  }
+  for (const sale of retailSales) {
+    const current = salesByProduct.get(sale.product) || { buyerRevenue: 0, retailRevenue: 0 };
+    const quantity = Number(sale.mootais_sold ?? sale.mootais ?? 0);
+    current.retailRevenue += quantity * Number(sale.price_per_mootai ?? 0);
+    salesByProduct.set(sale.product, current);
+  }
   return settings.map((setting) => {
     const product = productsById.get(setting.product_id);
     const productMovements = movements.filter((movement) => movement.product_id === setting.product_id);
@@ -72,6 +85,9 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date)
     const receipts = todaysMovements
       .filter((movement) => movement.movement_type === 'receipt')
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
+    const receiptCost = todaysMovements
+      .filter((movement) => movement.movement_type === 'receipt')
+      .reduce((sum, movement) => sum + Number(movement.cost_delta || 0), 0);
     const buyerSold = todaysMovements
       .filter((movement) => movement.movement_type === 'sale' && movement.source_kind === 'buyer_sales')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
@@ -81,26 +97,26 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date)
     const damaged = todaysMovements
       .filter((movement) => movement.movement_type === 'spoilage')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
-    const countVariance = todaysMovements
-      .filter((movement) => movement.movement_type === 'count_adjustment')
-      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const corrections = todaysMovements
       .filter((movement) => movement.movement_type === 'correction')
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const count = countsByProduct.get(setting.product_id);
     const sold = buyerSold + retailSold;
+    const salesRevenue = salesByProduct.get(product?.name) || { buyerRevenue: 0, retailRevenue: 0 };
     return {
       productId: setting.product_id,
       productName: product?.name || 'Unknown product',
       opening,
       receipts,
       buyerSold,
+      buyerRevenue: salesRevenue.buyerRevenue,
       retailSold,
+      retailRevenue: salesRevenue.retailRevenue,
       sold,
+      receiptCost,
       damaged,
-      countVariance,
       corrections,
-      closing: openingBeforeDate + todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
+      balance: openingBeforeDate + todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
       countedQuantity: count?.counted_quantity ?? null,
       countRecorded: !!count,
     };
@@ -136,7 +152,6 @@ function DailyClosingSummary({
   date,
   buyerSalesTotal,
   retailSalesTotal,
-  paymentsTotal,
   receiptCost,
   rows,
   offline,
@@ -150,28 +165,27 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Stock is shown as Mootai quantities, not sales money. Closing is opening stock plus all signed stock movements for this date; buyer and retail quantities are split out below.
+            Opening is carried stock before today&apos;s movements; morning count is the physical quantity entered today. Sales values use each bill&apos;s price, and received stock cost uses its recorded purchase cost.
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
-          <Download className="h-4 w-4" /> Download stock closing CSV
+          <Download className="h-4 w-4" /> Download daily stock CSV
         </button>
       </div>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <ReportCostCard label="Buyer sales" amount={buyerSalesTotal} />
         <ReportCostCard label="Retail sales" amount={retailSalesTotal} />
-        <ReportCostCard label="Payments received" amount={paymentsTotal} />
         <ReportCostCard label="Stock purchase cost" amount={offline || inventoryError ? null : receiptCost} />
       </div>
 
       {offline || inventoryError ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Stock opening and closing quantities are unavailable until the inventory database migration is applied and loaded.
+          Stock opening and balance quantities are unavailable until the inventory database migration is applied and loaded.
         </div>
       ) : rows.length === 0 ? (
         <p className="rounded-2xl bg-ink-50 p-4 text-sm text-ink-600">
-          No tracked products yet. Start stock tracking to include opening and closing quantities.
+          No tracked products yet. Start stock tracking to include opening and balance quantities.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-100">
@@ -184,9 +198,8 @@ function DailyClosingSummary({
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Count variance</th>
                 <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
-                <th className="px-4 py-3 text-right font-bold">Closing</th>
+                <th className="px-4 py-3 text-right font-bold">Balance (Mootai)</th>
                 <th className="px-4 py-3 font-bold">Morning count</th>
               </tr>
             </thead>
@@ -195,13 +208,21 @@ function DailyClosingSummary({
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
                   <td className="px-4 py-3 text-right">{formatQuantity(row.opening)}</td>
-                  <td className="px-4 py-3 text-right text-green-700">{formatQuantity(row.receipts)}</td>
-                  <td className="px-4 py-3 text-right text-red-700">{formatQuantity(row.buyerSold)}</td>
-                  <td className="px-4 py-3 text-right text-red-700">{formatQuantity(row.retailSold)}</td>
+                  <td className="px-4 py-3 text-right text-green-700">
+                    <div>{formatQuantity(row.receipts)} Mootai</div>
+                    <div className="mt-1 text-xs text-ink-500">{currencyINR(row.receiptCost)} cost</div>
+                  </td>
+                  <td className="px-4 py-3 text-right text-red-700">
+                    <div>{formatQuantity(row.buyerSold)} Mootai</div>
+                    <div className="mt-1 text-xs text-ink-500">{currencyINR(row.buyerRevenue)} sales</div>
+                  </td>
+                  <td className="px-4 py-3 text-right text-red-700">
+                    <div>{formatQuantity(row.retailSold)} Mootai</div>
+                    <div className="mt-1 text-xs text-ink-500">{currencyINR(row.retailRevenue)} sales</div>
+                  </td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)}</td>
-                  <td className="px-4 py-3 text-right">{formatQuantity(row.countVariance)}</td>
                   <td className="px-4 py-3 text-right">{formatQuantity(row.corrections)}</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.closing)}</td>
+                  <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.balance)}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
                     {row.countRecorded ? `${formatQuantity(row.countedQuantity)} Mootai` : 'Count not recorded'}
                   </td>
@@ -213,7 +234,7 @@ function DailyClosingSummary({
       )}
       {!offline && !inventoryError && rows.some((row) => !row.countRecorded) && (
         <p className="mt-3 text-xs text-amber-800">
-          Closing quantities are ledger balances. Products without a physical count are clearly marked and should be checked before closing the day.
+          Products without a physical count are clearly marked and should be checked before relying on their balance.
         </p>
       )}
     </section>
@@ -598,6 +619,14 @@ export default function Reports() {
     () => dailyPayments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0),
     [dailyPayments]
   );
+  const dailyBuyerSalesForStock = useMemo(
+    () => (buyerSales || []).filter((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate),
+    [buyerSales, selectedDate]
+  );
+  const dailyRetailSalesForStock = useMemo(
+    () => (retailSales || []).filter((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate),
+    [retailSales, selectedDate]
+  );
   const dailyStockClosingRows = useMemo(
     () => buildDailyStockClosingRows(
       inventorySettings,
@@ -605,9 +634,11 @@ export default function Reports() {
       inventoryCounts,
       products,
       selectedDate,
+      dailyBuyerSalesForStock,
+      dailyRetailSalesForStock,
     )
       .filter((row) => !productFilter || products.find((product) => product.id === row.productId)?.name === productFilter),
-    [inventorySettings, inventoryMovements, inventoryCounts, products, selectedDate, productFilter]
+    [inventorySettings, inventoryMovements, inventoryCounts, products, selectedDate, dailyBuyerSalesForStock, dailyRetailSalesForStock, productFilter]
   );
   const dailyReceiptCost = useMemo(
     () => inventoryMovements
@@ -642,23 +673,25 @@ export default function Reports() {
     });
   };
 
-  const downloadDailyClosingCsv = () => {
+  const downloadDailyStockCsv = () => {
     const rows = dailyStockClosingRows.map((row) => ({
       date: selectedDate,
       product: row.productName,
       opening_stock_mootai: row.opening,
       stock_received_mootai: row.receipts,
+      stock_received_cost: row.receiptCost,
       buyer_sales_mootai: row.buyerSold,
+      buyer_sales_value: row.buyerRevenue,
       retail_sales_mootai: row.retailSold,
+      retail_sales_value: row.retailRevenue,
       total_sales_mootai: row.sold,
       damaged_stock_mootai: row.damaged,
-      stock_count_variance_mootai: row.countVariance,
       stock_corrections_mootai: row.corrections,
-      closing_stock_mootai: row.closing,
+      balance_stock_mootai: row.balance,
       morning_count_mootai: row.countedQuantity ?? '',
       morning_count_recorded: row.countRecorded,
     }));
-    downloadCsv(`daily-closing-${selectedDate}.csv`, rows);
+    downloadCsv(`daily-stock-${selectedDate}.csv`, rows);
   };
 
   const totalBuyer = useMemo(() => sumSales(filteredBuyerSales), [filteredBuyerSales]);
@@ -861,7 +894,7 @@ export default function Reports() {
         rows={dailyStockClosingRows}
         offline={offline}
         inventoryError={inventoryError}
-        onRequestDownload={() => requestDownload(`the ${selectedDate} daily closing CSV`, downloadDailyClosingCsv)}
+        onRequestDownload={() => requestDownload(`the ${selectedDate} daily stock CSV`, downloadDailyStockCsv)}
       />
 
       <section>
