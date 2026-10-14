@@ -57,18 +57,35 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
   const countsByProduct = new Map(
     counts.filter((count) => count.stock_date === date).map((count) => [count.product_id, count])
   );
+  const salesById = new Map();
   const salesByProduct = new Map();
+  const addSale = (sale, sourceKind, revenue) => {
+    const productSales = salesByProduct.get(sale.product) || {
+      buyerRevenue: 0,
+      retailRevenue: 0,
+      salesCount: 0,
+      saleCost: 0,
+      costedSalesCount: 0,
+    };
+    if (sourceKind === 'buyer_sales') productSales.buyerRevenue += revenue;
+    else productSales.retailRevenue += revenue;
+    productSales.salesCount += 1;
+    salesByProduct.set(sale.product, productSales);
+    salesById.set(`${sourceKind}:${sale.id}`, productSales);
+  };
   for (const sale of buyerSales) {
-    const current = salesByProduct.get(sale.product) || { buyerRevenue: 0, retailRevenue: 0 };
-    const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-    current.buyerRevenue += quantity * Number(sale.price_per_mootai ?? 0);
-    salesByProduct.set(sale.product, current);
+    addSale(
+      sale,
+      'buyer_sales',
+      Number(sale.mootais ?? 0) * Number(sale.price_per_mootai ?? 0),
+    );
   }
   for (const sale of retailSales) {
-    const current = salesByProduct.get(sale.product) || { buyerRevenue: 0, retailRevenue: 0 };
-    const quantity = Number(sale.mootais_sold ?? sale.mootais ?? 0);
-    current.retailRevenue += quantity * Number(sale.price_per_mootai ?? 0);
-    salesByProduct.set(sale.product, current);
+    addSale(
+      sale,
+      'retail_sales',
+      Number(sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0),
+    );
   }
   return settings.filter((setting) => {
     const product = productsById.get(setting.product_id);
@@ -89,12 +106,29 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     const damaged = todaysMovements
       .filter((movement) => movement.movement_type === 'spoilage')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
-    const corrections = todaysMovements
-      .filter((movement) => movement.movement_type === 'correction')
-      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
+    const saleCost = todaysMovements
+      .filter((movement) => movement.movement_type === 'sale')
+      .reduce((sum, movement) => {
+        const sale = salesById.get(`${movement.source_kind}:${movement.source_id}`);
+        if (!sale) return sum;
+        sale.costedSalesCount += 1;
+        sale.saleCost -= Number(movement.cost_delta || 0);
+        return sum + Number(movement.cost_delta || 0);
+      }, 0);
+    const damageCost = todaysMovements
+      .filter((movement) => movement.movement_type === 'spoilage')
+      .reduce((sum, movement) => sum - Number(movement.cost_delta || 0), 0);
     const count = countsByProduct.get(setting.product_id);
     const sold = buyerSold + retailSold;
-    const salesRevenue = salesByProduct.get(product?.name) || { buyerRevenue: 0, retailRevenue: 0 };
+    const salesRevenue = salesByProduct.get(product?.name) || {
+      buyerRevenue: 0,
+      retailRevenue: 0,
+      salesCount: 0,
+      costedSalesCount: 0,
+      saleCost: 0,
+    };
+    const hasCompleteSaleCosts = salesRevenue.costedSalesCount >= salesRevenue.salesCount;
+    const totalRevenue = salesRevenue.buyerRevenue + salesRevenue.retailRevenue;
     return {
       productId: setting.product_id,
       productName: product?.name || 'Unknown product',
@@ -104,7 +138,10 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       retailRevenue: salesRevenue.retailRevenue,
       sold,
       damaged,
-      corrections,
+      saleCost: Math.abs(saleCost),
+      damageCost,
+      totalRevenue,
+      finalProfit: hasCompleteSaleCosts ? totalRevenue - salesRevenue.saleCost - damageCost : null,
       balance: openingBeforeDate + todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
       countedQuantity: count?.counted_quantity ?? null,
       countRecorded: !!count,
@@ -154,7 +191,7 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Morning count is the physical stock entered today. Balance includes stock movements through this date, including receipts, sales, damage, and corrections. Sales values use each bill&apos;s price.
+            Final profit = sales revenue − recorded cost of stock sold − damage cost. Balance includes all stock movements through this date.
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
@@ -178,7 +215,7 @@ function DailyClosingSummary({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-100">
-          <table className="w-full min-w-[1080px] text-left text-sm">
+          <table className="w-full min-w-[1120px] text-left text-sm">
             <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
@@ -186,8 +223,8 @@ function DailyClosingSummary({
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
                 <th className="px-4 py-3 text-right font-bold">Balance (Mootai)</th>
+                <th className="px-4 py-3 text-right font-bold">Final profit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
@@ -206,8 +243,21 @@ function DailyClosingSummary({
                     <div className="mt-1 text-xs text-ink-500">{currencyINR(row.retailRevenue)} sales</div>
                   </td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)}</td>
-                  <td className="px-4 py-3 text-right">{formatQuantity(row.corrections)}</td>
                   <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.balance)}</td>
+                  <td className="px-4 py-3 text-right">
+                    {row.finalProfit == null ? (
+                      <span className="text-xs text-ink-500">Cost not recorded</span>
+                    ) : (
+                      <>
+                        <div className={`font-bold ${row.finalProfit < 0 ? 'text-red-700' : 'text-green-700'}`}>
+                          {currencyINR(row.finalProfit)}
+                        </div>
+                        <div className="mt-1 whitespace-nowrap text-[11px] text-ink-500">
+                          {currencyINR(row.totalRevenue)} − {currencyINR(row.saleCost)} − {currencyINR(row.damageCost)}
+                        </div>
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -533,8 +583,10 @@ export default function Reports() {
       retail_sales_value: row.retailRevenue,
       total_sales_mootai: row.sold,
       damaged_stock_mootai: row.damaged,
-      stock_corrections_mootai: row.corrections,
       balance_stock_mootai: row.balance,
+      recorded_sold_stock_cost: row.saleCost,
+      damaged_stock_cost: row.damageCost,
+      final_profit: row.finalProfit ?? '',
     }));
     downloadCsv(`daily-stock-${selectedDate}.csv`, rows);
   };
