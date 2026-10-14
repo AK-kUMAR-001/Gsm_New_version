@@ -59,16 +59,23 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
   );
   const salesById = new Map();
   const salesByProduct = new Map();
-  const addSale = (sale, sourceKind, revenue) => {
+  const addSale = (sale, sourceKind, quantity, revenue) => {
     const productSales = salesByProduct.get(sale.product) || {
+      buyerQuantity: 0,
       buyerRevenue: 0,
+      retailQuantity: 0,
       retailRevenue: 0,
       salesCount: 0,
       saleCost: 0,
       costedSalesCount: 0,
     };
-    if (sourceKind === 'buyer_sales') productSales.buyerRevenue += revenue;
-    else productSales.retailRevenue += revenue;
+    if (sourceKind === 'buyer_sales') {
+      productSales.buyerQuantity += quantity;
+      productSales.buyerRevenue += revenue;
+    } else {
+      productSales.retailQuantity += quantity;
+      productSales.retailRevenue += revenue;
+    }
     productSales.salesCount += 1;
     salesByProduct.set(sale.product, productSales);
     salesById.set(`${sourceKind}:${sale.id}`, productSales);
@@ -77,6 +84,7 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     addSale(
       sale,
       'buyer_sales',
+      Number(sale.mootais ?? 0),
       Number(sale.mootais ?? 0) * Number(sale.price_per_mootai ?? 0),
     );
   }
@@ -84,6 +92,7 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     addSale(
       sale,
       'retail_sales',
+      Number(sale.mootais_sold ?? 0),
       Number(sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0),
     );
   }
@@ -97,12 +106,6 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       .filter((movement) => movement.movement_date < date)
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const todaysMovements = productMovements.filter((movement) => movement.movement_date === date);
-    const buyerSold = todaysMovements
-      .filter((movement) => movement.movement_type === 'sale' && movement.source_kind === 'buyer_sales')
-      .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
-    const retailSold = todaysMovements
-      .filter((movement) => movement.movement_type === 'sale' && movement.source_kind === 'retail_sales')
-      .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
     const damaged = todaysMovements
       .filter((movement) => movement.movement_type === 'spoilage')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
@@ -121,7 +124,9 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     const count = countsByProduct.get(setting.product_id);
     const sold = buyerSold + retailSold;
     const salesRevenue = salesByProduct.get(product?.name) || {
+      buyerQuantity: 0,
       buyerRevenue: 0,
+      retailQuantity: 0,
       retailRevenue: 0,
       salesCount: 0,
       costedSalesCount: 0,
@@ -129,6 +134,8 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     };
     const hasCompleteSaleCosts = salesRevenue.costedSalesCount >= salesRevenue.salesCount;
     const totalRevenue = salesRevenue.buyerRevenue + salesRevenue.retailRevenue;
+    const buyerSold = salesRevenue.buyerQuantity;
+    const retailSold = salesRevenue.retailQuantity;
     return {
       productId: setting.product_id,
       productName: product?.name || 'Unknown product',
