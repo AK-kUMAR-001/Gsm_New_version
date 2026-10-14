@@ -61,10 +61,14 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date)
   return settings.map((setting) => {
     const product = productsById.get(setting.product_id);
     const productMovements = movements.filter((movement) => movement.product_id === setting.product_id);
-    const opening = productMovements
+    const openingBeforeDate = productMovements
       .filter((movement) => movement.movement_date < date)
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const todaysMovements = productMovements.filter((movement) => movement.movement_date === date);
+    const openingToday = todaysMovements
+      .filter((movement) => movement.movement_type === 'opening')
+      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
+    const opening = openingBeforeDate + openingToday;
     const receipts = todaysMovements
       .filter((movement) => movement.movement_type === 'receipt')
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
@@ -77,8 +81,11 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date)
     const damaged = todaysMovements
       .filter((movement) => movement.movement_type === 'spoilage')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
-    const adjustments = todaysMovements
-      .filter((movement) => !['receipt', 'sale', 'spoilage'].includes(movement.movement_type))
+    const countVariance = todaysMovements
+      .filter((movement) => movement.movement_type === 'count_adjustment')
+      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
+    const corrections = todaysMovements
+      .filter((movement) => movement.movement_type === 'correction')
       .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const count = countsByProduct.get(setting.product_id);
     const sold = buyerSold + retailSold;
@@ -91,8 +98,9 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date)
       retailSold,
       sold,
       damaged,
-      adjustments,
-      closing: opening + todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
+      countVariance,
+      corrections,
+      closing: openingBeforeDate + todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
       countedQuantity: count?.counted_quantity ?? null,
       countRecorded: !!count,
     };
@@ -167,7 +175,7 @@ function DailyClosingSummary({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-100">
-          <table className="w-full min-w-[940px] text-left text-sm">
+          <table className="w-full min-w-[1080px] text-left text-sm">
             <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
@@ -176,7 +184,8 @@ function DailyClosingSummary({
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Adjustments</th>
+                <th className="px-4 py-3 text-right font-bold">Count variance</th>
+                <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
                 <th className="px-4 py-3 text-right font-bold">Closing</th>
                 <th className="px-4 py-3 font-bold">Morning count</th>
               </tr>
@@ -190,7 +199,8 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 text-right text-red-700">{formatQuantity(row.buyerSold)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatQuantity(row.retailSold)}</td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)}</td>
-                  <td className="px-4 py-3 text-right">{formatQuantity(row.adjustments)}</td>
+                  <td className="px-4 py-3 text-right">{formatQuantity(row.countVariance)}</td>
+                  <td className="px-4 py-3 text-right">{formatQuantity(row.corrections)}</td>
                   <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.closing)}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
                     {row.countRecorded ? `${formatQuantity(row.countedQuantity)} Mootai` : 'Count not recorded'}
@@ -642,7 +652,8 @@ export default function Reports() {
       retail_sales_mootai: row.retailSold,
       total_sales_mootai: row.sold,
       damaged_stock_mootai: row.damaged,
-      stock_adjustments_mootai: row.adjustments,
+      stock_count_variance_mootai: row.countVariance,
+      stock_corrections_mootai: row.corrections,
       closing_stock_mootai: row.closing,
       morning_count_mootai: row.countedQuantity ?? '',
       morning_count_recorded: row.countRecorded,

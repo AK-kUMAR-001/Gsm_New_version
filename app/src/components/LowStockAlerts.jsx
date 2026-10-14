@@ -15,7 +15,7 @@ export default function LowStockAlerts() {
   const lowStockProducts = inventorySettings.flatMap((setting) => {
     const product = productsById.get(setting.product_id);
     const stock = summaryById.get(setting.product_id);
-    if (!product || !stock) return [];
+    if (!product || product.active === false || !stock) return [];
     const threshold = Number(setting.low_stock_threshold ?? 5);
     const available = Number(stock.quantity_on_hand || 0);
     return threshold > 0 && available <= threshold ? [{ product, available, threshold }] : [];

@@ -89,17 +89,20 @@ export default function Inventory() {
   }, [loadInventory]);
 
   const productsById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
-  const stockProducts = useMemo(() => [...products].sort((a, b) => {
-    const aName = String(a.name || '').trim().toLocaleLowerCase();
-    const bName = String(b.name || '').trim().toLocaleLowerCase();
-    const aOrder = STOCK_PRODUCT_ORDER.indexOf(aName);
-    const bOrder = STOCK_PRODUCT_ORDER.indexOf(bName);
-    if (aOrder < 0 && bOrder < 0) return aName.localeCompare(bName);
-    if (aOrder < 0) return 1;
-    if (bOrder < 0) return -1;
-    return aOrder - bOrder;
-  }), [products]);
+  const stockProducts = useMemo(() => products
+    .filter((product) => product.active !== false)
+    .sort((a, b) => {
+      const aName = String(a.name || '').trim().toLocaleLowerCase();
+      const bName = String(b.name || '').trim().toLocaleLowerCase();
+      const aOrder = STOCK_PRODUCT_ORDER.indexOf(aName);
+      const bOrder = STOCK_PRODUCT_ORDER.indexOf(bName);
+      if (aOrder < 0 && bOrder < 0) return aName.localeCompare(bName);
+      if (aOrder < 0) return 1;
+      if (bOrder < 0) return -1;
+      return aOrder - bOrder;
+    }), [products]);
   const suppliersById = useMemo(() => new Map(suppliers.map((supplier) => [supplier.id, supplier])), [suppliers]);
+  const activeProductIds = useMemo(() => new Set(stockProducts.map((item) => item.id)), [stockProducts]);
   const settingsById = useMemo(() => new Map(inventorySettings.map((setting) => [setting.product_id, setting])), [inventorySettings]);
   const summaryById = useMemo(() => new Map(inventorySummary.map((row) => [row.product_id, row])), [inventorySummary]);
   const countedIds = useMemo(() => new Set(
@@ -187,7 +190,7 @@ export default function Inventory() {
       result = await setStockQuantity(
         productId,
         quantity,
-        form.reason.trim(),
+        'Stock balance corrected from Daily Stock In',
         form.unitCost ? Number(form.unitCost) : null,
         requestId.current,
       );
@@ -200,7 +203,7 @@ export default function Inventory() {
   const currentStock = summaryById.get(productId);
   const quantityInput = Number(form.quantity || 0);
   const damagedQuantity = Number(form.damagedQuantity || 0);
-  const movements = [...inventoryMovements].sort((a, b) => (
+  const movements = inventoryMovements.filter((movement) => activeProductIds.has(movement.product_id)).sort((a, b) => (
     String(b.created_at || '').localeCompare(String(a.created_at || ''))
   ));
 
@@ -266,9 +269,6 @@ export default function Inventory() {
                 </button>
                 {isTracked && (
                   <div className="flex shrink-0 flex-col items-end gap-2">
-                    <button type="button" onClick={() => openAction('correction', item)} className="btn-outline !min-h-9 !px-3 !py-2">
-                      <Pencil className="h-4 w-4" /> Edit stock
-                    </button>
                     <span className={`pill ${hasCount ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
                       {hasCount ? 'Count complete' : 'Count required'}
                     </span>
@@ -312,6 +312,9 @@ export default function Inventory() {
                       </button>
                       <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline">
                         <AlertTriangle className="w-4 h-4" /> Damaged stock
+                      </button>
+                      <button type="button" onClick={() => openAction('correction', item)} className="btn-outline">
+                        <Pencil className="h-4 w-4" /> Edit stock
                       </button>
                     </div>
                   </div>
@@ -493,16 +496,16 @@ export default function Inventory() {
                 </select>
               </div>
             )}
-            {(action === 'damaged' || action === 'correction') && (
+            {action === 'damaged' && (
               <div>
-                <label className="label">{action === 'damaged' ? 'Damage reason' : 'Reason'} <span className="text-red-500">*</span></label>
+                <label className="label">Damage reason <span className="text-red-500">*</span></label>
                 <textarea
                   required
                   maxLength={500}
                   value={form.reason || ''}
                   onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))}
                   className="input resize-y"
-                  placeholder={action === 'damaged' ? 'e.g. spoiled during storage' : ''}
+                  placeholder="e.g. spoiled during storage"
                   rows={3}
                 />
               </div>
