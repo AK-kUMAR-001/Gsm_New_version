@@ -24,7 +24,11 @@ export default function Retail() {
   const cardRefs = useRef({});
 
   const filtered = useMemo(() => {
-    return filterByPeriod(retailSales || [], period, 'sale_date').sort((a, b) => (b.sale_date || '').localeCompare(a.sale_date || ''));
+    return filterByPeriod(retailSales || [], period, 'sale_date').sort((a, b) => {
+      const dateOrder = String(b.sale_date || '').localeCompare(String(a.sale_date || ''));
+      if (dateOrder) return dateOrder;
+      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
   }, [retailSales, period, filterByPeriod]);
 
   const stats = useMemo(() => {
@@ -228,7 +232,10 @@ export default function Retail() {
                                 </span>
                               </div>
                               <div className="text-xs text-ink-500">
-                                {currencyINR(sale.rate)} per Mootai
+                                {currencyINR(sale.rate / KATTU_PER_MOOTAI)} per Kattu
+                                <span className="ml-1 text-[11px]">
+                                  ({currencyINR(sale.rate)} per Mootai)
+                                </span>
                               </div>
                             </div>
                           </div>
