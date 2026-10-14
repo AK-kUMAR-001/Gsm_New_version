@@ -457,31 +457,10 @@ function BuyerRetailChart({ data }) {
   );
 }
 
-const TOP_BUYER_CARDS = [
-  {
-    rank: 1,
-    badgeBg: 'bg-amber-500 text-white',
-    cardBg: 'bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100/60',
-    cardBorder: 'border-amber-200',
-    pendingColor: 'text-amber-800',
-    textMain: 'text-ink-900',
-  },
-  {
-    rank: 2,
-    badgeBg: 'bg-slate-500 text-white',
-    cardBg: 'bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100/60',
-    cardBorder: 'border-slate-200',
-    pendingColor: 'text-slate-700',
-    textMain: 'text-ink-900',
-  },
-  {
-    rank: 3,
-    badgeBg: 'bg-amber-700 text-white',
-    cardBg: 'bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100/60',
-    cardBorder: 'border-orange-200',
-    pendingColor: 'text-orange-800',
-    textMain: 'text-ink-900',
-  },
+const TOP_BUYER_RANK_BADGES = [
+  'bg-amber-500 text-white',
+  'bg-slate-500 text-white',
+  'bg-amber-700 text-white',
 ];
 
 function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances) {
@@ -734,8 +713,6 @@ export default function Reports() {
     () => topBuyersForPeriod(filteredBuyerSales, balances),
     [filteredBuyerSales, balances]
   );
-  const topBuyerCards = topBuyers.slice(0, 3);
-  const topBuyerList = topBuyers.slice(3, 10);
 
   return (
     <div className="space-y-6">
@@ -917,26 +894,37 @@ export default function Reports() {
 
       <section>
         <h2 className="mb-3 text-lg font-bold text-ink-900">Period totals · {periodLabel}</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL</div>
-          <div className="mt-2 text-4xl font-black text-brand-green-dark tracking-tight">
-            {currencyINR(combined)}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL REVENUE</div>
+            <div className="mt-2 text-4xl font-black text-brand-green-dark tracking-tight">
+              {currencyINR(combined)}
+            </div>
           </div>
-        </div>
-        <div className="rounded-3xl border border-sidebar-accent/20 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-widest text-sidebar-accent">BUYERS</div>
-          <div className="mt-2 text-4xl font-black text-sidebar-accent tracking-tight">
-            {currencyINR(totalBuyer)}
+          <div className="rounded-3xl border border-sidebar-accent/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-sidebar-accent">BUYER REVENUE</div>
+            <div className="mt-2 text-4xl font-black text-sidebar-accent tracking-tight">
+              {currencyINR(totalBuyer)}
+            </div>
           </div>
-        </div>
-        <div className="rounded-3xl border border-brand-purple/20 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-widest text-brand-purple">RETAIL</div>
-          <div className="mt-2 text-4xl font-black text-brand-purple tracking-tight">
-            {currencyINR(totalRetail)}
+          <div className="rounded-3xl border border-brand-purple/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-brand-purple">RETAIL REVENUE</div>
+            <div className="mt-2 text-4xl font-black text-brand-purple tracking-tight">
+              {currencyINR(totalRetail)}
+            </div>
           </div>
+          <ReportCostCard
+            label="Gross profit (tracked sales)"
+            amount={!offline && !inventoryLoading && !inventoryError && inventoryReport.trackedSalesCount
+              ? inventoryReport.trackedGrossProfit
+              : null}
+          />
         </div>
-        </div>
+        {inventoryReport.trackedSalesCount > 0 && inventoryReport.trackedRevenueCoverage < 100 && (
+          <p className="mt-2 text-xs text-ink-500">
+            Gross profit is sale revenue minus recorded stock cost. It covers {inventoryReport.trackedRevenueCoverage.toFixed(1)}% of revenue; sales without recorded stock cost are excluded.
+          </p>
+        )}
       </section>
 
       {!offline && (
@@ -962,12 +950,16 @@ export default function Reports() {
             </p>
           ) : (
             <>
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
                 <ReportCostCard label="Stock purchased" amount={inventoryReport.receiptCost} />
                 <ReportCostCard label="Damaged stock cost" amount={inventoryReport.spoilageCost} />
                 <ReportCostCard label="Tracked sales cost" amount={inventoryReport.trackedSaleCost} />
                 <ReportCostCard
-                  label="Profit after stock cost + wastage"
+                  label="Gross profit on tracked sales"
+                  amount={inventoryReport.trackedSalesCount ? inventoryReport.trackedGrossProfit : null}
+                />
+                <ReportCostCard
+                  label="Profit after wastage"
                   amount={inventoryReport.trackedSalesCount ? inventoryReport.tradingProfit : null}
                 />
               </div>
@@ -1047,55 +1039,30 @@ export default function Reports() {
           <div className="text-center text-ink-500 text-sm py-10">No data for this period</div>
         )}
 
-        {topBuyerCards.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {topBuyerCards.map((b, i) => {
-              const style = TOP_BUYER_CARDS[i] || TOP_BUYER_CARDS[2];
+        {topBuyers.length > 0 && (
+          <div className="max-h-[520px] divide-y divide-ink-100 overflow-y-auto">
+            {topBuyers.slice(0, 10).map((buyer, index) => {
+              const rankBadge = TOP_BUYER_RANK_BADGES[index] || 'bg-ink-100 text-ink-600';
               return (
                 <div
-                  key={b.buyer_id}
-                  className={`rounded-3xl border-2 ${style.cardBorder} ${style.cardBg} p-6 text-center shadow-sm`}
+                  key={buyer.buyer_id}
+                  className="grid grid-cols-12 items-center gap-3 px-2 py-3 sm:px-3"
                 >
-                  <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center font-black text-lg ${style.badgeBg}`}>
-                    {style.rank}
+                  <div className="col-span-1">
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-black ${rankBadge}`}>
+                      {index + 1}
+                    </span>
                   </div>
-                  <div className={`mt-3 text-xl font-black ${style.textMain}`}>{b.name}</div>
-                  <div className={`mt-1 text-3xl font-black ${style.textMain} tracking-tight`}>
-                    {currencyINR(b.total_revenue)}
+                  <div className="col-span-5 min-w-0">
+                    <div className="truncate text-base font-bold text-ink-900">{buyer.name}</div>
+                    <div className="mt-0.5 text-xs font-semibold text-ink-500">{buyer.total_mootais} Mootais</div>
                   </div>
-                  <div className="text-sm text-ink-500 mt-1 font-semibold">
-                    {b.total_mootais} Mootais
+                  <div className="col-span-3 text-sm font-extrabold tracking-tight text-ink-900 sm:text-lg">
+                    {currencyINR(buyer.total_revenue)}
                   </div>
-                  <div className={`mt-2 text-sm font-bold ${style.pendingColor}`}>
-                    <IndianRupee className="inline w-3.5 h-3.5 -mt-0.5" />
-                    {currencyINR(b.pending).replace(/^₹/, '')} pending
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {topBuyerList.length > 0 && (
-          <div className="divide-y divide-ink-100 max-h-[520px] overflow-y-auto">
-            {topBuyerList.map((b, i) => {
-              const rank = i + 4;
-              return (
-                <div
-                  key={b.buyer_id}
-                  className="grid grid-cols-12 items-center gap-3 px-3 py-4"
-                >
-                  <div className="col-span-2 text-sm font-bold text-ink-500">#{rank}</div>
-                  <div className="col-span-4 min-w-0">
-                    <div className="text-lg font-black text-ink-900 truncate">{b.name}</div>
-                    <div className="text-sm text-ink-500 mt-0.5 font-semibold">{b.total_mootais} Mootais</div>
-                  </div>
-                  <div className="col-span-3 text-xl font-black text-ink-900 tracking-tight">
-                    {currencyINR(b.total_revenue)}
-                  </div>
-                  <div className="col-span-3 text-right text-sm font-bold text-amber-800">
-                    <IndianRupee className="inline w-3.5 h-3.5 -mt-0.5" />
-                    {currencyINR(b.pending).replace(/^₹/, '')} pending
+                  <div className="col-span-3 text-right text-xs font-bold text-amber-800 sm:text-sm">
+                    <IndianRupee className="inline h-3.5 w-3.5 -mt-0.5" />
+                    {currencyINR(buyer.pending).replace(/^₹/, '')} pending
                   </div>
                 </div>
               );
