@@ -87,6 +87,9 @@ The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
 also requires stock tracking for every newly recorded sale and rejects sales
 that exceed the usable balance. Existing sale rows are not rewritten.
+Record Malli and Pudina morning physical counts in Mootai; the app converts
+them to canonical Kattu quantities for the stock ledger. Karuvepillai counts
+remain in Kg.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 Mootais; set it to 0 to turn off the

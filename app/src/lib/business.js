@@ -132,6 +132,20 @@ export function formatProductQuantityForDate(product, quantity, date) {
   return `${value.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`;
 }
 
+export function formatStockCountForDate(product, quantity, date) {
+  const salesUnit = productSalesUnit(product);
+  const stockUnit = productStockUnit(product);
+  const factor = productStockToSalesFactor(product);
+  const stockQuantity = Number(quantity || 0) / factor;
+  if (stockUnit === salesUnit || (date && date <= LEGACY_SALE_UNIT_CUTOFF)) {
+    return `${stockQuantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${stockUnit}`;
+  }
+  return formatUnitQuantities({
+    [stockUnit]: stockQuantity,
+    [salesUnit]: Number(quantity || 0),
+  });
+}
+
 const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',

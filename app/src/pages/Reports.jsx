@@ -7,6 +7,7 @@ import {
   computeInventoryCostReport,
   computeDailyProductProfits,
   formatUnitQuantities,
+  formatStockCountForDate,
   formatProductQuantityForDate,
   formatSaleQuantities,
   formatSaleRates,
@@ -247,7 +248,7 @@ function DailyClosingSummary({
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
-                    {row.countRecorded ? formatProductQuantityForDate(row.product, row.countedQuantity, date) : 'Count not recorded'}
+                    {row.countRecorded ? formatStockCountForDate(row.product, row.countedQuantity, date) : 'Count not recorded'}
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">
                     <div>{formatUnitQuantities(row.buyerSold)}</div>

@@ -211,7 +211,7 @@ export default function Inventory() {
     const quantity = Number(form.quantity);
     const damagedQuantity = Number(form.damagedQuantity || 0);
     const stockFactor = productStockToSalesFactor(productsById.get(productId));
-    const inputIsStockUnit = action === 'opening' || action === 'receipt';
+    const inputIsStockUnit = action === 'opening' || action === 'receipt' || action === 'count';
     const recordedQuantity = inputIsStockUnit ? quantity * stockFactor : quantity;
     const recordedDamage = inputIsStockUnit ? damagedQuantity * stockFactor : damagedQuantity;
     const recordedUnitCost = form.unitCost
@@ -228,7 +228,7 @@ export default function Inventory() {
         damageRequestId.current,
       );
     } else if (action === 'count') {
-      result = await recordMorningCount(productId, quantity, recordedUnitCost);
+      result = await recordMorningCount(productId, recordedQuantity, recordedUnitCost);
     } else if (action === 'receipt') {
       result = await recordStockReceipt(
         productId, form.supplierId, recordedQuantity, Number(recordedUnitCost),
@@ -521,20 +521,23 @@ export default function Inventory() {
                 ? selectedBalanceByProduct.get(item.id)
                 : morningCount?.counted_quantity ?? null;
             const unit = productSalesUnit(item);
+            const stockUnit = productStockUnit(item);
             return (
               <article key={item.id} className="rounded-2xl border border-ink-100 bg-white p-4">
                 <h3 className="font-bold text-ink-900">{getProductEmoji(item.name, products)} {item.name}</h3>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                   <dt className="text-ink-500">Morning count</dt>
                   <dd className="text-right font-semibold text-ink-800">
-                    {morningCount ? <Quantity value={morningCount.counted_quantity} unit={unit} /> : 'Not recorded'}
+                    {morningCount ? <Quantity value={morningCount.counted_quantity / stockFactor} unit={stockUnit} /> : 'Not recorded'}
                   </dd>
-                  <dt className="text-ink-500">Entered count</dt>
-                  <dd className="text-right font-semibold text-green-700">
-                    {morningCount
-                      ? <Quantity value={morningCount.counted_quantity / stockFactor} unit={productStockUnit(item)} />
-                      : 'Not recorded'}
-                  </dd>
+                  {stockUnit !== unit && (
+                    <>
+                      <dt className="text-ink-500">Count equivalent</dt>
+                      <dd className="text-right font-semibold text-green-700">
+                        {morningCount ? <Quantity value={morningCount.counted_quantity} unit={unit} /> : 'Not recorded'}
+                      </dd>
+                    </>
+                  )}
                   <dt className="text-ink-500">Sold</dt>
                   <dd className="text-right font-semibold text-red-700">
                     {formatSaleQuantities({
@@ -776,7 +779,7 @@ export default function Inventory() {
                 <div>
                   <label className="label">
                     {action === 'count'
-                      ? `Physical quantity counted (${productSalesUnit(product)})`
+                      ? `Physical quantity counted (${productStockUnit(product)})`
                       : action === 'correction'
                         ? `Correct total available stock (${productSalesUnit(product)})`
                         : `Damaged quantity (${productSalesUnit(product)})`}
@@ -796,7 +799,7 @@ export default function Inventory() {
                 {(action === 'count' || (action === 'correction' && Number(form.quantity) > 0)) && (
                   <div>
                     <label className="label">
-                      Estimated cost per {productSalesUnit(product)}
+                      Estimated cost per {action === 'count' ? productStockUnit(product) : productSalesUnit(product)}
                       {action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0 && (
                         <span className="text-red-500"> *</span>
                       )}
