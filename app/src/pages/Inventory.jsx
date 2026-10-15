@@ -446,6 +446,7 @@ export default function Inventory() {
                     <span className="min-w-0 flex-1">
                       <span className="block font-bold text-ink-900">{formatDateCompact(date)}</span>
                       <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-500">
+                        <span>Net movement:</span>
                         {[...quantityByProduct.entries()].map(([id, quantity]) => {
                           const item = productsById.get(id);
                           return (
