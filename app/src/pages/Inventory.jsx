@@ -5,6 +5,7 @@ import {
   currencyINR,
   formatDateCompact,
   getProductEmoji,
+  parseDateStr,
   productSalesUnit,
   productStockToSalesFactor,
   productStockUnit,
@@ -12,7 +13,7 @@ import {
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
-import { AlertTriangle, Check, ChevronDown, ClipboardCheck, PackagePlus, Pencil, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, PackagePlus, Pencil, RefreshCw } from 'lucide-react';
 
 const ACTION_LABELS = {
   opening: 'Enter opening stock',
@@ -26,6 +27,20 @@ const STOCK_PRODUCT_ORDER = ['malli', 'pudina', 'karuvepillai', 'keerai', 'puund
 
 function Quantity({ value, unit }) {
   return <>{Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}</>;
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function weekDates(selectedDate) {
+  const start = parseDateStr(selectedDate);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return dateKey(date);
+  });
 }
 
 function LowStockThreshold({ productId, value, unit, onSave, disabled }) {
@@ -80,6 +95,7 @@ export default function Inventory() {
   const [form, setForm] = useState({});
   const [expandedProducts, setExpandedProducts] = useState(() => new Set());
   const [expandedMovementDates, setExpandedMovementDates] = useState(() => new Set());
+  const [selectedStockDate, setSelectedStockDate] = useState(todayIST());
   const [saving, setSaving] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
@@ -226,34 +242,48 @@ export default function Inventory() {
     .filter((movement) => activeProductIds.has(movement.product_id))
     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
   const todayKey = todayIST();
-  const todayCountsByProduct = new Map(
-    inventoryCounts.filter((count) => count.stock_date === todayKey).map((count) => [count.product_id, count]),
+  const visibleWeekDates = weekDates(selectedStockDate);
+  const selectedCountsByProduct = new Map(
+    inventoryCounts
+      .filter((count) => count.stock_date === selectedStockDate)
+      .map((count) => [count.product_id, count]),
   );
-  const todayReceiptsByProduct = new Map();
+  const selectedMovements = movements.filter((movement) => movement.movement_date === selectedStockDate);
+  const selectedBalanceByProduct = new Map();
   for (const movement of movements) {
-    if (movement.movement_date !== todayKey || movement.movement_type !== 'receipt') continue;
-    todayReceiptsByProduct.set(
+    if (movement.movement_date > selectedStockDate) continue;
+    selectedBalanceByProduct.set(
       movement.product_id,
-      (todayReceiptsByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+      (selectedBalanceByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
     );
   }
+  const selectedSoldByProduct = new Map();
+  const selectedReceivedByProduct = new Map();
+  for (const movement of selectedMovements) {
+    const target = movement.movement_type === 'sale' ? selectedSoldByProduct
+      : ['opening', 'receipt'].includes(movement.movement_type) ? selectedReceivedByProduct
+        : null;
+    if (target) {
+      target.set(movement.product_id, (target.get(movement.product_id) || 0) + Math.abs(Number(movement.quantity_delta || 0)));
+    }
+  }
+  const changeWeek = (amount) => {
+    const date = parseDateStr(selectedStockDate);
+    date.setDate(date.getDate() + amount * 7);
+    setSelectedStockDate(dateKey(date));
+  };
   const movementsByDate = new Map();
   for (const movement of movements) {
     if (!movementsByDate.has(movement.movement_date)) movementsByDate.set(movement.movement_date, []);
     movementsByDate.get(movement.movement_date).push(movement);
   }
-  const movementDays = [...movementsByDate.entries()]
-    .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
-    .map(([date, dayMovements]) => {
-      const quantityByProduct = new Map();
-      for (const movement of dayMovements) {
-        quantityByProduct.set(
-          movement.product_id,
-          (quantityByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
-        );
-      }
-      return { date, movements: dayMovements, quantityByProduct };
-    });
+  const movementDateKeys = new Set([
+    ...movementsByDate.keys(),
+    ...inventoryCounts.map((count) => count.stock_date),
+  ]);
+  const movementDays = [...movementDateKeys]
+    .sort((dateA, dateB) => dateB.localeCompare(dateA))
+    .map((date) => ({ date, movements: movementsByDate.get(date) || [] }));
 
   return (
     <div className="space-y-6">
@@ -389,15 +419,49 @@ export default function Inventory() {
       </section>
 
       <section className="metric-card space-y-4">
-        <div>
-          <h2 className="font-bold text-ink-900">Today’s stock overview</h2>
-          <p className="mt-1 text-xs text-ink-500">Morning count, stock added today, and current available balance.</p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-bold text-ink-900">Stock overview · {formatDateCompact(selectedStockDate)}</h2>
+            <p className="mt-1 text-xs text-ink-500">Select a day to see its morning count, sales, receipts, and closing balance.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-1 rounded-xl border border-ink-100 bg-white p-1 lg:ml-auto">
+            <button type="button" onClick={() => changeWeek(-1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Previous week">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            {visibleWeekDates.map((date) => {
+              const dateObject = parseDateStr(date);
+              const isSelected = date === selectedStockDate;
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => setSelectedStockDate(date)}
+                  aria-pressed={isSelected}
+                  className={`min-w-10 rounded-lg px-2 py-1.5 text-center ${isSelected ? 'bg-brand-green-dark text-white' : 'text-ink-600 hover:bg-ink-50'}`}
+                >
+                  <span className="block text-[10px] font-semibold uppercase">{dateObject.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+                  <span className="block text-sm font-bold">{dateObject.getDate()}</span>
+                </button>
+              );
+            })}
+            <button type="button" onClick={() => changeWeek(1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Next week">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {selectedStockDate !== todayKey && (
+              <button type="button" onClick={() => setSelectedStockDate(todayKey)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-green-dark hover:bg-green-50">
+                Today
+              </button>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {stockProducts.filter((item) => settingsById.has(item.id)).map((item) => {
-            const morningCount = todayCountsByProduct.get(item.id);
-            const receivedToday = todayReceiptsByProduct.get(item.id) || 0;
-            const balance = summaryById.get(item.id)?.quantity_on_hand;
+            const morningCount = selectedCountsByProduct.get(item.id);
+            const salesToday = selectedSoldByProduct.get(item.id) || 0;
+            const receivedToday = selectedReceivedByProduct.get(item.id) || 0;
+            const balance = selectedStockDate === todayKey
+              ? summaryById.get(item.id)?.quantity_on_hand
+              : selectedBalanceByProduct.get(item.id);
             const unit = productSalesUnit(item);
             return (
               <article key={item.id} className="rounded-2xl border border-ink-100 bg-white p-4">
@@ -407,11 +471,13 @@ export default function Inventory() {
                   <dd className="text-right font-semibold text-ink-800">
                     {morningCount ? <Quantity value={morningCount.counted_quantity} unit={unit} /> : 'Not recorded'}
                   </dd>
-                  <dt className="text-ink-500">Added today</dt>
+                  <dt className="text-ink-500">Sold</dt>
+                  <dd className="text-right font-semibold text-red-700"><Quantity value={salesToday} unit={unit} /></dd>
+                  <dt className="text-ink-500">Stock in</dt>
                   <dd className="text-right font-semibold text-green-700"><Quantity value={receivedToday} unit={unit} /></dd>
-                  <dt className="text-ink-500">Current balance</dt>
+                  <dt className="text-ink-500">{selectedStockDate === todayKey ? 'Current balance' : 'Closing balance'}</dt>
                   <dd className="text-right font-bold text-ink-900">
-                    {balance == null ? '—' : <Quantity value={balance} unit={unit} />}
+                    {balance == null ? '—' : <Quantity value={Math.max(0, balance)} unit={unit} />}
                   </dd>
                 </dl>
               </article>
@@ -426,70 +492,119 @@ export default function Inventory() {
           <p className="text-xs text-ink-500 mt-1">Select a date to expand all stock movements recorded that day.</p>
         </div>
         {movementDays.length ? (
-          <div className="divide-y divide-ink-100">
-            {movementDays.map(({ date, movements: dayMovements, quantityByProduct }) => {
-              const expanded = expandedMovementDates.has(date);
-              const toggleDate = () => setExpandedMovementDates((current) => {
-                const next = new Set(current);
-                if (next.has(date)) next.delete(date);
-                else next.add(date);
-                return next;
-              });
-              return (
-                <div key={date}>
-                  <button
-                    type="button"
-                    onClick={toggleDate}
-                    aria-expanded={expanded}
-                    className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-ink-50 sm:px-5"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-bold text-ink-900">{formatDateCompact(date)}</span>
-                      <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-500">
-                        <span>Net movement:</span>
-                        {[...quantityByProduct.entries()].map(([id, quantity]) => {
-                          const item = productsById.get(id);
-                          return (
-                            <span key={id}>
-                              {item?.name || 'Product'} {quantity > 0 ? '+' : ''}{Number(quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
+          <div className="space-y-3 p-3 sm:p-4">
+            {movementDays.map(({ date, movements: dayMovements }) => {
+              const daySales = dayMovements.filter((movement) => movement.movement_type === 'sale');
+              const dayStockMovements = dayMovements.filter((movement) => movement.movement_type !== 'sale');
+              const stockProductsForHistory = stockProducts.filter((item) => settingsById.has(item.id));
+              const dateCounts = inventoryCounts.filter((count) => count.stock_date === date);
+              const closingBalances = new Map();
+              for (const movement of movements) {
+                if (movement.movement_date > date) continue;
+                closingBalances.set(
+                  movement.product_id,
+                  (closingBalances.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+                );
+              }
+              const quantitySummary = (items, productId, predicate) => (
+                items
+                  .filter((movement) => movement.product_id === productId && predicate(movement))
+                  .reduce((sum, movement) => sum + Math.abs(Number(movement.quantity_delta || 0)), 0)
+              );
+              const renderMovementDetails = (items) => (
+                items.length ? (
+                  <div className="divide-y divide-ink-100 overflow-x-auto">
+                    {items.map((movement) => {
+                      const item = productsById.get(movement.product_id);
+                      const isSale = movement.movement_type === 'sale';
+                      const quantity = Number(movement.quantity_delta || 0);
+                      const balance = closingBalances.get(movement.product_id) || 0;
+                      return (
+                        <div key={movement.id} className="grid grid-cols-1 gap-1.5 px-4 py-3 text-sm sm:grid-cols-[minmax(110px,1fr)_minmax(90px,1fr)_auto_auto] sm:items-center sm:gap-4">
+                          <span className="font-semibold text-ink-900">{getProductEmoji(item?.name, products)} {item?.name || 'Product'}</span>
+                          <span className="capitalize text-ink-600">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</span>
+                          <span className={`font-semibold ${quantity < 0 ? 'text-red-700' : 'text-green-700'}`}>
+                            {quantity > 0 ? '+' : ''}<Quantity value={isSale ? Math.abs(quantity) : quantity} unit={productSalesUnit(item)} />
+                          </span>
+                          <span className="text-ink-600">Balance: <strong className="text-ink-900"><Quantity value={Math.max(0, balance)} unit={productSalesUnit(item)} /></strong></span>
+                          {(movement.supplier_id || movement.reason) && (
+                            <span className="text-xs text-ink-500 sm:col-span-4">
+                              {movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason}
                             </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : <p className="px-4 py-5 text-center text-sm text-ink-500">No matching movements for this date.</p>
+              );
+              const renderDayCell = (kind, items, quantityForProduct, emptyLabel) => {
+                const key = `${date}:${kind}`;
+                const expanded = expandedMovementDates.has(key);
+                const toggle = () => setExpandedMovementDates((current) => {
+                  const next = new Set(current);
+                  if (next.has(key)) next.delete(key);
+                  else next.add(key);
+                  return next;
+                });
+                return (
+                  <section key={key} className="overflow-hidden rounded-xl border border-ink-100 bg-white">
+                    <button
+                      type="button"
+                      onClick={toggle}
+                      aria-expanded={expanded}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-ink-50"
+                    >
+                      <span className="min-w-[90px] shrink-0">
+                        <span className="block font-bold text-ink-900">{formatDateCompact(date)}</span>
+                        <span className="mt-0.5 block text-xs font-semibold text-ink-600">{kind === 'sales' ? 'Sales' : 'Stock in'}</span>
+                      </span>
+                      <span className="min-w-0 flex-1 space-y-1">
+                        {stockProductsForHistory.map((item) => (
+                          <span key={item.id} className="flex flex-wrap justify-end gap-x-2 text-right text-xs text-ink-600 sm:text-sm">
+                            <span className="font-semibold text-ink-800">{item.name}</span>
+                            <span>{quantityForProduct(item.id).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}</span>
+                            <span className="text-ink-400">/ Balance</span>
+                            <span className="font-semibold text-ink-800">
+                              {Number(Math.max(0, closingBalances.get(item.id) || 0)).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
+                            </span>
+                          </span>
+                        ))}
+                        {stockProductsForHistory.length === 0 && (
+                          <span className="block text-right text-xs text-ink-500">{emptyLabel}</span>
+                        )}
+                      </span>
+                      <ChevronDown className={`h-5 w-5 shrink-0 text-ink-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {expanded && (
+                      <div className="border-t border-ink-100">
+                        {kind === 'stock' && dateCounts.map((count) => {
+                          const item = productsById.get(count.product_id);
+                          return (
+                            <div key={`${count.product_id}-${date}`} className="border-b border-ink-100 bg-ink-50 px-4 py-2 text-xs text-ink-600">
+                              Morning count · {item?.name || 'Product'}: {Number(count.counted_quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
+                            </div>
                           );
                         })}
-                        <span>{dayMovements.length} {dayMovements.length === 1 ? 'movement' : 'movements'}</span>
-                      </span>
-                    </span>
-                    <ChevronDown className={`h-5 w-5 shrink-0 text-ink-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                  </button>
-                  {expanded && (
-                    <div className="overflow-x-auto border-t border-ink-100">
-                      <table className="w-full text-sm">
-                        <thead className="bg-ink-50 text-left text-ink-500">
-                          <tr>
-                            <th className="px-5 py-3 font-semibold">Product</th>
-                            <th className="px-5 py-3 font-semibold">Movement</th>
-                            <th className="px-5 py-3 text-right font-semibold">Quantity</th>
-                            <th className="px-5 py-3 font-semibold">Details</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-ink-100">
-                          {dayMovements.map((movement) => {
-                            const item = productsById.get(movement.product_id);
-                            return (
-                              <tr key={movement.id}>
-                                <td className="px-5 py-3">{item?.name || 'Product'}</td>
-                                <td className="px-5 py-3 capitalize">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</td>
-                                <td className={`px-5 py-3 whitespace-nowrap text-right font-semibold ${Number(movement.quantity_delta) < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                                  {Number(movement.quantity_delta) > 0 ? '+' : ''}<Quantity value={movement.quantity_delta} unit={productSalesUnit(item)} />
-                                </td>
-                                <td className="px-5 py-3 text-ink-500">
-                                  {movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason || '—'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                        {renderMovementDetails(items)}
+                      </div>
+                    )}
+                  </section>
+                );
+              };
+              return (
+                <div key={date} className="space-y-2">
+                  {renderDayCell(
+                    'sales',
+                    daySales,
+                    (productId) => quantitySummary(daySales, productId, () => true),
+                    'No sales recorded',
+                  )}
+                  {renderDayCell(
+                    'stock',
+                    dayStockMovements,
+                    (productId) => quantitySummary(dayStockMovements, productId, (movement) => ['opening', 'receipt'].includes(movement.movement_type)),
+                    'No stock movements recorded',
                   )}
                 </div>
               );
