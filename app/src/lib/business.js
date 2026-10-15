@@ -191,6 +191,60 @@ export function computeInventoryCostReport(movements, buyerSales, retailSales, p
   };
 }
 
+export function computeDailyProductProfits(settings, movements, products, buyerSales, retailSales, date) {
+  const productsById = new Map((products || []).map((product) => [product.id, product]));
+  const salesBySource = new Map();
+  const salesByProduct = new Map();
+  const addSale = (sale, sourceKind, quantity, price) => {
+    if (String(sale.sale_date || '').slice(0, 10) !== date) return;
+    const revenue = Number(quantity || 0) * Number(price || 0);
+    const productSales = salesByProduct.get(sale.product) || { revenue: 0, salesCount: 0 };
+    productSales.revenue += revenue;
+    productSales.salesCount += 1;
+    salesByProduct.set(sale.product, productSales);
+    salesBySource.set(`${sourceKind}:${sale.id}`, sale.product);
+  };
+
+  for (const sale of buyerSales || []) {
+    addSale(sale, 'buyer_sales', sale.mootais, sale.price_per_mootai);
+  }
+  for (const sale of retailSales || []) {
+    addSale(sale, 'retail_sales', sale.mootais_sold, sale.price_per_mootai);
+  }
+
+  const profitsByProductId = new Map();
+  for (const setting of settings || []) {
+    const product = productsById.get(setting.product_id);
+    if (!product || product.active === false) continue;
+
+    const productSales = salesByProduct.get(product.name) || { revenue: 0, salesCount: 0 };
+    let saleCostTotal = 0;
+    let costedSalesCount = 0;
+    let damageCost = 0;
+    for (const movement of movements || []) {
+      if (movement.product_id !== setting.product_id || movement.movement_date !== date) continue;
+      if (movement.movement_type === 'sale') {
+        const saleProduct = salesBySource.get(`${movement.source_kind}:${movement.source_id}`);
+        if (saleProduct === product.name) {
+          saleCostTotal += Number(movement.cost_delta || 0);
+          costedSalesCount += 1;
+        }
+      } else if (movement.movement_type === 'spoilage') {
+        damageCost -= Number(movement.cost_delta || 0);
+      }
+    }
+
+    const saleCost = Math.abs(saleCostTotal);
+    const hasCompleteSaleCosts = costedSalesCount >= productSales.salesCount;
+    profitsByProductId.set(setting.product_id, {
+      saleCost,
+      damageCost,
+      finalProfit: hasCompleteSaleCosts ? productSales.revenue - saleCost - damageCost : null,
+    });
+  }
+  return profitsByProductId;
+}
+
 export function buildProductPerformance(buyerSales, retailSales, movements, productCatalog = []) {
   const productNamesById = new Map(productCatalog.map((product) => [product.id, product.name]));
   const products = new Map();

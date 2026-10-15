@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { currencyINR, formatDateCompact, getProductEmoji, todayIST } from '../lib/business.js';
+import { computeDailyProductProfits, currencyINR, formatDateCompact, getProductEmoji, realTodayIST, todayIST } from '../lib/business.js';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
@@ -24,9 +24,13 @@ export default function Dashboard() {
     recent,
     inventorySettings,
     inventoryCounts,
+    inventoryMovements,
     inventoryLoading,
+    inventoryError,
     loadInventory,
     offline,
+    buyerSales,
+    retailSales,
   } = useAppData();
 
   const [saleOpen, setSaleOpen] = useState(false);
@@ -39,6 +43,26 @@ export default function Dashboard() {
   const missingStockCounts = inventorySettings.filter(
     (setting) => !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST()),
   );
+
+  const todayFinalProfit = useMemo(() => {
+    const profitsByProductId = computeDailyProductProfits(
+      inventorySettings,
+      inventoryMovements,
+      products,
+      buyerSales,
+      retailSales,
+      realTodayIST(),
+    );
+    return ['Pudina', 'Karuvepillai', 'Malli'].map((name) => {
+      const product = products.find((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+      const profit = product && profitsByProductId.get(product.id);
+      return { name, amount: profit?.finalProfit ?? null };
+    });
+  }, [inventorySettings, inventoryMovements, products, buyerSales, retailSales]);
+  const finalProfitAvailable = todayFinalProfit.every((item) => item.amount !== null);
+  const totalFinalProfit = finalProfitAvailable
+    ? todayFinalProfit.reduce((total, item) => total + item.amount, 0)
+    : null;
 
   const topOutstanding = balances.list
     .filter((b) => b.balance_due > 0)
@@ -77,7 +101,7 @@ export default function Dashboard() {
       </div>
 
       {/* 4 Stats Row */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
             Today — Buyers
@@ -128,6 +152,25 @@ export default function Dashboard() {
             {balances.outstanding_count}
           </div>
           <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Owing money right now</div>
+        </div>
+        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
+            Today Final Profit
+          </div>
+          <div className={`mt-2 break-words text-xl font-extrabold sm:text-2xl ${totalFinalProfit === null ? 'text-ink-400' : 'text-emerald-700'}`}>
+            {inventoryLoading
+              ? 'Loading…'
+              : offline || inventoryError || totalFinalProfit === null
+                ? 'Unavailable'
+                : currencyINR(totalFinalProfit)}
+          </div>
+          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">
+            {inventoryLoading
+              ? 'Loading today’s stock costs'
+              : offline || inventoryError || totalFinalProfit === null
+                ? 'Complete stock costs are required'
+                : todayFinalProfit.map((item) => `${item.name} ${currencyINR(item.amount)}`).join(' + ') + ` = ${currencyINR(totalFinalProfit)}`}
+          </div>
         </div>
       </div>
 

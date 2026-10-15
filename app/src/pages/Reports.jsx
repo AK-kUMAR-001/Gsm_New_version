@@ -5,6 +5,7 @@ import {
   getProductEmoji,
   buildProductPerformance,
   computeInventoryCostReport,
+  computeDailyProductProfits,
   formatUnitQuantities,
   inPeriod,
   parseDateStr,
@@ -60,7 +61,6 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
   const countsByProduct = new Map(
     counts.filter((count) => count.stock_date === date).map((count) => [count.product_id, count])
   );
-  const salesById = new Map();
   const salesByProduct = new Map();
   const addSale = (sale, sourceKind, quantity, revenue, unit) => {
     const productSales = salesByProduct.get(sale.product) || {
@@ -68,9 +68,6 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       buyerRevenue: 0,
       retailQuantitiesByUnit: {},
       retailRevenue: 0,
-      salesCount: 0,
-      saleCost: 0,
-      costedSalesCount: 0,
     };
     if (sourceKind === 'buyer_sales') {
       productSales.buyerQuantitiesByUnit[unit] = (productSales.buyerQuantitiesByUnit[unit] || 0) + quantity;
@@ -79,9 +76,7 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       productSales.retailQuantitiesByUnit[unit] = (productSales.retailQuantitiesByUnit[unit] || 0) + quantity;
       productSales.retailRevenue += revenue;
     }
-    productSales.salesCount += 1;
     salesByProduct.set(sale.product, productSales);
-    salesById.set(`${sourceKind}:${sale.id}`, productSales);
   };
   for (const sale of buyerSales) {
     addSale(
@@ -101,6 +96,14 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       saleQuantityUnit(sale, products),
     );
   }
+  const profitsByProductId = computeDailyProductProfits(
+    settings,
+    movements,
+    products,
+    buyerSales,
+    retailSales,
+    date,
+  );
   return settings.filter((setting) => {
     const product = productsById.get(setting.product_id);
     return product && product.active !== false;
@@ -111,29 +114,14 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     const damaged = todaysMovements
       .filter((movement) => movement.movement_type === 'spoilage')
       .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
-    const saleCost = todaysMovements
-      .filter((movement) => movement.movement_type === 'sale')
-      .reduce((sum, movement) => {
-        const sale = salesById.get(`${movement.source_kind}:${movement.source_id}`);
-        if (!sale) return sum;
-        sale.costedSalesCount += 1;
-        sale.saleCost -= Number(movement.cost_delta || 0);
-        return sum + Number(movement.cost_delta || 0);
-      }, 0);
-    const damageCost = todaysMovements
-      .filter((movement) => movement.movement_type === 'spoilage')
-      .reduce((sum, movement) => sum - Number(movement.cost_delta || 0), 0);
     const count = countsByProduct.get(setting.product_id);
     const salesRevenue = salesByProduct.get(product?.name) || {
       buyerQuantitiesByUnit: {},
       buyerRevenue: 0,
       retailQuantitiesByUnit: {},
       retailRevenue: 0,
-      salesCount: 0,
-      costedSalesCount: 0,
-      saleCost: 0,
     };
-    const hasCompleteSaleCosts = salesRevenue.costedSalesCount >= salesRevenue.salesCount;
+    const profit = profitsByProductId.get(setting.product_id);
     const totalRevenue = salesRevenue.buyerRevenue + salesRevenue.retailRevenue;
     const buyerSold = salesRevenue.buyerQuantitiesByUnit;
     const retailSold = salesRevenue.retailQuantitiesByUnit;
@@ -151,10 +139,10 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       retailRevenue: salesRevenue.retailRevenue,
       sold,
       damaged,
-      saleCost: Math.abs(saleCost),
-      damageCost,
+      saleCost: profit?.saleCost ?? 0,
+      damageCost: profit?.damageCost ?? 0,
       totalRevenue,
-      finalProfit: hasCompleteSaleCosts ? totalRevenue - salesRevenue.saleCost - damageCost : null,
+      finalProfit: profit?.finalProfit ?? null,
       balance: todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
       countedQuantity: count?.counted_quantity ?? null,
       countRecorded: !!count,
