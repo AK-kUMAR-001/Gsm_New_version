@@ -151,7 +151,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
               value={mootais}
               onChange={(e) => setMootais(e.target.value)}
               placeholder="0"
-              className="input"
+              className="input hide-number-spinner"
             />
             {saleUnit !== salesUnit && Number(mootais) > 0 && (
               <p className="mt-1 text-xs font-medium text-sidebar-accent" aria-live="polite">
@@ -171,7 +171,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
                 value={price_per_mootai}
                 onChange={(e) => setPricePerMootai(e.target.value)}
                 placeholder="0"
-                className="input pl-11"
+                className="input hide-number-spinner pl-11"
               />
             </div>
           </div>
@@ -198,6 +198,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
             step="0.01"
             value={payment}
             onChange={(e) => setPayment(e.target.value)}
+            className="input hide-number-spinner"
             placeholder="0 (optional)"
             className="input"
           />

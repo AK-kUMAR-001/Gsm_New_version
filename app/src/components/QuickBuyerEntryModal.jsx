@@ -278,7 +278,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                         value={row.quantity}
                         onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
                         placeholder="0"
-                        className="input !px-2 !py-2 text-center"
+                        className="input hide-number-spinner !px-2 !py-2 text-center"
                       />
                       {row.unit !== productSalesUnit(product) && Number(row.quantity) > 0 && (
                         <span
@@ -298,7 +298,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                       value={row.rate}
                       onChange={(event) => updateRow(product.name, 'rate', event.target.value)}
                       placeholder="0"
-                      className="input !px-2 !py-2 text-center"
+                      className="input hide-number-spinner !px-2 !py-2 text-center"
                     />
                   </div>
                 );
@@ -318,7 +318,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                 requestIds.current = newRequestIds(activeProducts);
               }}
               placeholder="e.g. weekly order"
-              className="input"
+              className="input hide-number-spinner"
             />
           </div>
 
