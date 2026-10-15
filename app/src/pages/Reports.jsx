@@ -7,6 +7,7 @@ import {
   computeInventoryCostReport,
   computeDailyProductProfits,
   formatUnitQuantities,
+  formatProductQuantityForDate,
   formatSaleQuantities,
   formatSaleRates,
   inPeriod,
@@ -134,6 +135,7 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     }
     return {
       productId: setting.product_id,
+      product,
       productName: product?.name || 'Unknown product',
       salesUnit: productSalesUnit(product),
       buyerSold,
@@ -227,7 +229,7 @@ function DailyClosingSummary({
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Balance (sales unit)</th>
+                <th className="px-4 py-3 text-right font-bold">Balance</th>
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
               </tr>
             </thead>
@@ -236,7 +238,7 @@ function DailyClosingSummary({
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
-                    {row.countRecorded ? `${formatQuantity(row.countedQuantity)} ${row.salesUnit}` : 'Count not recorded'}
+                    {row.countRecorded ? formatProductQuantityForDate(row.product, row.countedQuantity, date) : 'Count not recorded'}
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">
                     <div>{formatUnitQuantities(row.buyerSold)}</div>
@@ -246,8 +248,8 @@ function DailyClosingSummary({
                     <div>{formatUnitQuantities(row.retailSold)}</div>
                     <div className="mt-1 text-xs text-ink-500">{currencyINR(row.retailRevenue)} sales</div>
                   </td>
-                  <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)} {row.salesUnit}</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.balance)} {row.salesUnit}</td>
+                  <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantityForDate(row.product, row.damaged, date)}</td>
+                  <td className="px-4 py-3 text-right font-bold">{formatProductQuantityForDate(row.product, row.balance, date)}</td>
                   <td className="px-4 py-3 text-right">
                     {row.finalProfit == null ? (
                       <span className="text-xs text-ink-500">Cost not recorded</span>

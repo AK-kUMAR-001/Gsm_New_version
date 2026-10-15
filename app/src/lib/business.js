@@ -112,6 +112,15 @@ export function formatUnitQuantities(quantities = {}) {
     .join(', ') || '0';
 }
 
+export function formatProductQuantityForDate(product, quantity, date) {
+  const salesUnit = productSalesUnit(product);
+  const stockUnit = productStockUnit(product);
+  const useStockUnit = date && date <= LEGACY_SALE_UNIT_CUTOFF && stockUnit !== salesUnit;
+  const value = Number(quantity || 0) / (useStockUnit ? productStockToSalesFactor(product) : 1);
+  const unit = useStockUnit ? stockUnit : salesUnit;
+  return `${value.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`;
+}
+
 const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
