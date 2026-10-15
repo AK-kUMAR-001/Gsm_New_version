@@ -9,7 +9,7 @@ import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import DeleteBuyerModal from '../components/DeleteBuyerModal.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
 import BillAlertModal from '../components/BillAlertModal.jsx';
-import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, FileText, Banknote, FileDown, MessageCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, Banknote, FileDown, MessageCircle, Trash2, ChevronDown } from 'lucide-react';
 
 export default function BuyerDetail() {
   const { id } = useParams();
@@ -17,7 +17,7 @@ export default function BuyerDetail() {
   const { buyersById, balancesById, buyerSales, payments, products, balances, load, showToast } = useAppData();
 
   const [period, setPeriod] = useState('month');
-  const [activeTab, setActiveTab] = useState('sales');
+  const [expandedHistory, setExpandedHistory] = useState('');
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -38,6 +38,21 @@ export default function BuyerDetail() {
       .filter((payment) => payment.buyer_id === id && inPeriod(payment.paid_at, period, 'reports'))
       .sort((a, b) => (b.paid_at || '').localeCompare(a.paid_at || ''));
   }, [payments, id, period]);
+
+  const dailyHistory = useMemo(() => {
+    const days = new Map();
+    const getDay = (date) => {
+      if (!days.has(date)) days.set(date, { date, sales: [], payments: [] });
+      return days.get(date);
+    };
+    for (const sale of filteredSales) getDay(String(sale.sale_date || '').slice(0, 10)).sales.push(sale);
+    for (const payment of filteredPayments) getDay(String(payment.paid_at || '').slice(0, 10)).payments.push(payment);
+    return [...days.values()].sort((a, b) => b.date.localeCompare(a.date));
+  }, [filteredSales, filteredPayments]);
+
+  const toggleHistory = (key) => {
+    setExpandedHistory((current) => current === key ? '' : key);
+  };
 
   const downloadBuyerPdf = async () => {
     try {
@@ -176,135 +191,110 @@ export default function BuyerDetail() {
           >
             <FileDown className="w-4 h-4" /> Download PDF
           </button>
-          <div className="inline-flex p-1 bg-ink-100 rounded-xl">
-            <button
-              onClick={() => setActiveTab('sales')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${activeTab === 'sales' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
-            >
-              Sales
-            </button>
-            <button
-              onClick={() => setActiveTab('payments')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${activeTab === 'payments' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
-            >
-              Payments
-            </button>
-          </div>
         </div>
       </div>
 
-      {activeTab === 'sales' && (
-        <div className="metric-card !p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-ink-50 text-ink-500">
-                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Date</th>
-                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Product</th>
-                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Quantity</th>
-                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Rate</th>
-                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Total</th>
-                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSales.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center">
-                      <div className="flex flex-col items-center text-ink-400">
-                        <ShoppingBag className="w-10 h-10 mb-3 opacity-50" />
-                        <div className="font-semibold text-ink-600 mb-1">No sales yet</div>
-                        <div className="text-sm">Record a sale for this buyer to get started.</div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSales.map((s) => {
-                    const qty = s.mootais ?? s.mootais_sold ?? 0;
-                    const rate = s.price_per_mootai ?? 0;
-                    const total = qty * rate;
-                    const unit = saleQuantityUnit(s, products);
-                    return (
-                      <tr key={s.id} className="border-t border-ink-100 hover:bg-ink-50/50 transition">
-                        <td className="px-5 py-4 whitespace-nowrap text-ink-600">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-ink-400" />
-                            {formatDateCompact(s.sale_date)}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xl">{getProductEmoji(s.product, products)}</span>
-                            <span className="font-semibold text-ink-800">{s.product || '(Unknown)'}</span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-right text-ink-700 font-semibold whitespace-nowrap">{qty} {unit}</td>
-                        <td className="px-5 py-4 text-right text-ink-600 whitespace-nowrap">{currencyINR(rate)} / {unit}</td>
-                        <td className="px-5 py-4 text-right font-bold text-ink-900">{currencyINR(total)}</td>
-                        <td className="px-5 py-4 text-ink-500 max-w-[240px] truncate" title={s.notes || ''}>
-                          {s.notes ? <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 shrink-0 opacity-60" />{s.notes}</span> : <span className="text-ink-300">—</span>}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+      <section className="space-y-3">
+        {dailyHistory.length === 0 ? (
+          <div className="metric-card flex flex-col items-center py-12 text-center text-ink-500">
+            <ShoppingBag className="mb-3 h-10 w-10 opacity-40" />
+            <p className="font-semibold text-ink-700">No sales or payments in this period</p>
           </div>
-        </div>
-      )}
-
-      {activeTab === 'payments' && (
-        <div className="metric-card !p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-ink-50 text-ink-500">
-                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Date</th>
-                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Amount</th>
-                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPayments.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-16 text-center">
-                      <div className="flex flex-col items-center text-ink-400">
-                        <Banknote className="w-10 h-10 mb-3 opacity-50" />
-                        <div className="font-semibold text-ink-600 mb-1">No payments yet</div>
-                        <div className="text-sm">Record a payment from this buyer to get started.</div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredPayments.map((p) => {
-                    const amt = Number(p.amount_paid ?? 0);
+        ) : dailyHistory.map(({ date, sales: daySales, payments: dayPayments }) => {
+          const salesTotal = daySales.reduce((sum, sale) => (
+            sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0)
+          ), 0);
+          const paymentsTotal = dayPayments.reduce((sum, payment) => sum + Number(payment.amount_paid ?? 0), 0);
+          const quantityByUnit = new Map();
+          for (const sale of daySales) {
+            const unit = saleQuantityUnit(sale, products);
+            quantityByUnit.set(unit, (quantityByUnit.get(unit) || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0));
+          }
+          const saleKey = `${date}:sales`;
+          const paymentKey = `${date}:payments`;
+          return (
+            <article key={date} className="metric-card space-y-3 !p-4 sm:!p-5">
+              <h2 className="flex items-center gap-2 font-bold text-ink-900">
+                <Calendar className="h-4 w-4 text-ink-400" />
+                {formatDateCompact(date)}
+              </h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={!daySales.length}
+                  aria-expanded={expandedHistory === saleKey}
+                  onClick={() => toggleHistory(saleKey)}
+                  className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-100 bg-white p-3 text-left transition hover:bg-ink-50 disabled:cursor-default disabled:opacity-60"
+                >
+                  <ShoppingBag className="h-5 w-5 shrink-0 text-brand-green-dark" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-ink-900">Sales · {daySales.length}</span>
+                    <span className="mt-1 block text-xs text-ink-500">
+                      {daySales.length
+                        ? [...quantityByUnit.entries()].map(([unit, quantity]) => `${Number(quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`).join(' · ')
+                        : 'No sales'}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 font-bold text-ink-900">
+                    {currencyINR(salesTotal)}
+                    {daySales.length > 0 && <ChevronDown className={`h-4 w-4 transition-transform ${expandedHistory === saleKey ? 'rotate-180' : ''}`} />}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!dayPayments.length}
+                  aria-expanded={expandedHistory === paymentKey}
+                  onClick={() => toggleHistory(paymentKey)}
+                  className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-100 bg-white p-3 text-left transition hover:bg-ink-50 disabled:cursor-default disabled:opacity-60"
+                >
+                  <Banknote className="h-5 w-5 shrink-0 text-green-700" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-ink-900">Payments · {dayPayments.length}</span>
+                    <span className="mt-1 block text-xs text-ink-500">
+                      {dayPayments.length ? 'Received from this buyer' : 'No payments'}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 font-bold text-green-700">
+                    {currencyINR(paymentsTotal)}
+                    {dayPayments.length > 0 && <ChevronDown className={`h-4 w-4 transition-transform ${expandedHistory === paymentKey ? 'rotate-180' : ''}`} />}
+                  </span>
+                </button>
+              </div>
+              {expandedHistory === saleKey && (
+                <div className="divide-y divide-ink-100 overflow-hidden rounded-xl border border-ink-100 bg-white">
+                  {daySales.map((sale) => {
+                    const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
+                    const rate = Number(sale.price_per_mootai ?? 0);
+                    const unit = saleQuantityUnit(sale, products);
                     return (
-                      <tr key={p.id} className="border-t border-ink-100 hover:bg-ink-50/50 transition">
-                        <td className="px-5 py-4 whitespace-nowrap text-ink-600">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-ink-400" />
-                            {formatDateCompact(p.paid_at)}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <span className="inline-flex items-center gap-1.5 font-bold text-brand-green-dark">
-                            <IndianRupee className="w-4 h-4" />
-                            {currencyINR(amt)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-ink-500 max-w-[360px] truncate" title={p.notes || ''}>
-                          {p.notes ? <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 shrink-0 opacity-60" />{p.notes}</span> : <span className="text-ink-300">—</span>}
-                        </td>
-                      </tr>
+                      <div key={sale.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
+                        <span className="flex min-w-[130px] flex-1 items-center gap-2 font-semibold text-ink-900">
+                          <span className="text-xl">{getProductEmoji(sale.product, products)}</span>
+                          {sale.product || '(Unknown)'}
+                        </span>
+                        <span className="text-sm text-ink-600">{quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}</span>
+                        <span className="text-sm text-ink-600">{currencyINR(rate)} / {unit}</span>
+                        <span className="ml-auto font-bold text-ink-900">{currencyINR(quantity * rate)}</span>
+                      </div>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                  })}
+                </div>
+              )}
+              {expandedHistory === paymentKey && (
+                <div className="divide-y divide-ink-100 overflow-hidden rounded-xl border border-ink-100 bg-white">
+                  {dayPayments.map((payment) => (
+                    <div key={payment.id} className="flex items-center gap-3 p-3">
+                      <Banknote className="h-4 w-4 shrink-0 text-green-700" />
+                      <span className="flex-1 text-sm text-ink-700">Payment received</span>
+                      <span className="font-bold text-green-700">{currencyINR(payment.amount_paid)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </section>
 
       <QuickBuyerEntryModal open={saleModalOpen} onClose={() => setSaleModalOpen(false)} buyerId={id} />
       <RecordPaymentModal open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} buyerId={id} />

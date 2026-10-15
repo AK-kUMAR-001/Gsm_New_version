@@ -12,7 +12,7 @@ import {
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
-import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ClipboardCheck, PackagePlus, Pencil, RefreshCw } from 'lucide-react';
 
 const ACTION_LABELS = {
   opening: 'Enter opening stock',
@@ -79,6 +79,7 @@ export default function Inventory() {
   const [productId, setProductId] = useState('');
   const [form, setForm] = useState({});
   const [expandedProducts, setExpandedProducts] = useState(() => new Set());
+  const [expandedMovementDates, setExpandedMovementDates] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
@@ -222,8 +223,37 @@ export default function Inventory() {
   const stockUnitCost = Number(form.unitCost || 0);
   const salesUnitCost = stockUnitCost > 0 ? stockUnitCost / stockFactor : 0;
   const movements = inventoryMovements
-    .filter((movement) => activeProductIds.has(movement.product_id) && movement.movement_date === todayIST())
+    .filter((movement) => activeProductIds.has(movement.product_id))
     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  const todayKey = todayIST();
+  const todayCountsByProduct = new Map(
+    inventoryCounts.filter((count) => count.stock_date === todayKey).map((count) => [count.product_id, count]),
+  );
+  const todayReceiptsByProduct = new Map();
+  for (const movement of movements) {
+    if (movement.movement_date !== todayKey || movement.movement_type !== 'receipt') continue;
+    todayReceiptsByProduct.set(
+      movement.product_id,
+      (todayReceiptsByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+    );
+  }
+  const movementsByDate = new Map();
+  for (const movement of movements) {
+    if (!movementsByDate.has(movement.movement_date)) movementsByDate.set(movement.movement_date, []);
+    movementsByDate.get(movement.movement_date).push(movement);
+  }
+  const movementDays = [...movementsByDate.entries()]
+    .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+    .map(([date, dayMovements]) => {
+      const quantityByProduct = new Map();
+      for (const movement of dayMovements) {
+        quantityByProduct.set(
+          movement.product_id,
+          (quantityByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+        );
+      }
+      return { date, movements: dayMovements, quantityByProduct };
+    });
 
   return (
     <div className="space-y-6">
@@ -358,46 +388,115 @@ export default function Inventory() {
         })}
       </section>
 
+      <section className="metric-card space-y-4">
+        <div>
+          <h2 className="font-bold text-ink-900">Today’s stock overview</h2>
+          <p className="mt-1 text-xs text-ink-500">Morning count, stock added today, and current available balance.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {stockProducts.filter((item) => settingsById.has(item.id)).map((item) => {
+            const morningCount = todayCountsByProduct.get(item.id);
+            const receivedToday = todayReceiptsByProduct.get(item.id) || 0;
+            const balance = summaryById.get(item.id)?.quantity_on_hand;
+            const unit = productSalesUnit(item);
+            return (
+              <article key={item.id} className="rounded-2xl border border-ink-100 bg-white p-4">
+                <h3 className="font-bold text-ink-900">{getProductEmoji(item.name, products)} {item.name}</h3>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                  <dt className="text-ink-500">Morning count</dt>
+                  <dd className="text-right font-semibold text-ink-800">
+                    {morningCount ? <Quantity value={morningCount.counted_quantity} unit={unit} /> : 'Not recorded'}
+                  </dd>
+                  <dt className="text-ink-500">Added today</dt>
+                  <dd className="text-right font-semibold text-green-700"><Quantity value={receivedToday} unit={unit} /></dd>
+                  <dt className="text-ink-500">Current balance</dt>
+                  <dd className="text-right font-bold text-ink-900">
+                    {balance == null ? '—' : <Quantity value={balance} unit={unit} />}
+                  </dd>
+                </dl>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="metric-card !p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-ink-100">
-          <h2 className="font-bold text-ink-900">Today's stock movements</h2>
-          <p className="text-xs text-ink-500 mt-1">The stock balance includes today's recorded movements.</p>
+          <h2 className="font-bold text-ink-900">Stock movement history</h2>
+          <p className="text-xs text-ink-500 mt-1">Select a date to expand all stock movements recorded that day.</p>
         </div>
-        {movements.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-ink-50 text-ink-500 text-left">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Date</th>
-                  <th className="px-5 py-3 font-semibold">Product</th>
-                  <th className="px-5 py-3 font-semibold">Movement</th>
-                  <th className="px-5 py-3 font-semibold text-right">Quantity</th>
-                  <th className="px-5 py-3 font-semibold">Details</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink-100">
-                {movements.map((movement) => (
-                  <tr key={movement.id}>
-                    <td className="px-5 py-3 whitespace-nowrap">{formatDateCompact(movement.movement_date)}</td>
-                    <td className="px-5 py-3">{productsById.get(movement.product_id)?.name || 'Product'}</td>
-                    <td className="px-5 py-3 capitalize">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</td>
-                    <td className={`px-5 py-3 text-right whitespace-nowrap font-semibold ${Number(movement.quantity_delta) < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                      {Number(movement.quantity_delta) > 0 ? '+' : ''}<Quantity
-                        value={movement.quantity_delta}
-                        unit={productSalesUnit(productsById.get(movement.product_id))}
-                      />
-                    </td>
-                    <td className="px-5 py-3 text-ink-500">
-                      {movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {movementDays.length ? (
+          <div className="divide-y divide-ink-100">
+            {movementDays.map(({ date, movements: dayMovements, quantityByProduct }) => {
+              const expanded = expandedMovementDates.has(date);
+              const toggleDate = () => setExpandedMovementDates((current) => {
+                const next = new Set(current);
+                if (next.has(date)) next.delete(date);
+                else next.add(date);
+                return next;
+              });
+              return (
+                <div key={date}>
+                  <button
+                    type="button"
+                    onClick={toggleDate}
+                    aria-expanded={expanded}
+                    className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-ink-50 sm:px-5"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-bold text-ink-900">{formatDateCompact(date)}</span>
+                      <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-500">
+                        {[...quantityByProduct.entries()].map(([id, quantity]) => {
+                          const item = productsById.get(id);
+                          return (
+                            <span key={id}>
+                              {item?.name || 'Product'} {quantity > 0 ? '+' : ''}{Number(quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
+                            </span>
+                          );
+                        })}
+                        <span>{dayMovements.length} {dayMovements.length === 1 ? 'movement' : 'movements'}</span>
+                      </span>
+                    </span>
+                    <ChevronDown className={`h-5 w-5 shrink-0 text-ink-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  {expanded && (
+                    <div className="overflow-x-auto border-t border-ink-100">
+                      <table className="w-full text-sm">
+                        <thead className="bg-ink-50 text-left text-ink-500">
+                          <tr>
+                            <th className="px-5 py-3 font-semibold">Product</th>
+                            <th className="px-5 py-3 font-semibold">Movement</th>
+                            <th className="px-5 py-3 text-right font-semibold">Quantity</th>
+                            <th className="px-5 py-3 font-semibold">Details</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-ink-100">
+                          {dayMovements.map((movement) => {
+                            const item = productsById.get(movement.product_id);
+                            return (
+                              <tr key={movement.id}>
+                                <td className="px-5 py-3">{item?.name || 'Product'}</td>
+                                <td className="px-5 py-3 capitalize">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</td>
+                                <td className={`px-5 py-3 whitespace-nowrap text-right font-semibold ${Number(movement.quantity_delta) < 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                  {Number(movement.quantity_delta) > 0 ? '+' : ''}<Quantity value={movement.quantity_delta} unit={productSalesUnit(item)} />
+                                </td>
+                                <td className="px-5 py-3 text-ink-500">
+                                  {movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason || '—'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="px-5 py-8 text-center text-sm text-ink-500">
-            {inventoryLoading ? 'Loading stock movements…' : 'No stock movements recorded today.'}
+            {inventoryLoading ? 'Loading stock movements…' : 'No stock movements have been recorded.'}
           </p>
         )}
       </section>
