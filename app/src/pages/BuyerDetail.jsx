@@ -205,90 +205,72 @@ export default function BuyerDetail() {
             sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0)
           ), 0);
           const paymentsTotal = dayPayments.reduce((sum, payment) => sum + Number(payment.amount_paid ?? 0), 0);
-          const quantityByUnit = new Map();
-          for (const sale of daySales) {
-            const unit = saleQuantityUnit(sale, products);
-            quantityByUnit.set(unit, (quantityByUnit.get(unit) || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0));
-          }
-          const saleKey = `${date}:sales`;
-          const paymentKey = `${date}:payments`;
+          const isExpanded = expandedHistory === date;
           return (
-            <article key={date} className="metric-card space-y-3 !p-4 sm:!p-5">
-              <h2 className="flex items-center gap-2 font-bold text-ink-900">
-                <Calendar className="h-4 w-4 text-ink-400" />
-                {formatDateCompact(date)}
-              </h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  disabled={!daySales.length}
-                  aria-expanded={expandedHistory === saleKey}
-                  onClick={() => toggleHistory(saleKey)}
-                  className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-100 bg-white p-3 text-left transition hover:bg-ink-50 disabled:cursor-default disabled:opacity-60"
-                >
-                  <ShoppingBag className="h-5 w-5 shrink-0 text-brand-green-dark" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-ink-900">Sales · {daySales.length}</span>
-                    <span className="mt-1 block text-xs text-ink-500">
-                      {daySales.length
-                        ? [...quantityByUnit.entries()].map(([unit, quantity]) => `${Number(quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`).join(' · ')
-                        : 'No sales'}
-                    </span>
+            <article key={date} className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm">
+              <button
+                type="button"
+                aria-expanded={isExpanded}
+                onClick={() => toggleHistory(date)}
+                className="grid w-full grid-cols-1 items-center gap-3 p-4 text-left transition hover:bg-ink-50 sm:grid-cols-[minmax(130px,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:px-5"
+              >
+                <span className="flex items-center gap-2 font-bold text-ink-900">
+                  <Calendar className="h-4 w-4 shrink-0 text-ink-400" />
+                  {formatDateCompact(date)}
+                </span>
+                <span className="flex items-center justify-between gap-3 rounded-lg bg-ink-50 px-3 py-2 sm:bg-transparent sm:p-0">
+                  <span className="flex items-center gap-2 text-sm text-ink-600">
+                    <ShoppingBag className="h-4 w-4 text-brand-green-dark" />
+                    Sales · {daySales.length}
                   </span>
-                  <span className="flex shrink-0 items-center gap-2 font-bold text-ink-900">
-                    {currencyINR(salesTotal)}
-                    {daySales.length > 0 && <ChevronDown className={`h-4 w-4 transition-transform ${expandedHistory === saleKey ? 'rotate-180' : ''}`} />}
+                  <span className="font-bold text-ink-900">{currencyINR(salesTotal)}</span>
+                </span>
+                <span className="flex items-center justify-between gap-3 rounded-lg bg-green-50 px-3 py-2 sm:bg-transparent sm:p-0">
+                  <span className="flex items-center gap-2 text-sm text-ink-600">
+                    <Banknote className="h-4 w-4 text-green-700" />
+                    Payments · {dayPayments.length}
                   </span>
-                </button>
-                <button
-                  type="button"
-                  disabled={!dayPayments.length}
-                  aria-expanded={expandedHistory === paymentKey}
-                  onClick={() => toggleHistory(paymentKey)}
-                  className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-100 bg-white p-3 text-left transition hover:bg-ink-50 disabled:cursor-default disabled:opacity-60"
-                >
-                  <Banknote className="h-5 w-5 shrink-0 text-green-700" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-ink-900">Payments · {dayPayments.length}</span>
-                    <span className="mt-1 block text-xs text-ink-500">
-                      {dayPayments.length ? 'Received from this buyer' : 'No payments'}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2 font-bold text-green-700">
-                    {currencyINR(paymentsTotal)}
-                    {dayPayments.length > 0 && <ChevronDown className={`h-4 w-4 transition-transform ${expandedHistory === paymentKey ? 'rotate-180' : ''}`} />}
-                  </span>
-                </button>
-              </div>
-              {expandedHistory === saleKey && (
-                <div className="divide-y divide-ink-100 overflow-hidden rounded-xl border border-ink-100 bg-white">
-                  {daySales.map((sale) => {
-                    const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-                    const rate = Number(sale.price_per_mootai ?? 0);
-                    const unit = saleQuantityUnit(sale, products);
-                    return (
-                      <div key={sale.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
-                        <span className="flex min-w-[130px] flex-1 items-center gap-2 font-semibold text-ink-900">
-                          <span className="text-xl">{getProductEmoji(sale.product, products)}</span>
-                          {sale.product || '(Unknown)'}
-                        </span>
-                        <span className="text-sm text-ink-600">{quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}</span>
-                        <span className="text-sm text-ink-600">{currencyINR(rate)} / {unit}</span>
-                        <span className="ml-auto font-bold text-ink-900">{currencyINR(quantity * rate)}</span>
+                  <span className="font-bold text-green-700">{currencyINR(paymentsTotal)}</span>
+                </span>
+                <ChevronDown className={`hidden h-5 w-5 text-ink-500 transition-transform sm:block ${isExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              {isExpanded && (
+                <div className="grid grid-cols-1 gap-3 border-t border-ink-100 bg-ink-50/50 p-3 sm:grid-cols-2 sm:p-4">
+                  <section className="overflow-hidden rounded-xl border border-ink-100 bg-white">
+                    <h3 className="flex items-center justify-between border-b border-ink-100 px-4 py-3 font-semibold text-ink-800">
+                      <span className="flex items-center gap-2"><ShoppingBag className="h-4 w-4 text-brand-green-dark" /> Sales</span>
+                      <span className="text-sm font-bold text-ink-900">{currencyINR(salesTotal)}</span>
+                    </h3>
+                    {daySales.length ? daySales.map((sale) => {
+                      const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
+                      const rate = Number(sale.price_per_mootai ?? 0);
+                      const unit = saleQuantityUnit(sale, products);
+                      return (
+                        <div key={sale.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-ink-100 px-4 py-3 last:border-b-0">
+                          <span className="flex min-w-0 items-center gap-2 font-semibold text-ink-900">
+                            <span>{getProductEmoji(sale.product, products)}</span>
+                            <span className="truncate">{sale.product || '(Unknown)'}</span>
+                          </span>
+                          <span className="row-span-2 text-right font-bold text-ink-900">{currencyINR(quantity * rate)}</span>
+                          <span className="text-xs text-ink-500">
+                            {quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit} · {currencyINR(rate)} / {unit}
+                          </span>
+                        </div>
+                      );
+                    }) : <p className="px-4 py-4 text-sm text-ink-500">No sales recorded.</p>}
+                  </section>
+                  <section className="overflow-hidden rounded-xl border border-ink-100 bg-white">
+                    <h3 className="flex items-center justify-between border-b border-ink-100 px-4 py-3 font-semibold text-ink-800">
+                      <span className="flex items-center gap-2"><Banknote className="h-4 w-4 text-green-700" /> Payments received</span>
+                      <span className="text-sm font-bold text-green-700">{currencyINR(paymentsTotal)}</span>
+                    </h3>
+                    {dayPayments.length ? dayPayments.map((payment) => (
+                      <div key={payment.id} className="flex items-center gap-3 border-b border-ink-100 px-4 py-3 last:border-b-0">
+                        <span className="flex-1 text-sm text-ink-700">Payment received</span>
+                        <span className="font-bold text-green-700">{currencyINR(payment.amount_paid)}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-              {expandedHistory === paymentKey && (
-                <div className="divide-y divide-ink-100 overflow-hidden rounded-xl border border-ink-100 bg-white">
-                  {dayPayments.map((payment) => (
-                    <div key={payment.id} className="flex items-center gap-3 p-3">
-                      <Banknote className="h-4 w-4 shrink-0 text-green-700" />
-                      <span className="flex-1 text-sm text-ink-700">Payment received</span>
-                      <span className="font-bold text-green-700">{currencyINR(payment.amount_paid)}</span>
-                    </div>
-                  ))}
+                    )) : <p className="px-4 py-4 text-sm text-ink-500">No payments recorded.</p>}
+                  </section>
                 </div>
               )}
             </article>

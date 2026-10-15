@@ -126,9 +126,10 @@ export default function Inventory() {
       setSelectedStockDate((selectedDate) => (
         selectedDate === previousDate ? currentDate : selectedDate
       ));
+      loadInventory();
     }, 60_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [loadInventory]);
 
   const productsById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const stockProducts = useMemo(() => products
@@ -259,6 +260,9 @@ export default function Inventory() {
     .filter((movement) => activeProductIds.has(movement.product_id))
     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
   const visibleWeekDates = weekDates(selectedStockDate);
+  const nextWeekStart = parseDateStr(visibleWeekDates[0]);
+  nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+  const canGoToNextWeek = dateKey(nextWeekStart) <= todayKey;
   const selectedCountsByProduct = new Map(
     inventoryCounts
       .filter((count) => count.stock_date === selectedStockDate)
@@ -452,20 +456,28 @@ export default function Inventory() {
             {visibleWeekDates.map((date) => {
               const dateObject = parseDateStr(date);
               const isSelected = date === selectedStockDate;
+              const isFuture = date > todayKey;
               return (
                 <button
                   key={date}
                   type="button"
                   onClick={() => setSelectedStockDate(date)}
+                  disabled={isFuture}
                   aria-pressed={isSelected}
-                  className={`min-w-10 rounded-lg px-2 py-1.5 text-center ${isSelected ? 'bg-brand-green-dark text-white' : 'text-ink-600 hover:bg-ink-50'}`}
+                  className={`min-w-10 rounded-lg px-2 py-1.5 text-center disabled:cursor-not-allowed disabled:opacity-30 ${isSelected ? 'bg-brand-green-dark text-white' : 'text-ink-600 hover:bg-ink-50'}`}
                 >
                   <span className="block text-[10px] font-semibold uppercase">{dateObject.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
                   <span className="block text-sm font-bold">{dateObject.getDate()}</span>
                 </button>
               );
             })}
-            <button type="button" onClick={() => changeWeek(1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Next week">
+            <button
+              type="button"
+              onClick={() => changeWeek(1)}
+              disabled={!canGoToNextWeek}
+              className="rounded-lg p-2 text-ink-600 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Next week"
+            >
               <ChevronRight className="h-4 w-4" />
             </button>
             <label className="sr-only" htmlFor="stock-overview-date">Choose stock overview date</label>
@@ -473,15 +485,22 @@ export default function Inventory() {
               id="stock-overview-date"
               type="date"
               value={selectedStockDate}
+              max={todayKey}
               onChange={(event) => {
-                if (event.target.value) setSelectedStockDate(event.target.value);
+                if (event.target.value && event.target.value <= todayKey) setSelectedStockDate(event.target.value);
               }}
               className="min-h-10 rounded-lg border border-ink-100 px-2 text-xs font-semibold text-ink-700"
             />
             <button type="button" onClick={() => changeDay(-1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Previous day">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button type="button" onClick={() => changeDay(1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Next day">
+            <button
+              type="button"
+              onClick={() => changeDay(1)}
+              disabled={selectedStockDate >= todayKey}
+              className="rounded-lg p-2 text-ink-600 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Next day"
+            >
               <ChevronRight className="h-4 w-4" />
             </button>
             {selectedStockDate !== todayKey && (
@@ -536,7 +555,6 @@ export default function Inventory() {
               const daySales = dayMovements.filter((movement) => movement.movement_type === 'sale');
               const dayStockMovements = dayMovements.filter((movement) => movement.movement_type !== 'sale');
               const stockProductsForHistory = stockProducts.filter((item) => settingsById.has(item.id));
-              const dateCounts = inventoryCounts.filter((count) => count.stock_date === date);
               const closingBalances = new Map();
               for (const movement of movements) {
                 if (movement.movement_date !== date) continue;
@@ -559,7 +577,7 @@ export default function Inventory() {
                       const quantity = Number(movement.quantity_delta || 0);
                       const balance = closingBalances.get(movement.product_id) || 0;
                       return (
-                        <div key={movement.id} className="grid grid-cols-1 items-center gap-2 border-b border-ink-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(150px,1fr)_minmax(100px,0.7fr)_minmax(100px,0.7fr)] sm:gap-4">
+                        <div key={movement.id} className={`grid grid-cols-1 items-center gap-2 border-b border-ink-100 px-4 py-3 last:border-b-0 sm:gap-4 ${isSale ? 'sm:grid-cols-[minmax(150px,1fr)_minmax(100px,0.7fr)_minmax(110px,auto)]' : 'sm:grid-cols-[minmax(150px,1fr)_minmax(100px,0.7fr)_minmax(100px,auto)_minmax(120px,auto)]'}`}>
                           <span className="flex items-center gap-2 font-semibold text-ink-900">
                             <span className="text-lg">{getProductEmoji(item?.name, products)}</span>
                             <span>{item?.name || 'Product'}</span>
@@ -568,7 +586,7 @@ export default function Inventory() {
                             <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">Movement</span>
                             <span className="capitalize text-xs text-ink-500">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</span>
                           </span>
-                          <span className="flex items-center justify-between gap-3 sm:justify-end sm:gap-6">
+                          <span className={`flex items-center justify-between gap-3 ${isSale ? 'sm:justify-end' : 'sm:justify-end sm:gap-6'}`}>
                             <span className="min-w-0">
                               <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-400">
                                 {isSale ? 'Sold' : 'Quantity'}
@@ -577,12 +595,12 @@ export default function Inventory() {
                                 {Number(isSale ? Math.abs(quantity) : quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
                               </span>
                             </span>
-                            <span className="min-w-0 text-right">
+                            {!isSale && <span className="min-w-0 text-right">
                               <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-400">Balance</span>
                               <span className="block whitespace-nowrap text-sm font-bold text-red-700">
                                 {Number(Math.max(0, balance)).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
                               </span>
-                            </span>
+                            </span>}
                           </span>
                           {(movement.supplier_id || (movement.reason && !isSale)) && (
                             <span className="text-xs text-ink-500 sm:col-span-4">
@@ -627,14 +645,6 @@ export default function Inventory() {
                     </button>
                     {expanded && (
                       <div className="border-t border-ink-100">
-                        {kind === 'stock' && dateCounts.map((count) => {
-                          const item = productsById.get(count.product_id);
-                          return (
-                            <div key={`${count.product_id}-${date}`} className="border-b border-ink-100 bg-ink-50 px-4 py-2 text-xs text-ink-600">
-                              Morning count · {item?.name || 'Product'}: {Number(count.counted_quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
-                            </div>
-                          );
-                        })}
                         {renderMovementDetails(items)}
                       </div>
                     )}
