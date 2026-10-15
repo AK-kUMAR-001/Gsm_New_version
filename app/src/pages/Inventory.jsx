@@ -9,6 +9,7 @@ import {
   productSalesUnit,
   productStockToSalesFactor,
   productStockUnit,
+  realTodayIST,
   todayIST,
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
@@ -95,7 +96,9 @@ export default function Inventory() {
   const [form, setForm] = useState({});
   const [expandedProducts, setExpandedProducts] = useState(() => new Set());
   const [expandedMovementDates, setExpandedMovementDates] = useState(() => new Set());
-  const [selectedStockDate, setSelectedStockDate] = useState(todayIST());
+  const [selectedStockDate, setSelectedStockDate] = useState(() => realTodayIST());
+  const [todayKey, setTodayKey] = useState(() => realTodayIST());
+  const todayKeyRef = useRef(todayKey);
   const [saving, setSaving] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
@@ -112,6 +115,20 @@ export default function Inventory() {
       active = false;
     };
   }, [loadInventory]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const currentDate = realTodayIST();
+      if (currentDate === todayKeyRef.current) return;
+      const previousDate = todayKeyRef.current;
+      todayKeyRef.current = currentDate;
+      setTodayKey(currentDate);
+      setSelectedStockDate((selectedDate) => (
+        selectedDate === previousDate ? currentDate : selectedDate
+      ));
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const productsById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const stockProducts = useMemo(() => products
@@ -241,7 +258,6 @@ export default function Inventory() {
   const movements = inventoryMovements
     .filter((movement) => activeProductIds.has(movement.product_id))
     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
-  const todayKey = todayIST();
   const visibleWeekDates = weekDates(selectedStockDate);
   const selectedCountsByProduct = new Map(
     inventoryCounts
@@ -270,6 +286,11 @@ export default function Inventory() {
   const changeWeek = (amount) => {
     const date = parseDateStr(selectedStockDate);
     date.setDate(date.getDate() + amount * 7);
+    setSelectedStockDate(dateKey(date));
+  };
+  const changeDay = (amount) => {
+    const date = parseDateStr(selectedStockDate);
+    date.setDate(date.getDate() + amount);
     setSelectedStockDate(dateKey(date));
   };
   const movementsByDate = new Map();
@@ -447,6 +468,22 @@ export default function Inventory() {
             <button type="button" onClick={() => changeWeek(1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Next week">
               <ChevronRight className="h-4 w-4" />
             </button>
+            <label className="sr-only" htmlFor="stock-overview-date">Choose stock overview date</label>
+            <input
+              id="stock-overview-date"
+              type="date"
+              value={selectedStockDate}
+              onChange={(event) => {
+                if (event.target.value) setSelectedStockDate(event.target.value);
+              }}
+              className="min-h-10 rounded-lg border border-ink-100 px-2 text-xs font-semibold text-ink-700"
+            />
+            <button type="button" onClick={() => changeDay(-1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Previous day">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => changeDay(1)} className="rounded-lg p-2 text-ink-600 hover:bg-ink-50" aria-label="Next day">
+              <ChevronRight className="h-4 w-4" />
+            </button>
             {selectedStockDate !== todayKey && (
               <button type="button" onClick={() => setSelectedStockDate(todayKey)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-green-dark hover:bg-green-50">
                 Today
@@ -461,7 +498,9 @@ export default function Inventory() {
             const receivedToday = selectedReceivedByProduct.get(item.id) || 0;
             const balance = selectedStockDate === todayKey
               ? summaryById.get(item.id)?.quantity_on_hand
-              : selectedBalanceByProduct.get(item.id);
+              : selectedBalanceByProduct.has(item.id)
+                ? selectedBalanceByProduct.get(item.id)
+                : morningCount?.counted_quantity ?? null;
             const unit = productSalesUnit(item);
             return (
               <article key={item.id} className="rounded-2xl border border-ink-100 bg-white p-4">
@@ -477,7 +516,7 @@ export default function Inventory() {
                   <dd className="text-right font-semibold text-green-700"><Quantity value={receivedToday} unit={unit} /></dd>
                   <dt className="text-ink-500">{selectedStockDate === todayKey ? 'Current balance' : 'Closing balance'}</dt>
                   <dd className="text-right font-bold text-ink-900">
-                    {balance == null ? '—' : <Quantity value={Math.max(0, balance)} unit={unit} />}
+                    {balance == null ? 'Not recorded' : <Quantity value={Math.max(0, balance)} unit={unit} />}
                   </dd>
                 </dl>
               </article>
@@ -520,13 +559,31 @@ export default function Inventory() {
                       const quantity = Number(movement.quantity_delta || 0);
                       const balance = closingBalances.get(movement.product_id) || 0;
                       return (
-                        <div key={movement.id} className="grid grid-cols-1 gap-1.5 px-4 py-3 text-sm sm:grid-cols-[minmax(110px,1fr)_minmax(90px,1fr)_auto_auto] sm:items-center sm:gap-4">
-                          <span className="font-semibold text-ink-900">{getProductEmoji(item?.name, products)} {item?.name || 'Product'}</span>
-                          <span className="capitalize text-ink-600">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</span>
-                          <span className={`font-semibold ${quantity < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                            {quantity > 0 ? '+' : ''}<Quantity value={isSale ? Math.abs(quantity) : quantity} unit={productSalesUnit(item)} />
+                        <div key={movement.id} className="grid grid-cols-1 items-center gap-2 border-b border-ink-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(150px,1fr)_minmax(100px,0.7fr)_minmax(100px,0.7fr)] sm:gap-4">
+                          <span className="flex items-center gap-2 font-semibold text-ink-900">
+                            <span className="text-lg">{getProductEmoji(item?.name, products)}</span>
+                            <span>{item?.name || 'Product'}</span>
                           </span>
-                          <span className="text-ink-600">Balance: <strong className="text-ink-900"><Quantity value={Math.max(0, balance)} unit={productSalesUnit(item)} /></strong></span>
+                          <span className="flex items-center justify-between gap-3 sm:block">
+                            <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">Movement</span>
+                            <span className="capitalize text-xs text-ink-500">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</span>
+                          </span>
+                          <span className="flex items-center justify-between gap-3 sm:justify-end sm:gap-6">
+                            <span className="min-w-0">
+                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-400">
+                                {isSale ? 'Sold' : 'Quantity'}
+                              </span>
+                              <span className={`block whitespace-nowrap text-sm font-bold ${isSale || quantity > 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                {Number(isSale ? Math.abs(quantity) : quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
+                              </span>
+                            </span>
+                            <span className="min-w-0 text-right">
+                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-400">Balance</span>
+                              <span className="block whitespace-nowrap text-sm font-bold text-red-700">
+                                {Number(Math.max(0, balance)).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
+                              </span>
+                            </span>
+                          </span>
                           {(movement.supplier_id || movement.reason) && (
                             <span className="text-xs text-ink-500 sm:col-span-4">
                               {movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason}
@@ -560,19 +617,11 @@ export default function Inventory() {
                         <span className="mt-0.5 block text-xs font-semibold text-ink-600">{kind === 'sales' ? 'Sales' : 'Stock in'}</span>
                       </span>
                       <span className="min-w-0 flex-1 space-y-1">
-                        {stockProductsForHistory.map((item) => (
-                          <span key={item.id} className="flex flex-wrap justify-end gap-x-2 text-right text-xs text-ink-600 sm:text-sm">
-                            <span className="font-semibold text-ink-800">{item.name}</span>
-                            <span>{quantityForProduct(item.id).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}</span>
-                            <span className="text-ink-400">/ Balance</span>
-                            <span className="font-semibold text-ink-800">
-                              {Number(Math.max(0, closingBalances.get(item.id) || 0)).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
-                            </span>
-                          </span>
-                        ))}
-                        {stockProductsForHistory.length === 0 && (
-                          <span className="block text-right text-xs text-ink-500">{emptyLabel}</span>
-                        )}
+                        <span className="block text-right text-xs font-medium text-ink-500">
+                          {items.length
+                            ? `${items.length} ${kind === 'sales' ? (items.length === 1 ? 'sale' : 'sales') : (items.length === 1 ? 'stock movement' : 'stock movements')}`
+                            : emptyLabel}
+                        </span>
                       </span>
                       <ChevronDown className={`h-5 w-5 shrink-0 text-ink-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
                     </button>
