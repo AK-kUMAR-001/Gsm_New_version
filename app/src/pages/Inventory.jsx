@@ -584,7 +584,7 @@ export default function Inventory() {
                               </span>
                             </span>
                           </span>
-                          {(movement.supplier_id || movement.reason) && (
+                          {(movement.supplier_id || (movement.reason && !isSale)) && (
                             <span className="text-xs text-ink-500 sm:col-span-4">
                               {movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason}
                             </span>
