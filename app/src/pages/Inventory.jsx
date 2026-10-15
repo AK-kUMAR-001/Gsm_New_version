@@ -278,13 +278,20 @@ export default function Inventory() {
     );
   }
   const selectedSoldByProduct = new Map();
-  const selectedReceivedByProduct = new Map();
+  const openingQuantityByProduct = new Map();
+  for (const movement of movements) {
+    if (movement.movement_type !== 'opening') continue;
+    openingQuantityByProduct.set(
+      movement.product_id,
+      (openingQuantityByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+    );
+  }
   for (const movement of selectedMovements) {
-    const target = movement.movement_type === 'sale' ? selectedSoldByProduct
-      : ['opening', 'receipt'].includes(movement.movement_type) ? selectedReceivedByProduct
-        : null;
-    if (target) {
-      target.set(movement.product_id, (target.get(movement.product_id) || 0) + Math.abs(Number(movement.quantity_delta || 0)));
+    if (movement.movement_type === 'sale') {
+      selectedSoldByProduct.set(
+        movement.product_id,
+        (selectedSoldByProduct.get(movement.product_id) || 0) + Math.abs(Number(movement.quantity_delta || 0)),
+      );
     }
   }
   const changeWeek = (amount) => {
@@ -514,7 +521,6 @@ export default function Inventory() {
           {stockProducts.filter((item) => settingsById.has(item.id)).map((item) => {
             const morningCount = selectedCountsByProduct.get(item.id);
             const salesToday = selectedSoldByProduct.get(item.id) || 0;
-            const receivedToday = selectedReceivedByProduct.get(item.id) || 0;
             const stockFactor = productStockToSalesFactor(item);
             const balance = selectedStockDate === todayKey
               ? summaryById.get(item.id)?.quantity_on_hand
@@ -530,18 +536,15 @@ export default function Inventory() {
                   <dd className="text-right font-semibold text-ink-800">
                     {morningCount ? <Quantity value={morningCount.counted_quantity} unit={unit} /> : 'Not recorded'}
                   </dd>
+                  <dt className="text-ink-500">Opening count</dt>
+                  <dd className="text-right font-semibold text-green-700">
+                    <Quantity
+                      value={(openingQuantityByProduct.get(item.id) || 0) / stockFactor}
+                      unit={productStockUnit(item)}
+                    />
+                  </dd>
                   <dt className="text-ink-500">Sold</dt>
                   <dd className="text-right font-semibold text-red-700"><Quantity value={salesToday} unit={unit} /></dd>
-                  <dt className="text-ink-500">Stock received</dt>
-                  <dd className="text-right font-semibold text-green-700">
-                    <Quantity value={receivedToday} unit={unit} />
-                    {productStockUnit(item) !== unit && (
-                      <>
-                        <span className="mx-1 text-ink-400">/</span>
-                        <Quantity value={receivedToday / stockFactor} unit={productStockUnit(item)} />
-                      </>
-                    )}
-                  </dd>
                   <dt className="text-ink-500">{selectedStockDate === todayKey ? 'Current balance' : 'Closing balance'}</dt>
                   <dd className="text-right font-bold text-ink-900">
                     {balance == null ? 'Not recorded' : <Quantity value={Math.max(0, balance)} unit={unit} />}
