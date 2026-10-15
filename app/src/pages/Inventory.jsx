@@ -251,7 +251,7 @@ export default function Inventory() {
   const selectedMovements = movements.filter((movement) => movement.movement_date === selectedStockDate);
   const selectedBalanceByProduct = new Map();
   for (const movement of movements) {
-    if (movement.movement_date > selectedStockDate) continue;
+    if (movement.movement_date !== selectedStockDate) continue;
     selectedBalanceByProduct.set(
       movement.product_id,
       (selectedBalanceByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
@@ -489,7 +489,7 @@ export default function Inventory() {
       <section className="metric-card !p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-ink-100">
           <h2 className="font-bold text-ink-900">Stock movement history</h2>
-          <p className="text-xs text-ink-500 mt-1">Select a date to expand all stock movements recorded that day.</p>
+          <p className="text-xs text-ink-500 mt-1">Each date has separate expandable Sales and Stock in details.</p>
         </div>
         {movementDays.length ? (
           <div className="space-y-3 p-3 sm:p-4">
@@ -500,7 +500,7 @@ export default function Inventory() {
               const dateCounts = inventoryCounts.filter((count) => count.stock_date === date);
               const closingBalances = new Map();
               for (const movement of movements) {
-                if (movement.movement_date > date) continue;
+                if (movement.movement_date !== date) continue;
                 closingBalances.set(
                   movement.product_id,
                   (closingBalances.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
