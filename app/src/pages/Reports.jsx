@@ -845,7 +845,7 @@ export default function Reports() {
 
       {reportScope === 'period' && <section>
         <h2 className="mb-3 text-lg font-bold text-ink-900">Period totals · {periodLabel}</h2>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-brand-green/20 bg-white p-3 shadow-sm sm:p-4">
             <div className="text-[11px] font-bold uppercase tracking-wide text-brand-green-dark">TOTAL REVENUE</div>
             <div className="mt-1 text-2xl font-black tracking-tight text-brand-green-dark sm:text-3xl">
@@ -864,12 +864,6 @@ export default function Reports() {
               {currencyINR(totalRetail)}
             </div>
           </div>
-          <ReportCostCard
-            label="Gross profit (tracked sales)"
-            amount={!offline && !inventoryLoading && !inventoryError && inventoryReport.trackedSalesCount
-              ? inventoryReport.trackedGrossProfit
-              : null}
-          />
         </div>
       </section>}
 

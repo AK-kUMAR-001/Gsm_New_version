@@ -41,8 +41,8 @@ function periodLabel(period) {
 
 function safeFilename(value) {
   return String(value || 'report')
-    .normalize('NFKD')
-    .replace(/[^\w -]/g, '')
+    .normalize('NFKC')
+    .replace(/[^\p{L}\p{N}_ -]/gu, '')
     .trim()
     .replace(/\s+/g, '_')
     .slice(0, 60) || 'report';
@@ -101,10 +101,18 @@ function addMetricCards(doc, values, top = 40) {
 function table(doc, options) {
   autoTable(doc, {
     theme: 'striped',
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.2, textColor: COLORS.ink },
-    headStyles: { fillColor: COLORS.navy, textColor: 255, fontStyle: 'bold' },
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 2.2,
+      overflow: 'linebreak',
+      textColor: COLORS.ink,
+      valign: 'middle',
+    },
+    headStyles: { fillColor: COLORS.navy, textColor: 255, fontStyle: 'bold', overflow: 'linebreak' },
     alternateRowStyles: { fillColor: [247, 249, 251] },
     margin: { left: 14, right: 14, bottom: 14 },
+    rowPageBreak: 'avoid',
     ...options,
   });
 }
@@ -274,11 +282,11 @@ export function downloadCustomerStatementsPdf({
         : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
       columnStyles: {
         0: { cellWidth: 25 },
-        1: { cellWidth: 20 },
+        1: { cellWidth: 20, halign: 'center' },
         2: { cellWidth: 58 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 29 },
-        5: { cellWidth: 31 },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 29, halign: 'right' },
+        5: { cellWidth: 31, halign: 'right' },
         6: { cellWidth: 76 },
       },
     });
@@ -322,8 +330,21 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
     })),
   ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
 
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.muted);
+  const customerDetails = doc.splitTextToSize(
+    `Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`,
+    269,
+  );
+  doc.text(
+    customerDetails,
+    14,
+    64,
+  );
+  const tableStartY = 64 + customerDetails.length * 4 + 4;
   table(doc, {
-    startY: 68,
+    startY: tableStartY,
     head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
     body: transactions.length
       ? transactions.map((row) => [
@@ -332,20 +353,16 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
       : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
     columnStyles: {
       0: { cellWidth: 25 },
-      1: { cellWidth: 20 },
+      1: { cellWidth: 20, halign: 'center' },
       2: { cellWidth: 58 },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 29 },
-      5: { cellWidth: 31 },
+      3: { cellWidth: 30, halign: 'right' },
+      4: { cellWidth: 29, halign: 'right' },
+      5: { cellWidth: 31, halign: 'right' },
       6: { cellWidth: 76 },
     },
   });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.muted);
-  doc.text(`Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`, 14, 64);
   addPageNumbers(doc);
-  doc.save(`GSM_${safeFilename(buyer.name)}_Statement_${safeFilename(periodName)}.pdf`);
+  doc.save(`${safeFilename(buyer.name)}_GSM_${realTodayIST()}.pdf`);
 }
 
 export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
@@ -375,18 +392,32 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...COLORS.ink);
-  doc.text(`Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`, 14, 39);
+  const customerDetails = doc.splitTextToSize(
+    `Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`,
+    269,
+  );
+  doc.text(customerDetails, 14, 39);
+  const introY = 39 + customerDetails.length * 5 + 1;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...COLORS.muted);
-  doc.text(`Hi ${buyer.name}, please find your GSM Traders ${kind === 'monthly' ? 'monthly' : 'complete'} bill below.`, 14, 45);
+  doc.text(
+    doc.splitTextToSize(
+      `Hi ${buyer.name}, please find your GSM Traders ${kind === 'monthly' ? 'monthly' : 'complete'} bill below.`,
+      269,
+    ),
+    14,
+    introY,
+  );
+  const metricTop = introY + 7;
 
   addMetricCards(doc, [
     { label: 'Total quantities', value: formatUnitQuantities(quantities) },
     { label: kind === 'monthly' ? 'Billed this month' : 'Total billed', value: MONEY(billed) },
     { label: kind === 'monthly' ? 'Paid this month' : 'Total paid', value: MONEY(paid) },
     { label: 'Amount pending', value: MONEY(balance?.balance_due) },
-  ], 52);
+  ], metricTop);
+  const tableStartY = metricTop + 28;
 
   if (kind === 'monthly') {
     const byProduct = new Map();
@@ -403,7 +434,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
       byProduct.set(key, row);
     }
     table(doc, {
-      startY: 80,
+      startY: tableStartY,
       head: [['Product', 'Quantity', 'Rate / Unit', 'Total Bill']],
       body: byProduct.size
         ? Array.from(byProduct.values()).map((row) => [
@@ -414,8 +445,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
           )).join(' / '),
           MONEY(row.billed),
         ])
-        : [['—', '—', '—', 'No sales recorded this month']],
-      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 52 }, 2: { cellWidth: 52 }, 3: { cellWidth: 55 } },
+            : [['No sales recorded this month', '—', '—', '—']],
     });
     const paymentY = (doc.lastAutoTable?.finalY || 88) + 8;
     doc.setFont('helvetica', 'bold');
@@ -444,7 +474,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
       })),
     ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
     table(doc, {
-      startY: 80,
+      startY: tableStartY,
       head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
       body: transactions.length
         ? transactions.map((row) => [
@@ -453,17 +483,17 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
         : [['—', '—', 'No bills or payments recorded', '—', '—', '—', '']],
       columnStyles: {
         0: { cellWidth: 25 },
-        1: { cellWidth: 20 },
+        1: { cellWidth: 20, halign: 'center' },
         2: { cellWidth: 58 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 29 },
-        5: { cellWidth: 31 },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 29, halign: 'right' },
+        5: { cellWidth: 31, halign: 'right' },
         6: { cellWidth: 76 },
       },
     });
   }
 
   addPageNumbers(doc);
-  const filename = `GSM_${safeFilename(buyer.name)}_${kind === 'monthly' ? 'Monthly_Bill' : 'Complete_Bill'}_${safeFilename(period)}.pdf`;
+  const filename = `${safeFilename(buyer.name)}_GSM_${realTodayIST()}.pdf`;
   return new File([doc.output('blob')], filename, { type: 'application/pdf' });
 }
