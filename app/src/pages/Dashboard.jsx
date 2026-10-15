@@ -107,7 +107,7 @@ export default function Dashboard() {
       </div>
 
       {/* 4 Stats Row */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
             Today — Buyers
@@ -156,18 +156,6 @@ export default function Dashboard() {
                 ? 'Complete stock costs are required'
                 : todayFinalProfit.map((item) => `${item.name} ${currencyINR(item.amount)}`).join(' + ') + ` = ${currencyINR(totalFinalProfit)}`}
           </div>
-        </div>
-        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
-              Buyers with Dues
-            </div>
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="mt-2 break-words text-xl font-extrabold text-amber-600 sm:text-2xl">
-            {balances.outstanding_count}
-          </div>
-          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Owing money right now</div>
         </div>
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
@@ -241,9 +229,18 @@ export default function Dashboard() {
         </div>
 
         <div className="order-3 overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm lg:col-start-1 lg:row-start-2">
-            <div className="flex items-center gap-2 px-4 py-3">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <h3 className="font-bold text-ink-900 text-sm">Top Outstanding Buyers</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <h3 className="font-bold text-ink-900 text-sm">Top Outstanding Buyers</h3>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-1.5">
+                <span className="text-lg font-extrabold leading-none text-amber-700">{balances.outstanding_count}</span>
+                <span className="text-xs font-semibold text-amber-800">
+                  {balances.outstanding_count === 1 ? 'buyer with dues' : 'buyers with dues'}
+                  <span className="block font-normal text-amber-700">Owing money right now</span>
+                </span>
+              </div>
             </div>
             <div className="divide-y divide-ink-50">
               {topOutstanding.length === 0 && (

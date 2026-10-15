@@ -515,6 +515,7 @@ export default function Inventory() {
             const morningCount = selectedCountsByProduct.get(item.id);
             const salesToday = selectedSoldByProduct.get(item.id) || 0;
             const receivedToday = selectedReceivedByProduct.get(item.id) || 0;
+            const stockFactor = productStockToSalesFactor(item);
             const balance = selectedStockDate === todayKey
               ? summaryById.get(item.id)?.quantity_on_hand
               : selectedBalanceByProduct.has(item.id)
@@ -531,8 +532,16 @@ export default function Inventory() {
                   </dd>
                   <dt className="text-ink-500">Sold</dt>
                   <dd className="text-right font-semibold text-red-700"><Quantity value={salesToday} unit={unit} /></dd>
-                  <dt className="text-ink-500">Stock in</dt>
-                  <dd className="text-right font-semibold text-green-700"><Quantity value={receivedToday} unit={unit} /></dd>
+                  <dt className="text-ink-500">Stock received</dt>
+                  <dd className="text-right font-semibold text-green-700">
+                    <Quantity value={receivedToday} unit={unit} />
+                    {productStockUnit(item) !== unit && (
+                      <>
+                        <span className="mx-1 text-ink-400">/</span>
+                        <Quantity value={receivedToday / stockFactor} unit={productStockUnit(item)} />
+                      </>
+                    )}
+                  </dd>
                   <dt className="text-ink-500">{selectedStockDate === todayKey ? 'Current balance' : 'Closing balance'}</dt>
                   <dd className="text-right font-bold text-ink-900">
                     {balance == null ? 'Not recorded' : <Quantity value={Math.max(0, balance)} unit={unit} />}
