@@ -73,18 +73,29 @@ export function saleQuantitiesForDisplay(sale, products = []) {
   const salesUnit = productSalesUnit(product);
   const factor = productStockToSalesFactor(product);
   const storedUnit = saleQuantityUnit(sale, products);
-  const salesQuantity = storedUnit === stockUnit && stockUnit !== salesUnit
+  const date = String(sale?.sale_date || '').slice(0, 10);
+  const isLegacyStockQuantity = date && date < '2026-10-13'
+    && storedUnit === stockUnit && stockUnit !== salesUnit;
+  const salesQuantity = isLegacyStockQuantity
     ? quantity * factor
     : quantity;
-  const date = String(sale?.sale_date || '').slice(0, 10);
 
   if (date && date <= LEGACY_SALE_UNIT_CUTOFF && stockUnit !== salesUnit) {
     return { [stockUnit]: salesQuantity / factor };
   }
   if (stockUnit !== salesUnit && factor !== 1) {
+    const enteredStockUnit = date >= '2026-10-16' && storedUnit === stockUnit;
+    const enteredUnit = enteredStockUnit ? stockUnit : salesUnit;
+    const enteredQuantity = enteredStockUnit
+      ? salesQuantity / factor
+      : salesQuantity;
+    const equivalentQuantity = enteredStockUnit
+      ? salesQuantity
+      : salesQuantity / factor;
+    const equivalentUnit = enteredStockUnit ? salesUnit : stockUnit;
     return {
-      [stockUnit]: salesQuantity / factor,
-      [salesUnit]: salesQuantity,
+      [enteredUnit]: enteredQuantity,
+      [equivalentUnit]: equivalentQuantity,
     };
   }
   return { [salesUnit]: salesQuantity };

@@ -79,6 +79,9 @@ order:
 10. `202610150003_sale_entry_units.sql` to allow sales to be entered in either
     the product's configured sales unit or stock-entry unit, while storing
     canonical sales-unit quantities and adjusted per-unit rates
+11. `202610160001_preserve_sale_entry_units.sql` to retain the chosen input
+    unit on each new sale for display, without changing canonical quantities,
+    stock movements, rates, or sale totals
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
@@ -111,18 +114,19 @@ pre-13 Oct tracked stock needs review. Do not run either migration again once
 it has succeeded. Deploy the matching app only after both migrations complete.
 
 Apply `202610150003_sale_entry_units.sql` after both product-unit migrations
-and deploy the matching app afterward. Buyer and retail sale forms can then
-accept either Kattu or Mootai for Malli and Pudina; the database converts the
-quantity to Kattu and adjusts the rate per Kattu without changing the sale
-total. Karuvepillai remains entered and stored in Kg. Do not deploy the updated
-forms before the migration, because they send the selected input unit to the
-new RPC signatures.
+and `202610160001_preserve_sale_entry_units.sql` after it; deploy the matching
+app afterward. Buyer and retail sale forms can then accept either Kattu or
+Mootai for Malli and Pudina; the database converts the quantity to Kattu and
+adjusts the rate per Kattu without changing the sale total while retaining
+which unit was entered. Karuvepillai remains entered and stored in Kg. Do not
+deploy the updated forms before both migrations, because they send the
+selected input unit to the sale RPCs.
 
 Sales through 15 Oct 2026 display in the original Mootai/Kg units and rates;
 their stored Kattu quantities remain canonical for stock and profit accounting.
-Sales dated 16 Oct 2026 onward display both the entered Mootai quantity/rate and
-its Kattu equivalent. Buyer and retail entry forms continue to let the user
-choose either input unit.
+Sales dated 16 Oct 2026 onward display the entered quantity/rate first, followed
+by its equivalent in the other unit. Buyer and retail entry forms continue to
+let the user choose either input unit.
 
 For the live-data clone, run the historical-untracked-sales migration before
 syncing so the recovered past sales can be imported. After verifying the
