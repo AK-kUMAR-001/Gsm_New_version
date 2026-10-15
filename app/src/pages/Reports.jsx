@@ -107,9 +107,6 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
   }).map((setting) => {
     const product = productsById.get(setting.product_id);
     const productMovements = movements.filter((movement) => movement.product_id === setting.product_id);
-    const openingBeforeDate = productMovements
-      .filter((movement) => movement.movement_date < date)
-      .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
     const todaysMovements = productMovements.filter((movement) => movement.movement_date === date);
     const damaged = todaysMovements
       .filter((movement) => movement.movement_type === 'spoilage')
@@ -158,7 +155,7 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       damageCost,
       totalRevenue,
       finalProfit: hasCompleteSaleCosts ? totalRevenue - salesRevenue.saleCost - damageCost : null,
-      balance: openingBeforeDate + todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
+      balance: todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
       countedQuantity: count?.counted_quantity ?? null,
       countRecorded: !!count,
     };
@@ -207,7 +204,7 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Final profit = sales revenue − recorded cost of stock sold − damage cost. Balance includes all stock movements through this date.
+            Final profit = sales revenue − recorded cost of stock sold − damage cost. Balance is the closing stock after this date’s movements.
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
