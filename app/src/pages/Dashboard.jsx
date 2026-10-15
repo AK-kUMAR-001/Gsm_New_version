@@ -118,24 +118,6 @@ export default function Dashboard() {
           <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Billed today</div>
         </div>
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
-          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
-            Today — Retail
-          </div>
-          <div className="mt-2 break-words text-xl font-extrabold text-brand-purple sm:text-2xl">
-            {currencyINR(today.retail)}
-          </div>
-          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Retail income</div>
-        </div>
-        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
-          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
-            Today — Collections
-          </div>
-          <div className="mt-2 break-words text-xl font-extrabold text-green-700 sm:text-2xl">
-            {currencyINR(today.collections)}
-          </div>
-          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Payments received today</div>
-        </div>
-        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex items-center justify-between">
             <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
               Today — Total
@@ -148,16 +130,13 @@ export default function Dashboard() {
           <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Buyers + retail combined</div>
         </div>
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
-              Buyers with Dues
-            </div>
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
+          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
+            Today — Retail
           </div>
-          <div className="mt-2 break-words text-xl font-extrabold text-amber-600 sm:text-2xl">
-            {balances.outstanding_count}
+          <div className="mt-2 break-words text-xl font-extrabold text-brand-purple sm:text-2xl">
+            {currencyINR(today.retail)}
           </div>
-          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Owing money right now</div>
+          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Retail income</div>
         </div>
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
@@ -177,6 +156,27 @@ export default function Dashboard() {
                 ? 'Complete stock costs are required'
                 : todayFinalProfit.map((item) => `${item.name} ${currencyINR(item.amount)}`).join(' + ') + ` = ${currencyINR(totalFinalProfit)}`}
           </div>
+        </div>
+        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
+              Buyers with Dues
+            </div>
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="mt-2 break-words text-xl font-extrabold text-amber-600 sm:text-2xl">
+            {balances.outstanding_count}
+          </div>
+          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Owing money right now</div>
+        </div>
+        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
+            Today — Collections
+          </div>
+          <div className="mt-2 break-words text-xl font-extrabold text-green-700 sm:text-2xl">
+            {currencyINR(today.collections)}
+          </div>
+          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Payments received today</div>
         </div>
       </div>
 
