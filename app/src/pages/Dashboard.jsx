@@ -40,7 +40,13 @@ export default function Dashboard() {
     if (!offline) loadInventory();
   }, [loadInventory, offline]);
 
-  const missingStockCounts = inventorySettings.filter(
+  const activeProductIds = new Set(
+    products.filter((product) => product.active !== false).map((product) => product.id),
+  );
+  const activeInventorySettings = inventorySettings.filter(
+    (setting) => activeProductIds.has(setting.product_id),
+  );
+  const missingStockCounts = activeInventorySettings.filter(
     (setting) => !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST()),
   );
 
@@ -174,7 +180,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {inventorySettings.length > 0 && (
+      {activeInventorySettings.length > 0 && (
         <Link
           to="/inventory"
           className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
