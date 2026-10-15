@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { currencyINR, getProductEmoji, todayIST } from '../lib/business.js';
+import { currencyINR, getProductEmoji, productSalesUnit, todayIST } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from './Modal.jsx';
 import { Search } from 'lucide-react';
@@ -233,7 +233,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
 
           <div>
             <div className="grid grid-cols-[minmax(0,1fr)_72px_82px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
-              <span>Buyer Sale</span><span className="text-center">Mootais</span><span className="text-center">Rate ₹</span>
+              <span>Buyer Sale</span><span className="text-center">Qty</span><span className="text-center">Rate ₹</span>
             </div>
             <div className="space-y-1">
               {activeProducts.map((product) => {
@@ -246,7 +246,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                       <span className="truncate">{product.name}</span>
                     </span>
                     <input
-                      aria-label={`${product.name} Mootais`}
+                      aria-label={`${product.name} ${productSalesUnit(product)} quantity`}
                       type="number"
                       disabled={savedProducts.current.has(product.name)}
                       min="0"
@@ -257,7 +257,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                       className="input !px-2 !py-2 text-center"
                     />
                     <input
-                      aria-label={`${product.name} rate per Mootai`}
+                      aria-label={`${product.name} rate per ${productSalesUnit(product)}`}
                       type="number"
                       disabled={savedProducts.current.has(product.name)}
                       min="0"
@@ -311,7 +311,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
 
           {(errorMessage || (invalidEntries && entries.length > 0)) && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-              <p>{errorMessage || 'For each product, enter both Mootais and Rate, or leave both as zero.'}</p>
+              <p>{errorMessage || 'For each product, enter both quantity and rate, or leave both as zero.'}</p>
             </div>
           )}
 

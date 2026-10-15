@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { currencyINR, formatDateCompact, getProductEmoji, inPeriod } from '../lib/business.js';
+import { currencyINR, formatDateCompact, getProductEmoji, inPeriod, productSalesUnit } from '../lib/business.js';
 import Avatar from '../components/Avatar.jsx';
 import PeriodPills from '../components/PeriodPills.jsx';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
@@ -201,8 +201,8 @@ export default function BuyerDetail() {
                 <tr className="bg-ink-50 text-ink-500">
                   <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Date</th>
                   <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Product</th>
-                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Mootais</th>
-                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Price/Mootai</th>
+                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Quantity</th>
+                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Rate</th>
                   <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Total</th>
                   <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Notes</th>
                 </tr>
@@ -223,6 +223,7 @@ export default function BuyerDetail() {
                     const qty = s.mootais ?? s.mootais_sold ?? 0;
                     const rate = s.price_per_mootai ?? 0;
                     const total = qty * rate;
+                    const unit = s.quantity_unit || productSalesUnit(products.find((product) => product.name === s.product));
                     return (
                       <tr key={s.id} className="border-t border-ink-100 hover:bg-ink-50/50 transition">
                         <td className="px-5 py-4 whitespace-nowrap text-ink-600">
@@ -237,8 +238,8 @@ export default function BuyerDetail() {
                             <span className="font-semibold text-ink-800">{s.product || '(Unknown)'}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-right text-ink-700 font-semibold">{qty}</td>
-                        <td className="px-5 py-4 text-right text-ink-600">{currencyINR(rate)}</td>
+                        <td className="px-5 py-4 text-right text-ink-700 font-semibold whitespace-nowrap">{qty} {unit}</td>
+                        <td className="px-5 py-4 text-right text-ink-600 whitespace-nowrap">{currencyINR(rate)} / {unit}</td>
                         <td className="px-5 py-4 text-right font-bold text-ink-900">{currencyINR(total)}</td>
                         <td className="px-5 py-4 text-ink-500 max-w-[240px] truncate" title={s.notes || ''}>
                           {s.notes ? <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 shrink-0 opacity-60" />{s.notes}</span> : <span className="text-ink-300">—</span>}
