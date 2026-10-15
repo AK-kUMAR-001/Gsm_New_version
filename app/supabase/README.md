@@ -70,6 +70,12 @@ order:
 7. `202610140001_enforce_stock_and_archive_products.sql` to reassert
    server-side sale stock checks and make deletion archive products with
    inventory history instead of deleting referenced ledger records
+8. `202610150001_product_units_and_historical_conversion.sql` to configure
+   Malli/Pudina in Kattu per Mootai, configure Karuvepillai in Kg, and convert
+   sales and inventory records dated 13 Oct 2026 onward without changing
+   revenue
+9. `202610150002_daily_stock_reset.sql` to show only today's stock balance and
+   require a new physical count for each India-time day
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
@@ -92,6 +98,14 @@ Tracked products require an opening stock record and a physical count for the
 current India Standard Time date before a sale can be recorded. The sale row and
 its stock deduction are written in one database transaction. Historical sales
 remain untracked and their costs are not inferred.
+
+The two 15 Oct product-unit migrations must be run in order after
+`202610140001_enforce_stock_and_archive_products.sql`. Back up and reconcile
+the database first. The product-unit migration converts existing sales and
+ledger quantities from Mootai to the configured sales units for records dated
+13 Oct 2026 onward; it intentionally stops if it was already applied or if
+pre-13 Oct tracked stock needs review. Do not run either migration again once
+it has succeeded. Deploy the matching app only after both migrations complete.
 
 For the live-data clone, run the historical-untracked-sales migration before
 syncing so the recovered past sales can be imported. After verifying the

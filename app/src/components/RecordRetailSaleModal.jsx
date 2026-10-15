@@ -5,13 +5,12 @@ import {
   todayIST,
   getProductEmoji,
   currencyINR,
-  KATTU_PER_MOOTAI,
-  KG_PER_MOOTAI,
+  productSalesUnit,
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from '../components/Modal.jsx';
 
-const emptyRow = () => ({ quantity: '', unit: 'kattu', rate: '' });
+const emptyRow = () => ({ quantity: '', rate: '' });
 
 function makeRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
@@ -43,7 +42,6 @@ export default function RecordRetailSaleModal({ open, onClose }) {
     .map((product) => ({
       product,
       quantity: Number(rows[product.name]?.quantity || 0),
-      unit: rows[product.name]?.unit || 'kattu',
       rate: Number(rows[product.name]?.rate || 0),
     }))
     .filter(({ quantity, rate }) => quantity > 0 || rate > 0);
@@ -71,14 +69,11 @@ export default function RecordRetailSaleModal({ open, onClose }) {
 
     for (const { product, quantity, rate } of validEntries) {
       if (savedProducts.current.has(product.name)) continue;
-      const unit = rows[product.name]?.unit || 'kattu';
-      const quantityInMootai = unit === 'kattu' ? quantity / KATTU_PER_MOOTAI : quantity;
-      const ratePerMootai = unit === 'kattu' ? rate * KATTU_PER_MOOTAI : rate;
       const result = await insertRetailSale({
         id: requestIds.current[product.name],
         product: product.name,
-        mootais_sold: quantityInMootai,
-        price_per_mootai: ratePerMootai,
+        mootais_sold: quantity,
+        price_per_mootai: rate,
         sale_date: saleDate,
         notes: notes.trim() || null,
       }, { showSuccessToast: false });
@@ -133,11 +128,10 @@ export default function RecordRetailSaleModal({ open, onClose }) {
         </div>
 
         <div>
-          <div className="grid grid-cols-[minmax(0,1fr)_64px_82px_78px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+          <div className="grid grid-cols-[minmax(0,1fr)_72px_82px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
             <span>Retail Sale</span>
             <span className="text-center">Qty</span>
-            <span className="text-center">Unit</span>
-            <span className="text-center">Rate / unit ₹*</span>
+            <span className="text-center">Rate ₹</span>
           </div>
           <div className="space-y-1">
             {activeProducts.map((product) => {
@@ -147,37 +141,30 @@ export default function RecordRetailSaleModal({ open, onClose }) {
               return (
                 <div
                   key={product.id}
-                  className={`grid grid-cols-[minmax(0,1fr)_64px_82px_78px] items-center gap-2 rounded-xl px-2 py-1 ${
+                  className={`grid grid-cols-[minmax(0,1fr)_72px_82px] items-center gap-2 rounded-xl px-2 py-1 ${
                     active ? 'border border-green-300 bg-green-50' : ''
                   }`}
                 >
                   <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink-800">
                     <span>{getProductEmoji(product.name, activeProducts)}</span>
-                    <span className="truncate">{product.name}</span>
+                    <span className="min-w-0 truncate">
+                      {product.name}
+                      <span className="ml-1 text-[10px] font-medium text-ink-500">({productSalesUnit(product)})</span>
+                    </span>
                   </span>
                   <input
-                    aria-label={`${product.name} quantity`}
+                    aria-label={`${product.name} ${productSalesUnit(product)} quantity`}
                     type="number"
                     min="0"
-                    step={row.unit === 'kattu' ? '1' : '0.001'}
+                    step={productSalesUnit(product) === 'Kattu' ? '1' : '0.001'}
                     disabled={alreadySaved}
                     value={row.quantity}
                     onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
                     placeholder="0"
                     className="input !px-2 !py-2 text-center"
                   />
-                  <select
-                    aria-label={`${product.name} sale unit`}
-                    disabled={alreadySaved}
-                    value={row.unit}
-                    onChange={(event) => updateRow(product.name, 'unit', event.target.value)}
-                    className="input !px-1 !py-2 text-center text-xs"
-                  >
-                    <option value="kattu">Kattu</option>
-                    <option value="mootai">Mootai</option>
-                  </select>
                   <input
-                    aria-label={`${product.name} rate per ${row.unit === 'kattu' ? 'Kattu' : 'Mootai'}`}
+                    aria-label={`${product.name} rate per ${productSalesUnit(product)}`}
                     type="number"
                     min="0"
                     step="0.01"
@@ -187,18 +174,6 @@ export default function RecordRetailSaleModal({ open, onClose }) {
                     placeholder="0"
                     className="input !px-2 !py-2 text-center"
                   />
-                  {Number(row.quantity) > 0 && (
-                    <div className="col-span-4 -mt-1 text-right text-xs">
-                      <strong className="font-bold text-ink-700">
-                        {(Number(row.quantity) * (row.unit === 'kattu' ? 1 : KATTU_PER_MOOTAI)).toLocaleString('en-IN', { maximumFractionDigits: 3 })} Kattu
-                      </strong>
-                      <span className="ml-1 text-ink-500">
-                        / {(Number(row.quantity) * (row.unit === 'kattu'
-                          ? KG_PER_MOOTAI / KATTU_PER_MOOTAI
-                          : KG_PER_MOOTAI)).toLocaleString('en-IN', { maximumFractionDigits: 3 })} kg
-                      </span>
-                    </div>
-                  )}
                 </div>
               );
             })}

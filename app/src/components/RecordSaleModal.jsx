@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { todayIST, getProductEmoji, currencyINR } from '../lib/business.js';
+import { todayIST, getProductEmoji, currencyINR, productSalesUnit } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from '../components/Modal.jsx';
 import { Receipt, IndianRupee } from 'lucide-react';
@@ -37,6 +37,8 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
 
   const total = (Number(mootais) || 0) * (Number(price_per_mootai) || 0);
   const stockGuidance = saleStockGuidance(saveError, product);
+  const selectedProduct = activeProducts.find((item) => item.name === product);
+  const salesUnit = productSalesUnit(selectedProduct);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -112,7 +114,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Mootais <span className="text-red-500">*</span></label>
+            <label className="label">Quantity ({salesUnit}) <span className="text-red-500">*</span></label>
             <input
               required
               type="number"
@@ -125,7 +127,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
             />
           </div>
           <div>
-            <label className="label">Price / Mootai <span className="text-red-500">*</span></label>
+            <label className="label">Price / {salesUnit} <span className="text-red-500">*</span></label>
             <div className="relative">
               <IndianRupee className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
               <input

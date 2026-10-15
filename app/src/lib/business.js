@@ -3,6 +3,33 @@ const INDIAN_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 export const KATTU_PER_MOOTAI = 50;
 export const KG_PER_MOOTAI = 30;
 
+const PRODUCT_UNITS = {
+  malli: { salesUnit: 'Kattu', stockUnit: 'Mootai', stockToSalesFactor: 50 },
+  pudina: { salesUnit: 'Kattu', stockUnit: 'Mootai', stockToSalesFactor: 200 },
+  karuvepillai: { salesUnit: 'Kg', stockUnit: 'Kg', stockToSalesFactor: 1 },
+};
+
+function configuredProductUnits(product) {
+  const name = String(product?.name || '').trim().toLocaleLowerCase();
+  return PRODUCT_UNITS[name];
+}
+
+export function productSalesUnit(product) {
+  const defaults = configuredProductUnits(product);
+  return defaults?.salesUnit || String(product?.sales_unit || 'Mootai').trim() || 'Mootai';
+}
+
+export function productStockUnit(product) {
+  const defaults = configuredProductUnits(product);
+  return defaults?.stockUnit || String(product?.stock_entry_unit || productSalesUnit(product)).trim() || productSalesUnit(product);
+}
+
+export function productStockToSalesFactor(product) {
+  const defaults = configuredProductUnits(product);
+  const factor = Number(defaults?.stockToSalesFactor ?? product?.stock_to_sales_factor ?? 1);
+  return Number.isFinite(factor) && factor > 0 ? factor : 1;
+}
+
 const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',

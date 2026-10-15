@@ -1,7 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { currencyINR, formatDateCompact, getProductEmoji, todayIST } from '../lib/business.js';
+import {
+  currencyINR,
+  formatDateCompact,
+  getProductEmoji,
+  productSalesUnit,
+  productStockToSalesFactor,
+  productStockUnit,
+  todayIST,
+} from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
 import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw } from 'lucide-react';
@@ -16,11 +24,11 @@ const ACTION_LABELS = {
 
 const STOCK_PRODUCT_ORDER = ['malli', 'pudina', 'karuvepillai', 'keerai', 'puundu'];
 
-function Quantity({ value }) {
-  return <>{Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} Mootai</>;
+function Quantity({ value, unit }) {
+  return <>{Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}</>;
 }
 
-function LowStockThreshold({ productId, value, onSave, disabled }) {
+function LowStockThreshold({ productId, value, unit, onSave, disabled }) {
   const [threshold, setThreshold] = useState(String(value ?? 5));
   const [saving, setSaving] = useState(false);
 
@@ -37,7 +45,7 @@ function LowStockThreshold({ productId, value, onSave, disabled }) {
   return (
     <form onSubmit={submit} className="flex flex-wrap items-end gap-2 rounded-2xl border border-ink-100 bg-white p-3">
       <div className="min-w-[130px] flex-1">
-        <label className="label mb-1" htmlFor={`low-stock-${productId}`}>Warn at or below (Mootai)</label>
+        <label className="label mb-1" htmlFor={`low-stock-${productId}`}>Warn at or below ({unit})</label>
         <input
           id={`low-stock-${productId}`}
           type="number"
@@ -166,23 +174,30 @@ export default function Inventory() {
     setSaving(true);
     const quantity = Number(form.quantity);
     const damagedQuantity = Number(form.damagedQuantity || 0);
+    const stockFactor = productStockToSalesFactor(productsById.get(productId));
+    const inputIsStockUnit = action === 'opening' || action === 'receipt';
+    const recordedQuantity = inputIsStockUnit ? quantity * stockFactor : quantity;
+    const recordedDamage = inputIsStockUnit ? damagedQuantity * stockFactor : damagedQuantity;
+    const recordedUnitCost = form.unitCost
+      ? Number(form.unitCost) / (inputIsStockUnit ? stockFactor : 1)
+      : null;
     let result;
     if (action === 'opening') {
       result = await startInventoryTracking(
         productId,
-        quantity,
-        form.unitCost ? Number(form.unitCost) : null,
-        damagedQuantity,
+        recordedQuantity,
+        recordedUnitCost,
+        recordedDamage,
         form.damageReason.trim() || null,
         damageRequestId.current,
       );
     } else if (action === 'count') {
-      result = await recordMorningCount(productId, quantity, form.unitCost ? Number(form.unitCost) : null);
+      result = await recordMorningCount(productId, quantity, recordedUnitCost);
     } else if (action === 'receipt') {
       result = await recordStockReceipt(
-        productId, form.supplierId, quantity, Number(form.unitCost),
+        productId, form.supplierId, recordedQuantity, Number(recordedUnitCost),
         form.notes.trim() || null, requestId.current,
-        damagedQuantity, form.damageReason.trim() || null, damageRequestId.current,
+        recordedDamage, form.damageReason.trim() || null, damageRequestId.current,
       );
     } else if (action === 'damaged') {
       result = await recordStockAdjustment(productId, 'spoilage', -quantity, form.reason.trim(), null, requestId.current);
@@ -203,9 +218,12 @@ export default function Inventory() {
   const currentStock = summaryById.get(productId);
   const quantityInput = Number(form.quantity || 0);
   const damagedQuantity = Number(form.damagedQuantity || 0);
-  const movements = inventoryMovements.filter((movement) => activeProductIds.has(movement.product_id)).sort((a, b) => (
-    String(b.created_at || '').localeCompare(String(a.created_at || ''))
-  ));
+  const stockFactor = productStockToSalesFactor(product);
+  const stockUnitCost = Number(form.unitCost || 0);
+  const salesUnitCost = stockUnitCost > 0 ? stockUnitCost / stockFactor : 0;
+  const movements = inventoryMovements
+    .filter((movement) => activeProductIds.has(movement.product_id) && movement.movement_date === todayIST())
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
 
   return (
     <div className="space-y-6">
@@ -285,11 +303,15 @@ export default function Inventory() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3 rounded-2xl bg-ink-50 p-4">
                       <div>
-                        <p className="text-xs text-ink-500">Available</p>
-                        <p className="mt-1 font-bold text-ink-900"><Quantity value={stock?.quantity_on_hand} /></p>
+                        <p className="text-xs text-ink-500">Available today</p>
+                        <p className="mt-1 font-bold text-ink-900">
+                          {hasCount || movements.some((movement) => movement.product_id === item.id)
+                            ? <Quantity value={stock?.quantity_on_hand} unit={productSalesUnit(item)} />
+                            : 'Not entered today'}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-xs text-ink-500">Average cost / Mootai</p>
+                        <p className="text-xs text-ink-500">Average cost / {productSalesUnit(item)}</p>
                         <p className="mt-1 font-bold text-ink-900">
                           {stock?.average_unit_cost == null ? '—' : currencyINR(stock.average_unit_cost)}
                         </p>
@@ -298,6 +320,7 @@ export default function Inventory() {
                     <LowStockThreshold
                       productId={item.id}
                       value={settingsById.get(item.id)?.low_stock_threshold}
+                      unit={productSalesUnit(item)}
                       onSave={(threshold) => updateInventoryLowStockThreshold(item.id, threshold)}
                       disabled={offline}
                     />
@@ -337,8 +360,8 @@ export default function Inventory() {
 
       <section className="metric-card !p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-ink-100">
-          <h2 className="font-bold text-ink-900">Recent stock movements</h2>
-          <p className="text-xs text-ink-500 mt-1">The stock balance is calculated from this ledger.</p>
+          <h2 className="font-bold text-ink-900">Today's stock movements</h2>
+          <p className="text-xs text-ink-500 mt-1">The stock balance includes today's recorded movements.</p>
         </div>
         {movements.length ? (
           <div className="overflow-x-auto">
@@ -359,7 +382,10 @@ export default function Inventory() {
                     <td className="px-5 py-3">{productsById.get(movement.product_id)?.name || 'Product'}</td>
                     <td className="px-5 py-3 capitalize">{movement.movement_type === 'spoilage' ? 'Damaged stock' : movement.movement_type.replaceAll('_', ' ')}</td>
                     <td className={`px-5 py-3 text-right whitespace-nowrap font-semibold ${Number(movement.quantity_delta) < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                      {Number(movement.quantity_delta) > 0 ? '+' : ''}<Quantity value={movement.quantity_delta} />
+                      {Number(movement.quantity_delta) > 0 ? '+' : ''}<Quantity
+                        value={movement.quantity_delta}
+                        unit={productSalesUnit(productsById.get(movement.product_id))}
+                      />
                     </td>
                     <td className="px-5 py-3 text-ink-500">
                       {movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason}
@@ -371,7 +397,7 @@ export default function Inventory() {
           </div>
         ) : (
           <p className="px-5 py-8 text-center text-sm text-ink-500">
-            {inventoryLoading ? 'Loading stock movements…' : 'No stock movements yet.'}
+            {inventoryLoading ? 'Loading stock movements…' : 'No stock movements recorded today.'}
           </p>
         )}
       </section>
@@ -401,59 +427,105 @@ export default function Inventory() {
                 Add more stock to the current balance. Sales can resume once usable stock is available.
               </p>
             )}
-            <div>
-              <label className="label">
-                {action === 'count'
-                  ? 'Physical quantity counted'
-                  : action === 'correction'
-                    ? 'Correct total available stock'
-                    : action === 'damaged'
-                      ? 'Damaged quantity (Mootai)'
-                      : action === 'opening'
-                        ? 'Opening quantity received (Mootai)'
-                        : 'Extra quantity received (Mootai)'}
-                <span className="text-red-500"> *</span>
-              </label>
-              <input
-                required
-                type="number"
-                step="0.001"
-                min={action === 'damaged' ? '0.001' : '0'}
-                value={form.quantity || ''}
-                onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
-                className="input"
-                autoFocus
-              />
-            </div>
-            {(action === 'opening' || action === 'count' || action === 'receipt' ||
-              (action === 'correction' && Number(form.quantity) > 0)) && (
-              <div>
-                <label className="label">
-                  {action === 'receipt' ? 'Purchase cost per Mootai' : 'Estimated cost per Mootai'}
-                  {action === 'receipt' && <span className="text-red-500"> *</span>}
-                  {action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0 && (
+            {(action === 'opening' || action === 'receipt') ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">
+                    {action === 'opening' ? 'Opening quantity' : 'Quantity received'} ({productStockUnit(product)})
                     <span className="text-red-500"> *</span>
-                  )}
-                </label>
-                <input
-                  required={
-                    action === 'receipt'
-                    || (action === 'opening' && Number(form.quantity) > 0)
-                    || (action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0)
-                  }
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.unitCost || ''}
-                  onChange={(event) => setForm((current) => ({ ...current, unitCost: event.target.value }))}
-                  className="input"
-                />
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.quantity || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
+                    className="input"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="label">
+                    {action === 'receipt' ? 'Purchase cost' : 'Estimated cost'} per {productStockUnit(product)} (₹)
+                    {action === 'receipt' && <span className="text-red-500"> *</span>}
+                  </label>
+                  <input
+                    required={action === 'receipt' || (action === 'opening' && Number(form.quantity) > 0)}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.unitCost || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, unitCost: event.target.value }))}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label">{productSalesUnit(product)} per {productStockUnit(product)}</label>
+                  <input
+                    readOnly
+                    value={stockFactor.toLocaleString('en-IN')}
+                    className="input bg-ink-50"
+                    aria-label={`${productSalesUnit(product)} per ${productStockUnit(product)}`}
+                  />
+                </div>
+                <div>
+                  <label className="label">Calculated cost per {productSalesUnit(product)} (₹)</label>
+                  <input
+                    readOnly
+                    value={salesUnitCost > 0 ? salesUnitCost.toLocaleString('en-IN', { maximumFractionDigits: 6 }) : ''}
+                    className="input bg-ink-50"
+                    aria-label={`Calculated cost per ${productSalesUnit(product)}`}
+                  />
+                </div>
               </div>
+            ) : (
+              <>
+                <div>
+                  <label className="label">
+                    {action === 'count'
+                      ? `Physical quantity counted (${productSalesUnit(product)})`
+                      : action === 'correction'
+                        ? `Correct total available stock (${productSalesUnit(product)})`
+                        : `Damaged quantity (${productSalesUnit(product)})`}
+                    <span className="text-red-500"> *</span>
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    step="0.001"
+                    min={action === 'damaged' ? '0.001' : '0'}
+                    value={form.quantity || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
+                    className="input"
+                    autoFocus
+                  />
+                </div>
+                {(action === 'count' || (action === 'correction' && Number(form.quantity) > 0)) && (
+                  <div>
+                    <label className="label">
+                      Estimated cost per {productSalesUnit(product)}
+                      {action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0 && (
+                        <span className="text-red-500"> *</span>
+                      )}
+                    </label>
+                    <input
+                      required={action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.unitCost || ''}
+                      onChange={(event) => setForm((current) => ({ ...current, unitCost: event.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                )}
+              </>
             )}
             {(action === 'opening' || action === 'receipt') && (
               <>
                 <div>
-                  <label className="label">Damaged on arrival (Mootai)</label>
+                  <label className="label">Damaged on arrival ({productStockUnit(product)})</label>
                   <input
                     type="number"
                     min="0"
