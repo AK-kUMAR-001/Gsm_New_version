@@ -44,6 +44,10 @@ function formatReportDate(dateKeyValue, options) {
   return date.toLocaleDateString('en-IN', options);
 }
 
+function shouldHideHistoricalBalance(date) {
+  return date >= '2026-10-13' && date <= '2026-10-15';
+}
+
 function entryTime(entry) {
   if (!entry.created_at || !String(entry.created_at).includes('T')) return '';
   const date = new Date(entry.created_at);
@@ -190,6 +194,8 @@ function DailyClosingSummary({
   inventoryError,
   onRequestDownload,
 }) {
+  const hideBalance = shouldHideHistoricalBalance(date);
+
   return (
     <section className="rounded-3xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -197,7 +203,10 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Final profit = sales revenue − recorded cost of stock sold − damage cost. Balance is the closing stock after this date’s movements.
+            Final profit = sales revenue − recorded cost of stock sold − damage cost.
+            {hideBalance
+              ? ' Historical stock balance is hidden for this date.'
+              : ' Balance is the closing stock after this date’s movements.'}
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
@@ -229,7 +238,7 @@ function DailyClosingSummary({
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Balance</th>
+                {!hideBalance && <th className="px-4 py-3 text-right font-bold">Balance</th>}
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
               </tr>
             </thead>
@@ -249,7 +258,9 @@ function DailyClosingSummary({
                     <div className="mt-1 text-xs text-ink-500">{currencyINR(row.retailRevenue)} sales</div>
                   </td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantityForDate(row.product, row.damaged, date)}</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatProductQuantityForDate(row.product, row.balance, date)}</td>
+                  {!hideBalance && (
+                    <td className="px-4 py-3 text-right font-bold">{formatProductQuantityForDate(row.product, row.balance, date)}</td>
+                  )}
                   <td className="px-4 py-3 text-right">
                     {row.finalProfit == null ? (
                       <span className="text-xs text-ink-500">Cost not recorded</span>
@@ -581,6 +592,7 @@ export default function Reports() {
   };
 
   const downloadDailyStockCsv = () => {
+    const hideBalance = shouldHideHistoricalBalance(selectedDate);
     const rows = dailyStockClosingRows.map((row) => ({
       date: selectedDate,
       product: row.productName,
@@ -593,7 +605,7 @@ export default function Reports() {
       retail_sales_value: row.retailRevenue,
       total_sales_quantities_by_unit: formatUnitQuantities(row.sold),
       damaged_quantity_sales_unit: row.damaged,
-      balance_quantity_sales_unit: row.balance,
+      balance_quantity_sales_unit: hideBalance ? '' : row.balance,
       recorded_sold_stock_cost: row.saleCost,
       damaged_stock_cost: row.damageCost,
       final_profit: row.finalProfit ?? '',
