@@ -428,6 +428,7 @@ export function AppDataProvider({ children }) {
       p_product: row.product,
       p_mootais: row.mootais,
       p_price_per_mootai: row.price_per_mootai,
+      p_quantity_unit: row.quantity_unit,
       p_sale_date: row.sale_date,
       p_notes: row.notes,
     });
@@ -473,6 +474,7 @@ export function AppDataProvider({ children }) {
       p_product: row.product,
       p_mootais_sold: row.mootais_sold,
       p_price_per_mootai: row.price_per_mootai,
+      p_quantity_unit: row.quantity_unit,
       p_sale_date: row.sale_date,
       p_notes: row.notes,
     });

@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { todayIST, getProductEmoji, currencyINR, productSalesUnit } from '../lib/business.js';
+import {
+  todayIST,
+  getProductEmoji,
+  currencyINR,
+  productSalesUnit,
+  saleInputUnits,
+} from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from '../components/Modal.jsx';
 import { Receipt, IndianRupee } from 'lucide-react';
@@ -10,6 +16,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   const { activeProducts, insertBuyerSale, insertPayment } = useAppData();
   const navigate = useNavigate();
   const [product, setProduct] = useState('');
+  const [saleUnit, setSaleUnit] = useState('');
   const [mootais, setMootais] = useState('');
   const [price_per_mootai, setPricePerMootai] = useState('');
   const [payment, setPayment] = useState('');
@@ -23,7 +30,9 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   useEffect(() => {
     if (open) {
       requestId.current = window.crypto.randomUUID();
-      setProduct(activeProducts[0]?.name || '');
+      const firstProduct = activeProducts[0];
+      setProduct(firstProduct?.name || '');
+      setSaleUnit(productSalesUnit(firstProduct));
       setMootais('');
       setPricePerMootai('');
       setPayment('');
@@ -38,7 +47,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   const total = (Number(mootais) || 0) * (Number(price_per_mootai) || 0);
   const stockGuidance = saleStockGuidance(saveError, product);
   const selectedProduct = activeProducts.find((item) => item.name === product);
-  const salesUnit = productSalesUnit(selectedProduct);
+  const inputUnits = saleInputUnits(selectedProduct);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -50,6 +59,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
       product,
       mootais: Number(mootais),
       price_per_mootai: Number(price_per_mootai),
+      quantity_unit: saleUnit,
       sale_date,
       notes: notes.trim() || null,
     });
@@ -99,7 +109,13 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
             <select
               required
               value={product}
-              onChange={(e) => setProduct(e.target.value)}
+              onChange={(e) => {
+                const nextProduct = activeProducts.find((item) => item.name === e.target.value);
+                setProduct(e.target.value);
+                setSaleUnit(productSalesUnit(nextProduct));
+                setMootais('');
+                setPricePerMootai('');
+              }}
               className="input appearance-none pr-10"
             >
               {activeProducts.map((p) => (
@@ -112,14 +128,24 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="label">Quantity ({salesUnit}) <span className="text-red-500">*</span></label>
+            <label className="label">Unit</label>
+            <select
+              value={saleUnit}
+              onChange={(e) => setSaleUnit(e.target.value)}
+              className="input"
+            >
+              {inputUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Qty ({saleUnit}) <span className="text-red-500">*</span></label>
             <input
               required
               type="number"
-              min="0.001"
-              step="0.001"
+              min={saleUnit === 'Kattu' ? '1' : '0.001'}
+              step={saleUnit === 'Kattu' ? '1' : '0.001'}
               value={mootais}
               onChange={(e) => setMootais(e.target.value)}
               placeholder="0"
@@ -127,7 +153,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
             />
           </div>
           <div>
-            <label className="label">Price / {salesUnit} <span className="text-red-500">*</span></label>
+            <label className="label">Rate / {saleUnit} <span className="text-red-500">*</span></label>
             <div className="relative">
               <IndianRupee className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
               <input

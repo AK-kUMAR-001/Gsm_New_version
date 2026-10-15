@@ -76,6 +76,9 @@ order:
    revenue
 9. `202610150002_daily_stock_reset.sql` to show only today's stock balance and
    require a new physical count for each India-time day
+10. `202610150003_sale_entry_units.sql` to allow sales to be entered in either
+    the product's configured sales unit or stock-entry unit, while storing
+    canonical sales-unit quantities and adjusted per-unit rates
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
@@ -106,6 +109,14 @@ ledger quantities from Mootai to the configured sales units for records dated
 13 Oct 2026 onward; it intentionally stops if it was already applied or if
 pre-13 Oct tracked stock needs review. Do not run either migration again once
 it has succeeded. Deploy the matching app only after both migrations complete.
+
+Apply `202610150003_sale_entry_units.sql` after both product-unit migrations
+and deploy the matching app afterward. Buyer and retail sale forms can then
+accept either Kattu or Mootai for Malli and Pudina; the database converts the
+quantity to Kattu and adjusts the rate per Kattu without changing the sale
+total. Karuvepillai remains entered and stored in Kg. Do not deploy the updated
+forms before the migration, because they send the selected input unit to the
+new RPC signatures.
 
 For the live-data clone, run the historical-untracked-sales migration before
 syncing so the recovered past sales can be imported. After verifying the
