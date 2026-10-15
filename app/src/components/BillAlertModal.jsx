@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { buildWhatsAppBillUrl, currencyINR, formatUnitQuantities, realTodayIST, saleQuantityUnit } from '../lib/business.js';
+import {
+  buildWhatsAppBillUrl,
+  currencyINR,
+  formatUnitQuantities,
+  realTodayIST,
+  saleQuantitiesForDisplay,
+} from '../lib/business.js';
 import Modal from './Modal.jsx';
 import { ArrowLeft, FileText, MessageCircle, Share2 } from 'lucide-react';
 
@@ -26,8 +32,9 @@ function createBillMessage({ buyer, sales, payments, balance, kind }) {
     ? payments.filter((payment) => String(payment.paid_at || '').slice(0, 7) === monthKey)
     : payments;
   const quantities = salesForMessage.reduce((totals, sale) => {
-    const unit = saleQuantityUnit(sale);
-    totals[unit] = (totals[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
+    for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
+      totals[unit] = (totals[unit] || 0) + quantity;
+    }
     return totals;
   }, {});
   const billed = salesForMessage.reduce(

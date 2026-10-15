@@ -4,6 +4,7 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
   formatDateCompact,
+  formatSaleQuantities,
   getProductEmoji,
   parseDateStr,
   productSalesUnit,
@@ -535,7 +536,14 @@ export default function Inventory() {
                       : 'Not recorded'}
                   </dd>
                   <dt className="text-ink-500">Sold</dt>
-                  <dd className="text-right font-semibold text-red-700"><Quantity value={salesToday} unit={unit} /></dd>
+                  <dd className="text-right font-semibold text-red-700">
+                    {formatSaleQuantities({
+                      product: item.name,
+                      sale_date: selectedStockDate,
+                      quantity_unit: unit,
+                      mootais: salesToday,
+                    }, products)}
+                  </dd>
                   <dt className="text-ink-500">{selectedStockDate === todayKey ? 'Current balance' : 'Closing balance'}</dt>
                   <dd className="text-right font-bold text-ink-900">
                     {balance == null ? 'Not recorded' : <Quantity value={Math.max(0, balance)} unit={unit} />}
@@ -595,7 +603,14 @@ export default function Inventory() {
                                 {isSale ? 'Sold' : 'Quantity'}
                               </span>
                               <span className={`block whitespace-nowrap text-sm font-bold ${isSale || quantity > 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                {Number(isSale ? Math.abs(quantity) : quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(item)}
+                                {isSale
+                                  ? formatSaleQuantities({
+                                    product: item.name,
+                                    sale_date: date,
+                                    quantity_unit: productSalesUnit(item),
+                                    mootais: Math.abs(quantity),
+                                  }, products)
+                                  : `${Number(quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${productSalesUnit(item)}`}
                               </span>
                             </span>
                             {!isSale && <span className="min-w-0 text-right">

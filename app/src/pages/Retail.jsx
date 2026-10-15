@@ -3,17 +3,15 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
   formatDateCompact,
+  formatSaleQuantities,
+  formatSaleRates,
   formatUnitQuantities,
   getProductEmoji,
-  saleQuantityUnit,
+  saleQuantitiesForDisplay,
 } from '../lib/business.js';
 import PeriodPills, { RETAIL_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import { Plus, RefreshCw, TrendingUp, Package, ShoppingBag, ChevronRight } from 'lucide-react';
-
-function formatQuantity(value) {
-  return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
-}
 
 export default function Retail() {
   const { retailSales, products, filterByPeriod, load } = useAppData();
@@ -38,8 +36,9 @@ export default function Retail() {
       const q = s.mootais_sold ?? s.mootais ?? 0;
       const r = s.price_per_mootai ?? 0;
       revenue += q * r;
-      const unit = saleQuantityUnit(s, products);
-      quantitiesByUnit[unit] = (quantitiesByUnit[unit] || 0) + Number(q || 0);
+      for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(s, products))) {
+        quantitiesByUnit[unit] = (quantitiesByUnit[unit] || 0) + quantity;
+      }
     }
     return {
       revenue,
@@ -70,8 +69,9 @@ export default function Retail() {
 
       const entry = map.get(dateKey);
       entry.sales.push({ ...sale, qty, rate, total });
-      const unit = saleQuantityUnit(sale, products);
-      entry.quantitiesByUnit[unit] = (entry.quantitiesByUnit[unit] || 0) + qty;
+      for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale, products))) {
+        entry.quantitiesByUnit[unit] = (entry.quantitiesByUnit[unit] || 0) + quantity;
+      }
       entry.totalRevenue += total;
     }
 
@@ -220,10 +220,10 @@ export default function Retail() {
                                 {sale.product || '(Unknown)'}
                               </div>
                               <div className="text-sm font-bold text-ink-800">
-                                {formatQuantity(sale.qty)} {saleQuantityUnit(sale, products)}
+                                {formatSaleQuantities(sale, products)}
                               </div>
                               <div className="text-xs text-ink-500">
-                                {currencyINR(sale.rate)} per {saleQuantityUnit(sale, products)}
+                                {formatSaleRates(sale, products)}
                               </div>
                             </div>
                           </div>

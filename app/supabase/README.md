@@ -118,6 +118,12 @@ total. Karuvepillai remains entered and stored in Kg. Do not deploy the updated
 forms before the migration, because they send the selected input unit to the
 new RPC signatures.
 
+Sales through 15 Oct 2026 display in the original Mootai/Kg units and rates;
+their stored Kattu quantities remain canonical for stock and profit accounting.
+Sales dated 16 Oct 2026 onward display both the entered Mootai quantity/rate and
+its Kattu equivalent. Buyer and retail entry forms continue to let the user
+choose either input unit.
+
 For the live-data clone, run the historical-untracked-sales migration before
 syncing so the recovered past sales can be imported. After verifying the
 import, apply `202610130003_enforce_stock_before_sales.sql`; it closes the

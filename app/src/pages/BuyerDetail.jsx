@@ -1,7 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { currencyINR, formatDateCompact, getProductEmoji, inPeriod, saleQuantityUnit } from '../lib/business.js';
+import {
+  currencyINR,
+  formatDateCompact,
+  formatSaleQuantities,
+  formatSaleRates,
+  getProductEmoji,
+  inPeriod,
+} from '../lib/business.js';
 import Avatar from '../components/Avatar.jsx';
 import PeriodPills from '../components/PeriodPills.jsx';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
@@ -244,7 +251,6 @@ export default function BuyerDetail() {
                     {daySales.length ? daySales.map((sale) => {
                       const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
                       const rate = Number(sale.price_per_mootai ?? 0);
-                      const unit = saleQuantityUnit(sale, products);
                       return (
                         <div key={sale.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-ink-100 px-4 py-3 last:border-b-0">
                           <span className="flex min-w-0 items-center gap-2 font-semibold text-ink-900">
@@ -252,9 +258,7 @@ export default function BuyerDetail() {
                             <span className="truncate">{sale.product || '(Unknown)'}</span>
                           </span>
                           <span className="row-span-2 text-right font-bold text-ink-900">{currencyINR(quantity * rate)}</span>
-                          <span className="text-xs text-ink-500">
-                            {quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit} · {currencyINR(rate)} / {unit}
-                          </span>
+                          <span className="text-xs text-ink-500">{formatSaleQuantities(sale, products)} · {formatSaleRates(sale, products)}</span>
                         </div>
                       );
                     }) : <p className="px-4 py-4 text-sm text-ink-500">No sales recorded.</p>}

@@ -2,10 +2,12 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   formatDateCompact,
+  formatSaleQuantities,
+  formatSaleRates,
   formatUnitQuantities,
   inPeriod,
   realTodayIST,
-  saleQuantityUnit,
+  saleQuantitiesForDisplay,
   startOfMonthIST,
   startOfThreeMonthsAgo,
   startOfWeekIST,
@@ -244,8 +246,8 @@ export function downloadCustomerStatementsPdf({
           date: sale.sale_date,
           kind: 'Bill',
           details: sale.product || 'Sale',
-          quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} ${saleQuantityUnit(sale)}`,
-          rate: MONEY(sale.price_per_mootai),
+          quantity: formatSaleQuantities(sale),
+          rate: formatSaleRates(sale),
           amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
           notes: sale.notes || '',
         })),
@@ -304,8 +306,8 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
       date: sale.sale_date,
       kind: 'Bill',
       details: sale.product || 'Sale',
-      quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} ${saleQuantityUnit(sale)}`,
-      rate: MONEY(sale.price_per_mootai),
+      quantity: formatSaleQuantities(sale),
+      rate: formatSaleRates(sale),
       amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
       notes: sale.notes || '',
     })),
@@ -355,8 +357,9 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
     ? payments.filter((payment) => String(payment.paid_at || '').slice(0, 7) === monthKey)
     : payments;
   const quantities = billSales.reduce((totals, sale) => {
-    const unit = saleQuantityUnit(sale);
-    totals[unit] = (totals[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
+    for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
+      totals[unit] = (totals[unit] || 0) + quantity;
+    }
     return totals;
   }, {});
   const billed = billSales.reduce((sum, sale) => (
@@ -388,22 +391,27 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   if (kind === 'monthly') {
     const byProduct = new Map();
     for (const sale of billSales) {
-      const unit = saleQuantityUnit(sale);
-      const key = `${sale.product || 'Sale'}\u0000${unit}`;
-      const row = byProduct.get(key) || { product: sale.product || 'Sale', unit, quantity: 0, billed: 0 };
+      const key = sale.product || 'Sale';
+      const row = byProduct.get(key) || { product: key, quantities: {}, rates: {}, billed: 0 };
       const saleQuantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-      row.quantity += saleQuantity;
-      row.billed += saleQuantity * Number(sale.price_per_mootai || 0);
+      const amount = saleQuantity * Number(sale.price_per_mootai || 0);
+      for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
+        row.quantities[unit] = (row.quantities[unit] || 0) + quantity;
+        row.rates[unit] = (row.rates[unit] || 0) + amount;
+      }
+      row.billed += amount;
       byProduct.set(key, row);
     }
     table(doc, {
       startY: 80,
-      head: [['Product', 'Quantity', 'Average Rate / Unit', 'Total Bill']],
+      head: [['Product', 'Quantity', 'Rate / Unit', 'Total Bill']],
       body: byProduct.size
         ? Array.from(byProduct.values()).map((row) => [
           row.product,
-          `${QUANTITY(row.quantity)} ${row.unit}`,
-          MONEY(row.quantity ? row.billed / row.quantity : 0),
+          formatUnitQuantities(row.quantities),
+          Object.entries(row.quantities).map(([unit, quantity]) => (
+            `₹${Number(quantity ? row.rates[unit] / quantity : 0).toLocaleString('en-IN', { maximumFractionDigits: 6 })} per ${unit}`
+          )).join(' / '),
           MONEY(row.billed),
         ])
         : [['—', '—', '—', 'No sales recorded this month']],
@@ -420,8 +428,8 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
         date: sale.sale_date,
         kind: 'Bill',
         product: sale.product || 'Sale',
-        quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} ${saleQuantityUnit(sale)}`,
-        rate: MONEY(sale.price_per_mootai),
+        quantity: formatSaleQuantities(sale),
+        rate: formatSaleRates(sale),
         amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
         notes: sale.notes || '',
       })),

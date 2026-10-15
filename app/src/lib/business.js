@@ -1,4 +1,5 @@
 const INDIAN_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const LEGACY_SALE_UNIT_CUTOFF = '2026-10-15';
 
 export const KATTU_PER_MOOTAI = 50;
 export const KG_PER_MOOTAI = 30;
@@ -57,6 +58,51 @@ export function saleQuantityUnit(sale, products = []) {
   if (saleDate && saleDate < '2026-10-13') return 'Mootai';
   const product = products.find((item) => item.name === sale?.product);
   return productSalesUnit(product || { name: sale?.product });
+}
+
+function findSaleProduct(sale, products) {
+  const name = String(sale?.product || '').trim().toLocaleLowerCase();
+  return products.find((product) => String(product.name || '').trim().toLocaleLowerCase() === name)
+    || { name: sale?.product };
+}
+
+export function saleQuantitiesForDisplay(sale, products = []) {
+  const product = findSaleProduct(sale, products);
+  const quantity = Number(sale?.mootais ?? sale?.mootais_sold ?? 0);
+  const stockUnit = productStockUnit(product);
+  const salesUnit = productSalesUnit(product);
+  const factor = productStockToSalesFactor(product);
+  const storedUnit = saleQuantityUnit(sale, products);
+  const salesQuantity = storedUnit === stockUnit && stockUnit !== salesUnit
+    ? quantity * factor
+    : quantity;
+  const date = String(sale?.sale_date || '').slice(0, 10);
+
+  if (date && date <= LEGACY_SALE_UNIT_CUTOFF && stockUnit !== salesUnit) {
+    return { [stockUnit]: salesQuantity / factor };
+  }
+  if (stockUnit !== salesUnit && factor !== 1) {
+    return {
+      [stockUnit]: salesQuantity / factor,
+      [salesUnit]: salesQuantity,
+    };
+  }
+  return { [salesUnit]: salesQuantity };
+}
+
+export function formatSaleQuantities(sale, products = []) {
+  return formatUnitQuantities(saleQuantitiesForDisplay(sale, products));
+}
+
+export function formatSaleRates(sale, products = []) {
+  const amount = Number(sale?.mootais ?? sale?.mootais_sold ?? 0)
+    * Number(sale?.price_per_mootai ?? 0);
+  return Object.entries(saleQuantitiesForDisplay(sale, products))
+    .map(([unit, quantity]) => {
+      const rate = quantity === 0 ? 0 : amount / quantity;
+      return `₹${rate.toLocaleString('en-IN', { maximumFractionDigits: 6 })} per ${unit}`;
+    })
+    .join(' / ');
 }
 
 export function formatUnitQuantities(quantities = {}) {
@@ -291,8 +337,9 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     const revenue = quantity * Number(sale.price_per_mootai || 0);
     const row = getProduct(sale.product);
     row.wholesale_quantity += quantity;
-    const unit = saleQuantityUnit(sale, productCatalog);
-    row.wholesale_quantities_by_unit[unit] = (row.wholesale_quantities_by_unit[unit] || 0) + quantity;
+    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(sale, productCatalog))) {
+      row.wholesale_quantities_by_unit[unit] = (row.wholesale_quantities_by_unit[unit] || 0) + displayQuantity;
+    }
     row.wholesale_revenue += revenue;
     salesById.set(`buyer_sales:${sale.id}`, { row, revenue });
   }
@@ -301,8 +348,9 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     const revenue = quantity * Number(sale.price_per_mootai || 0);
     const row = getProduct(sale.product);
     row.retail_quantity += quantity;
-    const unit = saleQuantityUnit(sale, productCatalog);
-    row.retail_quantities_by_unit[unit] = (row.retail_quantities_by_unit[unit] || 0) + quantity;
+    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(sale, productCatalog))) {
+      row.retail_quantities_by_unit[unit] = (row.retail_quantities_by_unit[unit] || 0) + displayQuantity;
+    }
     row.retail_revenue += revenue;
     salesById.set(`retail_sales:${sale.id}`, { row, revenue });
   }
@@ -343,8 +391,9 @@ export function buildWhatsAppBillUrl(buyer, balance, buyerSales, buyerPayments) 
     if (!monthly.has(month)) monthly.set(month, { quantities: {}, billed: 0, paid: 0 });
     const row = monthly.get(month);
     const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-    const unit = saleQuantityUnit(sale);
-    row.quantities[unit] = (row.quantities[unit] || 0) + quantity;
+    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
+      row.quantities[unit] = (row.quantities[unit] || 0) + displayQuantity;
+    }
     row.billed += quantity * Number(sale.price_per_mootai || 0);
   }
   for (const payment of buyerPayments || []) {
@@ -368,8 +417,9 @@ export function buildWhatsAppBillUrl(buyer, balance, buyerSales, buyerPayments) 
     `Total quantities purchased: ${formatUnitQuantities((buyerSales || [])
       .filter((sale) => sale.buyer_id === buyer.id)
       .reduce((totals, sale) => {
-        const unit = saleQuantityUnit(sale);
-        totals[unit] = (totals[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
+        for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
+          totals[unit] = (totals[unit] || 0) + quantity;
+        }
         return totals;
       }, {}))}`,
     `Total billed: INR ${Math.round(balance?.total_sales || 0).toLocaleString('en-IN')}`,
@@ -533,25 +583,26 @@ export function computeBuyerBalances(buyers, buyerSales, buyerPayments) {
 
 export function computeProductRevenue(buyerSales, retailSales, products = []) {
   const agg = new Map();
-  const bump = (sale, quantity, revenue) => {
+  const bump = (sale, revenue) => {
     const productName = sale.product;
     const k = productName || '(Unknown)';
     if (!agg.has(k)) agg.set(k, { product: k, quantities_by_unit: {}, total_revenue: 0, sales_count: 0 });
     const e = agg.get(k);
-    const unit = saleQuantityUnit(sale, products);
-    e.quantities_by_unit[unit] = (e.quantities_by_unit[unit] || 0) + Number(quantity || 0);
+    for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale, products))) {
+      e.quantities_by_unit[unit] = (e.quantities_by_unit[unit] || 0) + quantity;
+    }
     e.total_revenue += Number(revenue || 0);
     e.sales_count += 1;
   };
   for (const s of buyerSales || []) {
     const q = s.mootais ?? s.mootais_sold ?? 0;
     const r = s.price_per_mootai ?? 0;
-    bump(s, q, q * r);
+    bump(s, q * r);
   }
   for (const s of retailSales || []) {
     const q = s.mootais_sold ?? s.mootais ?? 0;
     const r = s.price_per_mootai ?? 0;
-    bump(s, q, q * r);
+    bump(s, q * r);
   }
   return Array.from(agg.values()).sort((a, b) => b.total_revenue - a.total_revenue);
 }

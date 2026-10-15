@@ -7,11 +7,13 @@ import {
   computeInventoryCostReport,
   computeDailyProductProfits,
   formatUnitQuantities,
+  formatSaleQuantities,
+  formatSaleRates,
   inPeriod,
   parseDateStr,
   productSalesUnit,
   realTodayIST,
-  saleQuantityUnit,
+  saleQuantitiesForDisplay,
 } from '../lib/business.js';
 import PeriodPills from '../components/PeriodPills.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
@@ -62,18 +64,23 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     counts.filter((count) => count.stock_date === date).map((count) => [count.product_id, count])
   );
   const salesByProduct = new Map();
-  const addSale = (sale, sourceKind, quantity, revenue, unit) => {
+  const addSale = (sale, sourceKind, revenue) => {
     const productSales = salesByProduct.get(sale.product) || {
       buyerQuantitiesByUnit: {},
       buyerRevenue: 0,
       retailQuantitiesByUnit: {},
       retailRevenue: 0,
     };
+    const quantitiesByUnit = saleQuantitiesForDisplay(sale, products);
     if (sourceKind === 'buyer_sales') {
-      productSales.buyerQuantitiesByUnit[unit] = (productSales.buyerQuantitiesByUnit[unit] || 0) + quantity;
+      for (const [unit, displayQuantity] of Object.entries(quantitiesByUnit)) {
+        productSales.buyerQuantitiesByUnit[unit] = (productSales.buyerQuantitiesByUnit[unit] || 0) + displayQuantity;
+      }
       productSales.buyerRevenue += revenue;
     } else {
-      productSales.retailQuantitiesByUnit[unit] = (productSales.retailQuantitiesByUnit[unit] || 0) + quantity;
+      for (const [unit, displayQuantity] of Object.entries(quantitiesByUnit)) {
+        productSales.retailQuantitiesByUnit[unit] = (productSales.retailQuantitiesByUnit[unit] || 0) + displayQuantity;
+      }
       productSales.retailRevenue += revenue;
     }
     salesByProduct.set(sale.product, productSales);
@@ -82,18 +89,14 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     addSale(
       sale,
       'buyer_sales',
-      Number(sale.mootais ?? 0),
       Number(sale.mootais ?? 0) * Number(sale.price_per_mootai ?? 0),
-      saleQuantityUnit(sale, products),
     );
   }
   for (const sale of retailSales) {
     addSale(
       sale,
       'retail_sales',
-      Number(sale.mootais_sold ?? 0),
       Number(sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0),
-      saleQuantityUnit(sale, products),
     );
   }
   const profitsByProductId = computeDailyProductProfits(
@@ -400,8 +403,9 @@ function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
     const q = s.mootais ?? s.mootais_sold ?? 0;
     const r = s.price_per_mootai ?? 0;
     row.total_revenue += Number(q || 0) * Number(r || 0);
-    const unit = saleQuantityUnit(s, products);
-    row.quantities_by_unit[unit] = (row.quantities_by_unit[unit] || 0) + Number(q || 0);
+    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(s, products))) {
+      row.quantities_by_unit[unit] = (row.quantities_by_unit[unit] || 0) + displayQuantity;
+    }
   }
   const balancesById = new Map();
   for (const b of buyerBalances?.list || []) balancesById.set(b.id, b);
@@ -735,7 +739,7 @@ export default function Reports() {
                 <ActivityEntry
                   key={sale.id}
                   title={buyerName}
-                  subtitle={`${sale.product || 'Product'} · ${quantity} ${saleQuantityUnit(sale, products)} × ${currencyINR(rate)} per ${saleQuantityUnit(sale, products)}`}
+                  subtitle={`${sale.product || 'Product'} · ${formatSaleQuantities(sale, products)} · ${formatSaleRates(sale, products)}`}
                   amount={quantity * rate}
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
@@ -757,7 +761,7 @@ export default function Reports() {
                 <ActivityEntry
                   key={sale.id}
                   title={sale.product || 'Retail sale'}
-                  subtitle={`${formatQuantity(quantity)} ${saleQuantityUnit(sale, products)} · ${currencyINR(rate)} per ${saleQuantityUnit(sale, products)}`}
+                  subtitle={`${formatSaleQuantities(sale, products)} · ${formatSaleRates(sale, products)}`}
                   amount={quantity * rate}
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
