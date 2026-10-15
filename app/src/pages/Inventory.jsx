@@ -278,14 +278,6 @@ export default function Inventory() {
     );
   }
   const selectedSoldByProduct = new Map();
-  const openingQuantityByProduct = new Map();
-  for (const movement of movements) {
-    if (movement.movement_type !== 'opening') continue;
-    openingQuantityByProduct.set(
-      movement.product_id,
-      (openingQuantityByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
-    );
-  }
   for (const movement of selectedMovements) {
     if (movement.movement_type === 'sale') {
       selectedSoldByProduct.set(
@@ -536,12 +528,11 @@ export default function Inventory() {
                   <dd className="text-right font-semibold text-ink-800">
                     {morningCount ? <Quantity value={morningCount.counted_quantity} unit={unit} /> : 'Not recorded'}
                   </dd>
-                  <dt className="text-ink-500">Opening count</dt>
+                  <dt className="text-ink-500">Entered count</dt>
                   <dd className="text-right font-semibold text-green-700">
-                    <Quantity
-                      value={(openingQuantityByProduct.get(item.id) || 0) / stockFactor}
-                      unit={productStockUnit(item)}
-                    />
+                    {morningCount
+                      ? <Quantity value={morningCount.counted_quantity / stockFactor} unit={productStockUnit(item)} />
+                      : 'Not recorded'}
                   </dd>
                   <dt className="text-ink-500">Sold</dt>
                   <dd className="text-right font-semibold text-red-700"><Quantity value={salesToday} unit={unit} /></dd>
