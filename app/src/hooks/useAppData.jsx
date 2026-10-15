@@ -234,8 +234,8 @@ export function AppDataProvider({ children }) {
   }, [balances]);
 
   const productRevenue = useMemo(
-    () => computeProductRevenue(buyerSales, retailSales),
-    [buyerSales, retailSales]
+    () => computeProductRevenue(buyerSales, retailSales, products),
+    [buyerSales, retailSales, products]
   );
 
   const today = useMemo(

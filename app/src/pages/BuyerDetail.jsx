@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { currencyINR, formatDateCompact, getProductEmoji, inPeriod, productSalesUnit } from '../lib/business.js';
+import { currencyINR, formatDateCompact, getProductEmoji, inPeriod, saleQuantityUnit } from '../lib/business.js';
 import Avatar from '../components/Avatar.jsx';
 import PeriodPills from '../components/PeriodPills.jsx';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
@@ -223,7 +223,7 @@ export default function BuyerDetail() {
                     const qty = s.mootais ?? s.mootais_sold ?? 0;
                     const rate = s.price_per_mootai ?? 0;
                     const total = qty * rate;
-                    const unit = s.quantity_unit || productSalesUnit(products.find((product) => product.name === s.product));
+                    const unit = saleQuantityUnit(s, products);
                     return (
                       <tr key={s.id} className="border-t border-ink-100 hover:bg-ink-50/50 transition">
                         <td className="px-5 py-4 whitespace-nowrap text-ink-600">

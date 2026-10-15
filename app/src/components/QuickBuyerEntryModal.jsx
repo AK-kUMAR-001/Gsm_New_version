@@ -233,7 +233,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
 
           <div>
             <div className="grid grid-cols-[minmax(0,1fr)_72px_82px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
-              <span>Buyer Sale</span><span className="text-center">Qty</span><span className="text-center">Rate ₹</span>
+              <span>Buyer Sale</span><span className="text-center">Qty / unit</span><span className="text-center">Rate / unit ₹</span>
             </div>
             <div className="space-y-1">
               {activeProducts.map((product) => {
@@ -243,7 +243,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                   <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_72px_82px] items-center gap-2 rounded-xl px-2 py-1 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
                     <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink-800">
                       <span>{getProductEmoji(product.name, activeProducts)}</span>
-                      <span className="truncate">{product.name}</span>
+                      <span className="truncate">{product.name} ({productSalesUnit(product)})</span>
                     </span>
                     <input
                       aria-label={`${product.name} ${productSalesUnit(product)} quantity`}

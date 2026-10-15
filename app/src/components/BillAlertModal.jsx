@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { buildWhatsAppBillUrl, currencyINR, realTodayIST } from '../lib/business.js';
+import { buildWhatsAppBillUrl, currencyINR, formatUnitQuantities, realTodayIST, saleQuantityUnit } from '../lib/business.js';
 import Modal from './Modal.jsx';
 import { ArrowLeft, FileText, MessageCircle, Share2 } from 'lucide-react';
 
@@ -25,10 +25,11 @@ function createBillMessage({ buyer, sales, payments, balance, kind }) {
   const paymentsForMessage = kind === 'monthly'
     ? payments.filter((payment) => String(payment.paid_at || '').slice(0, 7) === monthKey)
     : payments;
-  const quantity = salesForMessage.reduce(
-    (sum, sale) => sum + Number(sale.mootais ?? sale.mootais_sold ?? 0),
-    0,
-  );
+  const quantities = salesForMessage.reduce((totals, sale) => {
+    const unit = saleQuantityUnit(sale);
+    totals[unit] = (totals[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
+    return totals;
+  }, {});
   const billed = salesForMessage.reduce(
     (sum, sale) => sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0),
     0,
@@ -39,7 +40,7 @@ function createBillMessage({ buyer, sales, payments, balance, kind }) {
     `Hi ${buyer.name},`,
     'Greetings from GSM Traders.',
     `Please find your ${label} attached.`,
-    `Total Mootai: ${quantity.toLocaleString('en-IN')}`,
+    `Total quantities: ${formatUnitQuantities(quantities)}`,
     `Total bill: ${currencyINR(billed)}`,
     `${kind === 'monthly' ? 'Received this month' : 'Total received'}: ${currencyINR(paid)}`,
     `Amount pending: ${currencyINR(balance.balance_due)}`,
@@ -233,7 +234,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
             <Share2 className="h-6 w-6 shrink-0 text-brand-green-dark" />
             <span className="min-w-0 flex-1">
               <span className="block font-bold text-ink-900">Share monthly bill (PDF)</span>
-              <span className="block text-xs text-ink-500">This month’s product totals, Mootai, billed amount, payments, and greeting.</span>
+              <span className="block text-xs text-ink-500">This month’s product quantities by unit, billed amount, payments, and greeting.</span>
             </span>
             {workingKind === 'monthly' && <span className="text-xs text-ink-500">Preparing…</span>}
             {!createBuyerBillFile && <span className="text-xs text-ink-500">Preparing…</span>}

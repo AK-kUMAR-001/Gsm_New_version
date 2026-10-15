@@ -15,19 +15,38 @@ function configuredProductUnits(product) {
 }
 
 export function productSalesUnit(product) {
+  const configured = String(product?.sales_unit || '').trim();
   const defaults = configuredProductUnits(product);
-  return defaults?.salesUnit || String(product?.sales_unit || 'Mootai').trim() || 'Mootai';
+  return configured || defaults?.salesUnit || 'Mootai';
 }
 
 export function productStockUnit(product) {
+  const configured = String(product?.stock_entry_unit || '').trim();
   const defaults = configuredProductUnits(product);
-  return defaults?.stockUnit || String(product?.stock_entry_unit || productSalesUnit(product)).trim() || productSalesUnit(product);
+  return configured || defaults?.stockUnit || productSalesUnit(product);
 }
 
 export function productStockToSalesFactor(product) {
   const defaults = configuredProductUnits(product);
-  const factor = Number(defaults?.stockToSalesFactor ?? product?.stock_to_sales_factor ?? 1);
+  const configured = product?.stock_to_sales_factor;
+  const factor = Number(configured ?? defaults?.stockToSalesFactor ?? 1);
   return Number.isFinite(factor) && factor > 0 ? factor : 1;
+}
+
+export function saleQuantityUnit(sale, products = []) {
+  const storedUnit = String(sale?.quantity_unit || '').trim();
+  if (storedUnit) return storedUnit;
+  const saleDate = String(sale?.sale_date || '').slice(0, 10);
+  if (saleDate && saleDate < '2026-10-13') return 'Mootai';
+  const product = products.find((item) => item.name === sale?.product);
+  return productSalesUnit(product || { name: sale?.product });
+}
+
+export function formatUnitQuantities(quantities = {}) {
+  return Object.entries(quantities)
+    .filter(([, quantity]) => Number(quantity) !== 0)
+    .map(([unit, quantity]) => `${Number(quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`)
+    .join(', ') || '0';
 }
 
 const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
@@ -181,8 +200,10 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
       products.set(productName, {
         product: productName,
         wholesale_quantity: 0,
+        wholesale_quantities_by_unit: {},
         wholesale_revenue: 0,
         retail_quantity: 0,
+        retail_quantities_by_unit: {},
         retail_revenue: 0,
         tracked_revenue: 0,
         stock_cost: 0,
@@ -199,6 +220,8 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     const revenue = quantity * Number(sale.price_per_mootai || 0);
     const row = getProduct(sale.product);
     row.wholesale_quantity += quantity;
+    const unit = saleQuantityUnit(sale, productCatalog);
+    row.wholesale_quantities_by_unit[unit] = (row.wholesale_quantities_by_unit[unit] || 0) + quantity;
     row.wholesale_revenue += revenue;
     salesById.set(`buyer_sales:${sale.id}`, { row, revenue });
   }
@@ -207,6 +230,8 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     const revenue = quantity * Number(sale.price_per_mootai || 0);
     const row = getProduct(sale.product);
     row.retail_quantity += quantity;
+    const unit = saleQuantityUnit(sale, productCatalog);
+    row.retail_quantities_by_unit[unit] = (row.retail_quantities_by_unit[unit] || 0) + quantity;
     row.retail_revenue += revenue;
     salesById.set(`retail_sales:${sale.id}`, { row, revenue });
   }
@@ -244,35 +269,38 @@ export function buildWhatsAppBillUrl(buyer, balance, buyerSales, buyerPayments) 
   for (const sale of buyerSales || []) {
     if (sale.buyer_id !== buyer.id || !sale.sale_date) continue;
     const month = String(sale.sale_date).slice(0, 7);
-    if (!monthly.has(month)) monthly.set(month, { quantity: 0, billed: 0, paid: 0 });
+    if (!monthly.has(month)) monthly.set(month, { quantities: {}, billed: 0, paid: 0 });
     const row = monthly.get(month);
     const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-    row.quantity += quantity;
+    const unit = saleQuantityUnit(sale);
+    row.quantities[unit] = (row.quantities[unit] || 0) + quantity;
     row.billed += quantity * Number(sale.price_per_mootai || 0);
   }
   for (const payment of buyerPayments || []) {
     if (payment.buyer_id !== buyer.id || !payment.paid_at) continue;
     const month = String(payment.paid_at).slice(0, 7);
-    if (!monthly.has(month)) monthly.set(month, { quantity: 0, billed: 0, paid: 0 });
+    if (!monthly.has(month)) monthly.set(month, { quantities: {}, billed: 0, paid: 0 });
     monthly.get(month).paid += Number(payment.amount_paid || 0);
   }
-  const totalQuantity = (buyerSales || [])
-    .filter((sale) => sale.buyer_id === buyer.id)
-    .reduce((sum, sale) => sum + Number(sale.mootais ?? sale.mootais_sold ?? 0), 0);
-
   const monthLines = Array.from(monthly.entries())
     .sort(([left], [right]) => right.localeCompare(left))
     .slice(0, 12)
     .reverse()
     .map(([month, amounts]) => (
-      `${new Date(`${month}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}: ${amounts.quantity.toLocaleString('en-IN')} Mootai | billed INR ${Math.round(amounts.billed).toLocaleString('en-IN')} | paid INR ${Math.round(amounts.paid).toLocaleString('en-IN')}`
+      `${new Date(`${month}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}: ${formatUnitQuantities(amounts.quantities)} | billed INR ${Math.round(amounts.billed).toLocaleString('en-IN')} | paid INR ${Math.round(amounts.paid).toLocaleString('en-IN')}`
     ));
   const message = [
     `Hi ${buyer.name},`,
     'GSM Traders bill reminder:',
     '',
     ...(monthLines.length ? ['Monthly summary (latest 12 months):', ...monthLines, ''] : []),
-    `Total Mootai purchased: ${totalQuantity.toLocaleString('en-IN')}`,
+    `Total quantities purchased: ${formatUnitQuantities((buyerSales || [])
+      .filter((sale) => sale.buyer_id === buyer.id)
+      .reduce((totals, sale) => {
+        const unit = saleQuantityUnit(sale);
+        totals[unit] = (totals[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
+        return totals;
+      }, {}))}`,
     `Total billed: INR ${Math.round(balance?.total_sales || 0).toLocaleString('en-IN')}`,
     `Total paid: INR ${Math.round(balance?.total_paid || 0).toLocaleString('en-IN')}`,
     `Amount pending: INR ${Math.round(balance?.balance_due || 0).toLocaleString('en-IN')}`,
@@ -432,25 +460,27 @@ export function computeBuyerBalances(buyers, buyerSales, buyerPayments) {
   return out;
 }
 
-export function computeProductRevenue(buyerSales, retailSales) {
+export function computeProductRevenue(buyerSales, retailSales, products = []) {
   const agg = new Map();
-  const bump = (productName, mootais, revenue) => {
+  const bump = (sale, quantity, revenue) => {
+    const productName = sale.product;
     const k = productName || '(Unknown)';
-    if (!agg.has(k)) agg.set(k, { product: k, total_mootais: 0, total_revenue: 0, sales_count: 0 });
+    if (!agg.has(k)) agg.set(k, { product: k, quantities_by_unit: {}, total_revenue: 0, sales_count: 0 });
     const e = agg.get(k);
-    e.total_mootais += Number(mootais || 0);
+    const unit = saleQuantityUnit(sale, products);
+    e.quantities_by_unit[unit] = (e.quantities_by_unit[unit] || 0) + Number(quantity || 0);
     e.total_revenue += Number(revenue || 0);
     e.sales_count += 1;
   };
   for (const s of buyerSales || []) {
     const q = s.mootais ?? s.mootais_sold ?? 0;
     const r = s.price_per_mootai ?? 0;
-    bump(s.product, q, q * r);
+    bump(s, q, q * r);
   }
   for (const s of retailSales || []) {
     const q = s.mootais_sold ?? s.mootais ?? 0;
     const r = s.price_per_mootai ?? 0;
-    bump(s.product, q, q * r);
+    bump(s, q, q * r);
   }
   return Array.from(agg.values()).sort((a, b) => b.total_revenue - a.total_revenue);
 }

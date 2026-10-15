@@ -5,11 +5,12 @@ import {
   getProductEmoji,
   buildProductPerformance,
   computeInventoryCostReport,
+  formatUnitQuantities,
   inPeriod,
   parseDateStr,
+  productSalesUnit,
   realTodayIST,
-  KATTU_PER_MOOTAI,
-  KG_PER_MOOTAI,
+  saleQuantityUnit,
 } from '../lib/business.js';
 import PeriodPills from '../components/PeriodPills.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
@@ -61,21 +62,21 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
   );
   const salesById = new Map();
   const salesByProduct = new Map();
-  const addSale = (sale, sourceKind, quantity, revenue) => {
+  const addSale = (sale, sourceKind, quantity, revenue, unit) => {
     const productSales = salesByProduct.get(sale.product) || {
-      buyerQuantity: 0,
+      buyerQuantitiesByUnit: {},
       buyerRevenue: 0,
-      retailQuantity: 0,
+      retailQuantitiesByUnit: {},
       retailRevenue: 0,
       salesCount: 0,
       saleCost: 0,
       costedSalesCount: 0,
     };
     if (sourceKind === 'buyer_sales') {
-      productSales.buyerQuantity += quantity;
+      productSales.buyerQuantitiesByUnit[unit] = (productSales.buyerQuantitiesByUnit[unit] || 0) + quantity;
       productSales.buyerRevenue += revenue;
     } else {
-      productSales.retailQuantity += quantity;
+      productSales.retailQuantitiesByUnit[unit] = (productSales.retailQuantitiesByUnit[unit] || 0) + quantity;
       productSales.retailRevenue += revenue;
     }
     productSales.salesCount += 1;
@@ -88,6 +89,7 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       'buyer_sales',
       Number(sale.mootais ?? 0),
       Number(sale.mootais ?? 0) * Number(sale.price_per_mootai ?? 0),
+      saleQuantityUnit(sale, products),
     );
   }
   for (const sale of retailSales) {
@@ -96,6 +98,7 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       'retail_sales',
       Number(sale.mootais_sold ?? 0),
       Number(sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0),
+      saleQuantityUnit(sale, products),
     );
   }
   return settings.filter((setting) => {
@@ -125,9 +128,9 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
       .reduce((sum, movement) => sum - Number(movement.cost_delta || 0), 0);
     const count = countsByProduct.get(setting.product_id);
     const salesRevenue = salesByProduct.get(product?.name) || {
-      buyerQuantity: 0,
+      buyerQuantitiesByUnit: {},
       buyerRevenue: 0,
-      retailQuantity: 0,
+      retailQuantitiesByUnit: {},
       retailRevenue: 0,
       salesCount: 0,
       costedSalesCount: 0,
@@ -135,12 +138,16 @@ function buildDailyStockClosingRows(settings, movements, counts, products, date,
     };
     const hasCompleteSaleCosts = salesRevenue.costedSalesCount >= salesRevenue.salesCount;
     const totalRevenue = salesRevenue.buyerRevenue + salesRevenue.retailRevenue;
-    const buyerSold = salesRevenue.buyerQuantity;
-    const retailSold = salesRevenue.retailQuantity;
-    const sold = buyerSold + retailSold;
+    const buyerSold = salesRevenue.buyerQuantitiesByUnit;
+    const retailSold = salesRevenue.retailQuantitiesByUnit;
+    const sold = { ...buyerSold };
+    for (const [unit, quantity] of Object.entries(retailSold)) {
+      sold[unit] = (sold[unit] || 0) + quantity;
+    }
     return {
       productId: setting.product_id,
       productName: product?.name || 'Unknown product',
+      salesUnit: productSalesUnit(product),
       buyerSold,
       buyerRevenue: salesRevenue.buyerRevenue,
       retailSold,
@@ -232,7 +239,7 @@ function DailyClosingSummary({
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Balance (Mootai)</th>
+                <th className="px-4 py-3 text-right font-bold">Balance (sales unit)</th>
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
               </tr>
             </thead>
@@ -241,24 +248,18 @@ function DailyClosingSummary({
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
-                    {row.countRecorded ? `${formatQuantity(row.countedQuantity)} Mootai` : 'Count not recorded'}
+                    {row.countRecorded ? `${formatQuantity(row.countedQuantity)} ${row.salesUnit}` : 'Count not recorded'}
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">
-                    <div>{formatQuantity(row.buyerSold)} Mootai</div>
+                    <div>{formatUnitQuantities(row.buyerSold)}</div>
                     <div className="mt-1 text-xs text-ink-500">{currencyINR(row.buyerRevenue)} sales</div>
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">
-                    <div>{formatQuantity(row.retailSold)} Mootai</div>
-                    <div className="mt-1 text-xs text-ink-500">
-                      <strong className="font-bold text-ink-700">
-                        {formatQuantity(row.retailSold * KATTU_PER_MOOTAI)} Kattu
-                      </strong>
-                      <span> / {formatQuantity(row.retailSold * KG_PER_MOOTAI)} kg</span>
-                    </div>
+                    <div>{formatUnitQuantities(row.retailSold)}</div>
                     <div className="mt-1 text-xs text-ink-500">{currencyINR(row.retailRevenue)} sales</div>
                   </td>
-                  <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)}</td>
-                  <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.balance)}</td>
+                  <td className="px-4 py-3 text-right text-amber-800">{formatQuantity(row.damaged)} {row.salesUnit}</td>
+                  <td className="px-4 py-3 text-right font-bold">{formatQuantity(row.balance)} {row.salesUnit}</td>
                   <td className="px-4 py-3 text-right">
                     {row.finalProfit == null ? (
                       <span className="text-xs text-ink-500">Cost not recorded</span>
@@ -404,17 +405,18 @@ const TOP_BUYER_RANK_BADGES = [
   'bg-amber-700 text-white',
 ];
 
-function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances) {
+function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
   const byBuyer = new Map();
   for (const s of buyerSalesInPeriod || []) {
     const id = s.buyer_id;
     if (!id) continue;
-    if (!byBuyer.has(id)) byBuyer.set(id, { buyer_id: id, total_revenue: 0, total_mootais: 0 });
+    if (!byBuyer.has(id)) byBuyer.set(id, { buyer_id: id, total_revenue: 0, quantities_by_unit: {} });
     const row = byBuyer.get(id);
     const q = s.mootais ?? s.mootais_sold ?? 0;
     const r = s.price_per_mootai ?? 0;
     row.total_revenue += Number(q || 0) * Number(r || 0);
-    row.total_mootais += Number(q || 0);
+    const unit = saleQuantityUnit(s, products);
+    row.quantities_by_unit[unit] = (row.quantities_by_unit[unit] || 0) + Number(q || 0);
   }
   const balancesById = new Map();
   for (const b of buyerBalances?.list || []) balancesById.set(b.id, b);
@@ -591,15 +593,16 @@ export default function Reports() {
     const rows = dailyStockClosingRows.map((row) => ({
       date: selectedDate,
       product: row.productName,
-      morning_count_mootai: row.countedQuantity ?? '',
+      sales_unit: row.salesUnit,
+      morning_count_sales_unit: row.countedQuantity ?? '',
       morning_count_recorded: row.countRecorded,
-      buyer_sales_mootai: row.buyerSold,
+      buyer_sales_quantities_by_unit: formatUnitQuantities(row.buyerSold),
       buyer_sales_value: row.buyerRevenue,
-      retail_sales_mootai: row.retailSold,
+      retail_sales_quantities_by_unit: formatUnitQuantities(row.retailSold),
       retail_sales_value: row.retailRevenue,
-      total_sales_mootai: row.sold,
-      damaged_stock_mootai: row.damaged,
-      balance_stock_mootai: row.balance,
+      total_sales_quantities_by_unit: formatUnitQuantities(row.sold),
+      damaged_quantity_sales_unit: row.damaged,
+      balance_quantity_sales_unit: row.balance,
       recorded_sold_stock_cost: row.saleCost,
       damaged_stock_cost: row.damageCost,
       final_profit: row.finalProfit ?? '',
@@ -641,8 +644,8 @@ export default function Reports() {
     [filteredBuyerSales, filteredRetailSales, filteredMovements, products]
   );
   const topBuyers = useMemo(
-    () => topBuyersForPeriod(reportScope === 'day' ? dailyBuyerSales : filteredBuyerSales, balances),
-    [reportScope, dailyBuyerSales, filteredBuyerSales, balances]
+    () => topBuyersForPeriod(reportScope === 'day' ? dailyBuyerSales : filteredBuyerSales, balances, products),
+    [reportScope, dailyBuyerSales, filteredBuyerSales, balances, products]
   );
 
   return (
@@ -747,7 +750,7 @@ export default function Reports() {
                 <ActivityEntry
                   key={sale.id}
                   title={buyerName}
-                  subtitle={`${sale.product || 'Product'} · ${quantity} Mootai × ${currencyINR(rate)}`}
+                  subtitle={`${sale.product || 'Product'} · ${quantity} ${saleQuantityUnit(sale, products)} × ${currencyINR(rate)} per ${saleQuantityUnit(sale, products)}`}
                   amount={quantity * rate}
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
@@ -769,17 +772,7 @@ export default function Reports() {
                 <ActivityEntry
                   key={sale.id}
                   title={sale.product || 'Retail sale'}
-                  subtitle={(
-                    <>
-                      <strong className="font-bold text-ink-700">
-                        {formatQuantity(quantity * KATTU_PER_MOOTAI)} Kattu
-                      </strong>
-                      <span className="ml-1 text-xs text-ink-500">
-                        / {formatQuantity(quantity * KG_PER_MOOTAI)} kg
-                      </span>
-                      <span> · {currencyINR(rate)} per Mootai</span>
-                    </>
-                  )}
+                  subtitle={`${formatQuantity(quantity)} ${saleQuantityUnit(sale, products)} · ${currencyINR(rate)} per ${saleQuantityUnit(sale, products)}`}
                   amount={quantity * rate}
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
@@ -903,7 +896,7 @@ export default function Reports() {
                   </div>
                   <div className="col-span-5 min-w-0">
                     <div className="truncate text-base font-bold text-ink-900">{buyer.name}</div>
-                    <div className="mt-0.5 text-xs font-semibold text-ink-500">{buyer.total_mootais} Mootais</div>
+                    <div className="mt-0.5 text-xs font-semibold text-ink-500">{formatUnitQuantities(buyer.quantities_by_unit)}</div>
                   </div>
                   <div className="col-span-3 text-sm font-extrabold tracking-tight text-ink-900 sm:text-lg">
                     {currencyINR(buyer.total_revenue)}

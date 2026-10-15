@@ -3,9 +3,9 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
   formatDateCompact,
+  formatUnitQuantities,
   getProductEmoji,
-  KATTU_PER_MOOTAI,
-  KG_PER_MOOTAI,
+  saleQuantityUnit,
 } from '../lib/business.js';
 import PeriodPills, { RETAIL_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
@@ -33,19 +33,20 @@ export default function Retail() {
 
   const stats = useMemo(() => {
     let revenue = 0;
-    let mootais = 0;
+    const quantitiesByUnit = {};
     for (const s of filtered) {
       const q = s.mootais_sold ?? s.mootais ?? 0;
       const r = s.price_per_mootai ?? 0;
       revenue += q * r;
-      mootais += q;
+      const unit = saleQuantityUnit(s, products);
+      quantitiesByUnit[unit] = (quantitiesByUnit[unit] || 0) + Number(q || 0);
     }
     return {
       revenue,
-      mootais,
+      quantitiesByUnit,
       count: filtered.length,
     };
-  }, [filtered]);
+  }, [filtered, products]);
 
   const groupedSales = useMemo(() => {
     const map = new Map();
@@ -58,7 +59,7 @@ export default function Retail() {
         map.set(dateKey, {
           date: dateKey,
           sales: [],
-          totalQty: 0,
+          quantitiesByUnit: {},
           totalRevenue: 0,
         });
       }
@@ -69,12 +70,13 @@ export default function Retail() {
 
       const entry = map.get(dateKey);
       entry.sales.push({ ...sale, qty, rate, total });
-      entry.totalQty += qty;
+      const unit = saleQuantityUnit(sale, products);
+      entry.quantitiesByUnit[unit] = (entry.quantitiesByUnit[unit] || 0) + qty;
       entry.totalRevenue += total;
     }
 
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
-  }, [filtered]);
+  }, [filtered, products]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -128,12 +130,9 @@ export default function Retail() {
               <Package className="w-6 h-6" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total Kattu</div>
+              <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total quantities</div>
               <div className="mt-1 text-2xl font-extrabold text-ink-900">
-                {formatQuantity(stats.mootais * KATTU_PER_MOOTAI)} Kattu
-              </div>
-              <div className="text-xs text-ink-500">
-                {formatQuantity(stats.mootais * KG_PER_MOOTAI)} kg
+                {formatUnitQuantities(stats.quantitiesByUnit)}
               </div>
             </div>
           </div>
@@ -194,10 +193,7 @@ export default function Retail() {
                   <div className="col-span-2 row-start-2 justify-self-center flex items-center gap-1.5 whitespace-nowrap text-base md:text-lg text-ink-700 sm:col-auto sm:row-auto">
                     <span>{group.sales.length} sales</span>
                     <span className="text-ink-400">·</span>
-                    <span>{formatQuantity(group.totalQty * KATTU_PER_MOOTAI)} Kattu</span>
-                    <span className="text-xs text-ink-500">
-                      ({formatQuantity(group.totalQty * KG_PER_MOOTAI)} kg)
-                    </span>
+                    <span>{formatUnitQuantities(group.quantitiesByUnit)}</span>
                   </div>
 
                   <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 min-w-0 sm:col-auto sm:row-auto">
@@ -223,19 +219,11 @@ export default function Retail() {
                               <div className="text-lg sm:text-xl font-bold text-ink-900 truncate">
                                 {sale.product || '(Unknown)'}
                               </div>
-                              <div className="flex items-baseline gap-1.5">
-                                <strong className="text-sm font-bold text-ink-800">
-                                  {formatQuantity(sale.qty * KATTU_PER_MOOTAI)} Kattu
-                                </strong>
-                                <span className="text-xs text-ink-500">
-                                  / {formatQuantity(sale.qty * KG_PER_MOOTAI)} kg
-                                </span>
+                              <div className="text-sm font-bold text-ink-800">
+                                {formatQuantity(sale.qty)} {saleQuantityUnit(sale, products)}
                               </div>
                               <div className="text-xs text-ink-500">
-                                {currencyINR(sale.rate / KATTU_PER_MOOTAI)} per Kattu
-                                <span className="ml-1 text-[11px]">
-                                  ({currencyINR(sale.rate)} per Mootai)
-                                </span>
+                                {currencyINR(sale.rate)} per {saleQuantityUnit(sale, products)}
                               </div>
                             </div>
                           </div>

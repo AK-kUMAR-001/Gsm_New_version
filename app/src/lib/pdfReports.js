@@ -2,8 +2,10 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   formatDateCompact,
+  formatUnitQuantities,
   inPeriod,
   realTodayIST,
+  saleQuantityUnit,
   startOfMonthIST,
   startOfThreeMonthsAgo,
   startOfWeekIST,
@@ -143,9 +145,9 @@ export function downloadOverallReportPdf({
     ]],
     body: productRows.map((row) => [
       row.product,
-      `${QUANTITY(row.wholesale_quantity)} Mootai`,
+      formatUnitQuantities(row.wholesale_quantities_by_unit),
       MONEY(row.wholesale_revenue),
-      `${QUANTITY(row.retail_quantity)} Mootai`,
+      formatUnitQuantities(row.retail_quantities_by_unit),
       MONEY(row.retail_revenue),
       row.tracked_sales ? MONEY(row.stock_cost) : 'Not tracked',
       MONEY(row.spoilage_cost),
@@ -242,7 +244,7 @@ export function downloadCustomerStatementsPdf({
           date: sale.sale_date,
           kind: 'Bill',
           details: sale.product || 'Sale',
-          quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} Mootai`,
+          quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} ${saleQuantityUnit(sale)}`,
           rate: MONEY(sale.price_per_mootai),
           amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
           notes: sale.notes || '',
@@ -302,7 +304,7 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
       date: sale.sale_date,
       kind: 'Bill',
       details: sale.product || 'Sale',
-      quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} Mootai`,
+      quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} ${saleQuantityUnit(sale)}`,
       rate: MONEY(sale.price_per_mootai),
       amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
       notes: sale.notes || '',
@@ -352,7 +354,11 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   const billPayments = kind === 'monthly'
     ? payments.filter((payment) => String(payment.paid_at || '').slice(0, 7) === monthKey)
     : payments;
-  const quantity = billSales.reduce((sum, sale) => sum + Number(sale.mootais ?? sale.mootais_sold ?? 0), 0);
+  const quantities = billSales.reduce((totals, sale) => {
+    const unit = saleQuantityUnit(sale);
+    totals[unit] = (totals[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
+    return totals;
+  }, {});
   const billed = billSales.reduce((sum, sale) => (
     sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
   ), 0);
@@ -373,7 +379,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   doc.text(`Hi ${buyer.name}, please find your GSM Traders ${kind === 'monthly' ? 'monthly' : 'complete'} bill below.`, 14, 45);
 
   addMetricCards(doc, [
-    { label: 'Total Mootai', value: `${QUANTITY(quantity)} Mootai` },
+    { label: 'Total quantities', value: formatUnitQuantities(quantities) },
     { label: kind === 'monthly' ? 'Billed this month' : 'Total billed', value: MONEY(billed) },
     { label: kind === 'monthly' ? 'Paid this month' : 'Total paid', value: MONEY(paid) },
     { label: 'Amount pending', value: MONEY(balance?.balance_due) },
@@ -382,8 +388,9 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   if (kind === 'monthly') {
     const byProduct = new Map();
     for (const sale of billSales) {
-      const key = sale.product || 'Sale';
-      const row = byProduct.get(key) || { quantity: 0, billed: 0 };
+      const unit = saleQuantityUnit(sale);
+      const key = `${sale.product || 'Sale'}\u0000${unit}`;
+      const row = byProduct.get(key) || { product: sale.product || 'Sale', unit, quantity: 0, billed: 0 };
       const saleQuantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
       row.quantity += saleQuantity;
       row.billed += saleQuantity * Number(sale.price_per_mootai || 0);
@@ -391,11 +398,11 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
     }
     table(doc, {
       startY: 80,
-      head: [['Product', 'Total Mootai', 'Average Rate', 'Total Bill']],
+      head: [['Product', 'Quantity', 'Average Rate / Unit', 'Total Bill']],
       body: byProduct.size
-        ? Array.from(byProduct.entries()).map(([product, row]) => [
-          product,
-          `${QUANTITY(row.quantity)} Mootai`,
+        ? Array.from(byProduct.values()).map((row) => [
+          row.product,
+          `${QUANTITY(row.quantity)} ${row.unit}`,
           MONEY(row.quantity ? row.billed / row.quantity : 0),
           MONEY(row.billed),
         ])
@@ -413,7 +420,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
         date: sale.sale_date,
         kind: 'Bill',
         product: sale.product || 'Sale',
-        quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} Mootai`,
+        quantity: `${QUANTITY(sale.mootais ?? sale.mootais_sold)} ${saleQuantityUnit(sale)}`,
         rate: MONEY(sale.price_per_mootai),
         amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
         notes: sale.notes || '',
