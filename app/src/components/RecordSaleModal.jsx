@@ -6,6 +6,7 @@ import {
   getProductEmoji,
   currencyINR,
   productSalesUnit,
+  saleQuantityInSalesUnits,
   saleInputUnits,
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
@@ -47,6 +48,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   const total = (Number(mootais) || 0) * (Number(price_per_mootai) || 0);
   const stockGuidance = saleStockGuidance(saveError, product);
   const selectedProduct = activeProducts.find((item) => item.name === product);
+  const salesUnit = productSalesUnit(selectedProduct);
   const inputUnits = saleInputUnits(selectedProduct);
 
   const submit = async (e) => {
@@ -151,6 +153,11 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
               placeholder="0"
               className="input"
             />
+            {saleUnit !== salesUnit && Number(mootais) > 0 && (
+              <p className="mt-1 text-xs font-medium text-sidebar-accent" aria-live="polite">
+                = {saleQuantityInSalesUnits(selectedProduct, mootais, saleUnit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {salesUnit}
+              </p>
+            )}
           </div>
           <div>
             <label className="label">Rate / {saleUnit} <span className="text-red-500">*</span></label>

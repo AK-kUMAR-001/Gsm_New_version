@@ -6,6 +6,7 @@ import {
   getProductEmoji,
   currencyINR,
   productSalesUnit,
+  saleQuantityInSalesUnits,
   saleInputUnits,
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
@@ -169,17 +170,27 @@ export default function RecordRetailSaleModal({ open, onClose }) {
                   >
                     {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                   </select>
-                  <input
-                    aria-label={`${product.name} ${row.unit} quantity`}
-                    type="number"
-                    min="0"
-                    step={row.unit === 'Kattu' ? '1' : '0.001'}
-                    disabled={alreadySaved}
-                    value={row.quantity}
-                    onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
-                    placeholder="0"
-                    className="input !px-2 !py-2 text-center"
-                  />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <input
+                      aria-label={`${product.name} ${row.unit} quantity`}
+                      type="number"
+                      min="0"
+                      step={row.unit === 'Kattu' ? '1' : '0.001'}
+                      disabled={alreadySaved}
+                      value={row.quantity}
+                      onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
+                      placeholder="0"
+                      className="input !px-2 !py-2 text-center"
+                    />
+                    {row.unit !== productSalesUnit(product) && Number(row.quantity) > 0 && (
+                      <span
+                        aria-label={`${product.name} equivalent quantity`}
+                        className="whitespace-nowrap text-center text-[10px] font-medium text-sidebar-accent"
+                      >
+                        = {saleQuantityInSalesUnits(product, row.quantity, row.unit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(product)}
+                      </span>
+                    )}
+                  </span>
                   <input
                     aria-label={`${product.name} rate per ${row.unit}`}
                     type="number"

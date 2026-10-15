@@ -41,6 +41,15 @@ export function saleInputUnits(product) {
     : [salesUnit];
 }
 
+export function saleQuantityInSalesUnits(product, quantity, inputUnit) {
+  const value = Number(quantity);
+  if (!Number.isFinite(value)) return 0;
+  const factor = inputUnit === productStockUnit(product)
+    ? productStockToSalesFactor(product)
+    : 1;
+  return value * factor;
+}
+
 export function saleQuantityUnit(sale, products = []) {
   const storedUnit = String(sale?.quantity_unit || '').trim();
   if (storedUnit) return storedUnit;
