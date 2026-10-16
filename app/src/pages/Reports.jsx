@@ -142,7 +142,6 @@ function DailyClosingSummary({
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Count variance</th>
                 <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
                 <th className="px-4 py-3 text-right font-bold">Balance count</th>
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
@@ -158,7 +157,6 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.buyerSold, date)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.retailSold, date)}</td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
-                  <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.countVariance)}</td>
                   <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
                   <td className={`px-4 py-3 text-right font-bold ${row.closing < 0 ? 'text-red-700' : ''}`}>
                     {formatProductQuantities(row.product, row.closing)}
@@ -647,8 +645,6 @@ export default function Reports() {
       total_sales_display: formatSalesQuantityForDate(row.product, row.sold, selectedDate),
       damaged_stock: row.damaged,
       damaged_stock_display: formatProductQuantities(row.product, row.damaged),
-      stock_count_variance: row.countVariance,
-      stock_count_variance_display: formatProductQuantities(row.product, row.countVariance),
       stock_corrections: row.corrections,
       stock_corrections_display: formatProductQuantities(row.product, row.corrections),
       balance_count: row.closing,
