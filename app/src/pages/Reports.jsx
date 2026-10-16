@@ -101,11 +101,11 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Stock is shown in each product’s sales unit. Closing uses this date’s movements only; it does not carry forward prior-day stock.
+            Balance count is the remaining stock after this date's recorded sales and stock changes. Previous-day stock is not carried forward.
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
-          <Download className="h-4 w-4" /> Download stock closing CSV
+          <Download className="h-4 w-4" /> Download balance count CSV
         </button>
       </div>
 
@@ -134,19 +134,17 @@ function DailyClosingSummary({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-100">
-          <table className="w-full min-w-[1200px] text-left text-sm">
+          <table className="w-full min-w-[1050px] text-left text-sm">
             <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
-                <th className="px-4 py-3 text-right font-bold">Opening</th>
-                <th className="px-4 py-3 text-right font-bold">Received</th>
+                <th className="px-4 py-3 font-bold">Morning count</th>
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
                 <th className="px-4 py-3 text-right font-bold">Count variance</th>
                 <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
-                <th className="px-4 py-3 text-right font-bold">Closing</th>
-                <th className="px-4 py-3 font-bold">Morning count</th>
+                <th className="px-4 py-3 text-right font-bold">Balance count</th>
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
               </tr>
             </thead>
@@ -154,8 +152,9 @@ function DailyClosingSummary({
               {rows.map((row) => (
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
-                  <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.opening)}</td>
-                  <td className="px-4 py-3 text-right text-green-700">{formatProductQuantities(row.product, row.receipts)}</td>
+                  <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
+                    {row.countRecorded ? formatProductQuantities(row.product, row.countedQuantity) : 'Count not recorded'}
+                  </td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.buyerSold, date)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.retailSold, date)}</td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
@@ -163,9 +162,6 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
                   <td className={`px-4 py-3 text-right font-bold ${row.closing < 0 ? 'text-red-700' : ''}`}>
                     {formatProductQuantities(row.product, row.closing)}
-                  </td>
-                  <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
-                    {row.countRecorded ? formatProductQuantities(row.product, row.countedQuantity) : 'Count not recorded'}
                   </td>
                   <td className={`px-4 py-3 text-right font-bold ${row.finalProfit != null && row.finalProfit < 0 ? 'text-red-700' : 'text-green-700'}`}>
                     {row.finalProfit == null ? 'Unavailable' : currencyINR(row.finalProfit)}
@@ -178,7 +174,7 @@ function DailyClosingSummary({
       )}
       {!offline && !inventoryError && rows.some((row) => !row.countRecorded) && (
         <p className="mt-3 text-xs text-amber-800">
-          Closing quantities are ledger balances. Products without a physical count are clearly marked and should be checked before closing the day.
+          Balance counts are ledger balances. Products without a physical morning count are clearly marked and should be checked before closing the day.
         </p>
       )}
       {!offline && !inventoryError && rows.some((row) => row.closing < 0) && (
@@ -638,10 +634,11 @@ export default function Reports() {
       date: selectedDate,
       product: row.productName,
       quantity_unit: row.unit,
-      opening_stock: row.opening,
-      opening_stock_display: formatProductQuantities(row.product, row.opening),
-      stock_received: row.receipts,
-      stock_received_display: formatProductQuantities(row.product, row.receipts),
+      morning_count: row.countedQuantity ?? '',
+      morning_count_display: row.countRecorded
+        ? formatProductQuantities(row.product, row.countedQuantity)
+        : '',
+      morning_count_recorded: row.countRecorded,
       buyer_sales: row.buyerSold,
       buyer_sales_display: formatSalesQuantityForDate(row.product, row.buyerSold, selectedDate),
       retail_sales: row.retailSold,
@@ -654,17 +651,12 @@ export default function Reports() {
       stock_count_variance_display: formatProductQuantities(row.product, row.countVariance),
       stock_corrections: row.corrections,
       stock_corrections_display: formatProductQuantities(row.product, row.corrections),
-      closing_stock: row.closing,
-      closing_stock_display: formatProductQuantities(row.product, row.closing),
-      morning_count: row.countedQuantity ?? '',
-      morning_count_display: row.countRecorded
-        ? formatProductQuantities(row.product, row.countedQuantity)
-        : '',
-      morning_count_recorded: row.countRecorded,
+      balance_count: row.closing,
+      balance_count_display: formatProductQuantities(row.product, row.closing),
       final_profit: row.finalProfit ?? '',
       final_profit_available: row.finalProfit != null,
     }));
-    downloadCsv(`daily-closing-${selectedDate}.csv`, rows);
+    downloadCsv(`daily-balance-count-${selectedDate}.csv`, rows);
   };
 
   const totalBuyer = useMemo(() => sumSales(filteredBuyerSales), [filteredBuyerSales]);
@@ -868,7 +860,7 @@ export default function Reports() {
         rows={dailyStockClosingRows}
         offline={offline}
         inventoryError={inventoryError}
-        onRequestDownload={() => requestDownload(`the ${selectedDate} daily closing CSV`, downloadDailyClosingCsv)}
+        onRequestDownload={() => requestDownload(`the ${selectedDate} balance count CSV`, downloadDailyClosingCsv)}
       />
 
       <section>
