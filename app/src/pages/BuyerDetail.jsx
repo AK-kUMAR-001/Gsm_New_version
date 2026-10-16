@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
@@ -16,15 +16,15 @@ import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import DeleteBuyerModal from '../components/DeleteBuyerModal.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
 import BillAlertModal from '../components/BillAlertModal.jsx';
-import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, Banknote, FileDown, MessageCircle, Trash2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, FileText, Banknote, FileDown, MessageCircle, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 
 export default function BuyerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { buyersById, balancesById, buyerSales, payments, products, balances, load, showToast } = useAppData();
+  const { buyersById, balancesById, buyerSales, payments, products, balances, load, showToast, setBuyerArchived } = useAppData();
 
   const [period, setPeriod] = useState('month');
-  const [expandedHistory, setExpandedHistory] = useState('');
+  const [activeTab, setActiveTab] = useState('sales');
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -32,7 +32,18 @@ export default function BuyerDetail() {
   const [billAlertOpen, setBillAlertOpen] = useState(false);
 
   const buyer = buyersById[id];
+  const isArchived = Boolean(buyer?.archived_at);
+  const directoryPath = isArchived ? '/buyers/deleted' : '/buyers';
   const balance = balancesById[id];
+
+  useEffect(() => {
+    if (isArchived) setPeriod('all');
+  }, [isArchived]);
+
+  const changeArchiveState = async (archived) => {
+    const result = await setBuyerArchived(id, archived);
+    if (!result.error) navigate(archived ? '/buyers/deleted' : '/buyers', { replace: true });
+  };
 
   const filteredSales = useMemo(() => {
     return (buyerSales || [])
@@ -45,21 +56,6 @@ export default function BuyerDetail() {
       .filter((payment) => payment.buyer_id === id && inPeriod(payment.paid_at, period, 'reports'))
       .sort((a, b) => (b.paid_at || '').localeCompare(a.paid_at || ''));
   }, [payments, id, period]);
-
-  const dailyHistory = useMemo(() => {
-    const days = new Map();
-    const getDay = (date) => {
-      if (!days.has(date)) days.set(date, { date, sales: [], payments: [] });
-      return days.get(date);
-    };
-    for (const sale of filteredSales) getDay(String(sale.sale_date || '').slice(0, 10)).sales.push(sale);
-    for (const payment of filteredPayments) getDay(String(payment.paid_at || '').slice(0, 10)).payments.push(payment);
-    return [...days.values()].sort((a, b) => b.date.localeCompare(a.date));
-  }, [filteredSales, filteredPayments]);
-
-  const toggleHistory = (key) => {
-    setExpandedHistory((current) => current === key ? '' : key);
-  };
 
   const downloadBuyerPdf = async () => {
     try {
@@ -93,39 +89,62 @@ export default function BuyerDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link to="/buyers" className="btn-ghost !px-3">
+        <Link to={directoryPath} className="btn-ghost !px-3">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1" />
         <button onClick={() => load()} className="btn-ghost" title="Refresh">
           <RefreshCw className="w-4 h-4" />
         </button>
-        <button
-          type="button"
-          onClick={() => setBillAlertOpen(true)}
-          className="btn-green"
-          title="Preview and send this buyer's bill on WhatsApp."
-        >
-          <MessageCircle className="w-4 h-4" />
-          Send Bill on WhatsApp
-        </button>
-        <button onClick={() => setSaleModalOpen(true)} className="btn-navy">
-          <ShoppingBag className="w-4 h-4" />
-          Record Sale
-        </button>
-        <button onClick={() => setPaymentModalOpen(true)} className="btn-green">
-          <Banknote className="w-4 h-4" />
-          Record Payment
-        </button>
-        <button
-          type="button"
-          onClick={() => setDeleteModalOpen(true)}
-          className="btn-outline !px-3 !py-2 text-red-700 hover:bg-red-50"
-          title="Delete this buyer and all linked records"
-          aria-label={`Delete ${buyer.name} and all linked records`}
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {isArchived ? (
+          <>
+            <span className="rounded-full bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">Archived</span>
+            <button type="button" onClick={() => changeArchiveState(false)} className="btn-green">
+              <ArchiveRestore className="w-4 h-4" />
+              Restore Buyer
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteModalOpen(true)}
+              className="btn-outline !px-3 !py-2 text-red-700 hover:bg-red-50"
+              title="Permanently purge this archived buyer"
+              aria-label={`Permanently purge ${buyer.name}`}
+            >
+              <Trash2 className="w-4 h-4" />
+              Purge
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setBillAlertOpen(true)}
+              className="btn-green"
+              title="Preview and send this buyer's bill on WhatsApp."
+            >
+              <MessageCircle className="w-4 h-4" />
+              Send Bill on WhatsApp
+            </button>
+            <button onClick={() => setSaleModalOpen(true)} className="btn-navy">
+              <ShoppingBag className="w-4 h-4" />
+              Record Sale
+            </button>
+            <button onClick={() => setPaymentModalOpen(true)} className="btn-green">
+              <Banknote className="w-4 h-4" />
+              Record Payment
+            </button>
+            <button
+              type="button"
+              onClick={() => changeArchiveState(true)}
+              className="btn-outline !px-3 !py-2"
+              title="Archive this buyer without changing history or reports"
+              aria-label={`Archive ${buyer.name}`}
+            >
+              <Archive className="w-4 h-4" />
+              Archive
+            </button>
+          </>
+        )}
       </div>
 
       <div className="rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f3460 0%, #16213e 50%, #8200da 100%)' }}>
@@ -198,111 +217,161 @@ export default function BuyerDetail() {
           >
             <FileDown className="w-4 h-4" /> Download PDF
           </button>
+          <div className="inline-flex p-1 bg-ink-100 rounded-xl">
+            <button
+              onClick={() => setActiveTab('sales')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${activeTab === 'sales' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
+            >
+              Sales
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${activeTab === 'payments' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
+            >
+              Payments
+            </button>
+          </div>
         </div>
       </div>
 
-      <section className="space-y-3">
-        {dailyHistory.length === 0 ? (
-          <div className="metric-card flex flex-col items-center py-12 text-center text-ink-500">
-            <ShoppingBag className="mb-3 h-10 w-10 opacity-40" />
-            <p className="font-semibold text-ink-700">No sales or payments in this period</p>
-          </div>
-        ) : dailyHistory.map(({ date, sales: daySales, payments: dayPayments }) => {
-          const salesTotal = daySales.reduce((sum, sale) => (
-            sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0)
-          ), 0);
-          const paymentsTotal = dayPayments.reduce((sum, payment) => sum + Number(payment.amount_paid ?? 0), 0);
-          const isExpanded = expandedHistory === date;
-          return (
-            <article key={date} className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm">
-              <button
-                type="button"
-                aria-expanded={isExpanded}
-                onClick={() => toggleHistory(date)}
-                className="grid w-full grid-cols-1 items-center gap-3 p-4 text-left transition hover:bg-ink-50 sm:grid-cols-[minmax(130px,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:px-5"
-              >
-                <span className="flex items-center gap-2 font-bold text-ink-900">
-                  <Calendar className="h-4 w-4 shrink-0 text-ink-400" />
-                  {formatDateCompact(date)}
-                </span>
-                <span className="flex items-center justify-between gap-3 rounded-lg bg-ink-50 px-3 py-2 sm:bg-transparent sm:p-0">
-                  <span className="flex items-center gap-2 text-sm text-ink-600">
-                    <ShoppingBag className="h-4 w-4 text-brand-green-dark" />
-                    Sales · {daySales.length}
-                  </span>
-                  <span className="font-bold text-ink-900">{currencyINR(salesTotal)}</span>
-                </span>
-                <span className="flex items-center justify-between gap-3 rounded-lg bg-green-50 px-3 py-2 sm:bg-transparent sm:p-0">
-                  <span className="flex items-center gap-2 text-sm text-ink-600">
-                    <Banknote className="h-4 w-4 text-green-700" />
-                    Payments · {dayPayments.length}
-                  </span>
-                  <span className="font-bold text-green-700">{currencyINR(paymentsTotal)}</span>
-                </span>
-                <ChevronDown className={`hidden h-5 w-5 text-ink-500 transition-transform sm:block ${isExpanded ? 'rotate-180' : ''}`} />
-              </button>
-              {isExpanded && (
-                <div className="grid grid-cols-1 gap-3 border-t border-ink-100 bg-ink-50/50 p-3 sm:grid-cols-2 sm:p-4">
-                  <section className="overflow-hidden rounded-xl border border-ink-100 bg-white">
-                    <h3 className="flex items-center justify-between border-b border-ink-100 px-4 py-3 font-semibold text-ink-800">
-                      <span className="flex items-center gap-2"><ShoppingBag className="h-4 w-4 text-brand-green-dark" /> Sales</span>
-                      <span className="text-sm font-bold text-ink-900">{currencyINR(salesTotal)}</span>
-                    </h3>
-                    {daySales.length ? daySales.map((sale) => {
-                      const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-                      const rate = Number(sale.price_per_mootai ?? 0);
-                      return (
-                        <div key={sale.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-ink-100 px-4 py-3 last:border-b-0">
-                          <span className="flex min-w-0 items-center gap-2 font-semibold text-ink-900">
-                            <span>{getProductEmoji(sale.product, products)}</span>
-                            <span className="truncate">{sale.product || '(Unknown)'}</span>
-                          </span>
-                          <span className="row-span-2 text-right font-bold text-ink-900">{currencyINR(quantity * rate)}</span>
-                          <span className="text-xs text-ink-500">{formatSaleQuantities(sale, products)} · {formatSaleRates(sale, products)}</span>
-                        </div>
-                      );
-                    }) : <p className="px-4 py-4 text-sm text-ink-500">No sales recorded.</p>}
-                  </section>
-                  <section className="overflow-hidden rounded-xl border border-ink-100 bg-white">
-                    <h3 className="flex items-center justify-between border-b border-ink-100 px-4 py-3 font-semibold text-ink-800">
-                      <span className="flex items-center gap-2"><Banknote className="h-4 w-4 text-green-700" /> Payments received</span>
-                      <span className="text-sm font-bold text-green-700">{currencyINR(paymentsTotal)}</span>
-                    </h3>
-                    {dayPayments.length ? dayPayments.map((payment) => (
-                      <div key={payment.id} className="flex items-center gap-3 border-b border-ink-100 px-4 py-3 last:border-b-0">
-                        <span className="flex-1 text-sm text-ink-700">Payment received</span>
-                        <span className="font-bold text-green-700">{currencyINR(payment.amount_paid)}</span>
+      {activeTab === 'sales' && (
+        <div className="metric-card !p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-ink-50 text-ink-500">
+                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Date</th>
+                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Product</th>
+                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Quantity</th>
+                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Rate / unit</th>
+                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Total</th>
+                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSales.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-16 text-center">
+                      <div className="flex flex-col items-center text-ink-400">
+                        <ShoppingBag className="w-10 h-10 mb-3 opacity-50" />
+                        <div className="font-semibold text-ink-600 mb-1">No sales yet</div>
+                        <div className="text-sm">Record a sale for this buyer to get started.</div>
                       </div>
-                    )) : <p className="px-4 py-4 text-sm text-ink-500">No payments recorded.</p>}
-                  </section>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </section>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSales.map((s) => {
+                    const qty = s.mootais ?? s.mootais_sold ?? 0;
+                    const total = Number(qty) * Number(s.price_per_mootai ?? 0);
+                    return (
+                      <tr key={s.id} className="border-t border-ink-100 hover:bg-ink-50/50 transition">
+                        <td className="px-5 py-4 whitespace-nowrap text-ink-600">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-ink-400" />
+                            {formatDateCompact(s.sale_date)}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-xl">{getProductEmoji(s.product, products)}</span>
+                            <span className="font-semibold text-ink-800">{s.product || '(Unknown)'}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right text-ink-700 font-semibold">{formatSaleQuantities(s, products)}</td>
+                        <td className="px-5 py-4 text-right text-ink-600">{formatSaleRates(s, products)}</td>
+                        <td className="px-5 py-4 text-right font-bold text-ink-900">{currencyINR(total)}</td>
+                        <td className="px-5 py-4 text-ink-500 max-w-[240px] truncate" title={s.notes || ''}>
+                          {s.notes ? <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 shrink-0 opacity-60" />{s.notes}</span> : <span className="text-ink-300">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-      <QuickBuyerEntryModal open={saleModalOpen} onClose={() => setSaleModalOpen(false)} buyerId={id} />
-      <RecordPaymentModal open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} buyerId={id} />
-      <DeleteBuyerModal
-        open={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        buyer={buyer}
-        onDeleted={() => navigate('/buyers', { replace: true })}
-      />
+      {activeTab === 'payments' && (
+        <div className="metric-card !p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-ink-50 text-ink-500">
+                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Date</th>
+                  <th className="text-right font-semibold px-5 py-3.5 whitespace-nowrap">Amount</th>
+                  <th className="text-left font-semibold px-5 py-3.5 whitespace-nowrap">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-5 py-16 text-center">
+                      <div className="flex flex-col items-center text-ink-400">
+                        <Banknote className="w-10 h-10 mb-3 opacity-50" />
+                        <div className="font-semibold text-ink-600 mb-1">No payments yet</div>
+                        <div className="text-sm">Record a payment from this buyer to get started.</div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPayments.map((p) => {
+                    const amt = Number(p.amount_paid ?? 0);
+                    return (
+                      <tr key={p.id} className="border-t border-ink-100 hover:bg-ink-50/50 transition">
+                        <td className="px-5 py-4 whitespace-nowrap text-ink-600">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-ink-400" />
+                            {formatDateCompact(p.paid_at)}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <span className="inline-flex items-center gap-1.5 font-bold text-brand-green-dark">
+                            <IndianRupee className="w-4 h-4" />
+                            {currencyINR(amt)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-ink-500 max-w-[360px] truncate" title={p.notes || ''}>
+                          {p.notes ? <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 shrink-0 opacity-60" />{p.notes}</span> : <span className="text-ink-300">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!isArchived && (
+        <>
+          <QuickBuyerEntryModal open={saleModalOpen} onClose={() => setSaleModalOpen(false)} buyerId={id} />
+          <RecordPaymentModal open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} buyerId={id} />
+          <BillAlertModal
+            open={billAlertOpen}
+            onClose={() => setBillAlertOpen(false)}
+            buyers={[buyer]}
+            balances={{ list: balance ? [{ ...balance, id }] : [] }}
+            buyerSales={buyerSales}
+            payments={payments}
+          />
+        </>
+      )}
+      {isArchived && (
+        <DeleteBuyerModal
+          open={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          buyer={buyer}
+          onDeleted={() => navigate('/buyers/deleted', { replace: true })}
+        />
+      )}
       <ConfirmDownloadModal
         open={pdfConfirmOpen}
         fileLabel="this buyer statement PDF"
         onClose={() => setPdfConfirmOpen(false)}
         onConfirm={downloadBuyerPdf}
-      />
-      <BillAlertModal
-        open={billAlertOpen}
-        onClose={() => setBillAlertOpen(false)}
-        buyers={[buyer]}
-        balances={{ list: balance ? [{ ...balance, id }] : [] }}
-        buyerSales={buyerSales}
-        payments={payments}
       />
     </div>
   );

@@ -5,18 +5,16 @@ import {
   todayIST,
   getProductEmoji,
   currencyINR,
-  productSalesUnit,
-  saleQuantityInSalesUnits,
+  currencyINRPerUnit,
   saleInputUnits,
+  saleQuantityInUnit,
+  saleRateInUnit,
+  formatMalliKgEquivalent,
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from '../components/Modal.jsx';
 
-const emptyRow = (product) => ({
-  quantity: '',
-  rate: '',
-  unit: productSalesUnit(product),
-});
+const emptyRow = (product) => ({ quantity: '', rate: '', quantity_unit: saleInputUnits(product)[0] });
 
 function makeRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
@@ -49,7 +47,6 @@ export default function RecordRetailSaleModal({ open, onClose }) {
       product,
       quantity: Number(rows[product.name]?.quantity || 0),
       rate: Number(rows[product.name]?.rate || 0),
-      unit: rows[product.name]?.unit || productSalesUnit(product),
     }))
     .filter(({ quantity, rate }) => quantity > 0 || rate > 0);
   const validEntries = entries.filter(({ quantity, rate }) => quantity > 0 && rate > 0);
@@ -74,14 +71,14 @@ export default function RecordRetailSaleModal({ open, onClose }) {
     setBusy(true);
     setSaveError('');
 
-    for (const { product, quantity, rate, unit } of validEntries) {
+    for (const { product, quantity, rate } of validEntries) {
       if (savedProducts.current.has(product.name)) continue;
       const result = await insertRetailSale({
         id: requestIds.current[product.name],
         product: product.name,
         mootais_sold: quantity,
+        quantity_unit: rows[product.name]?.quantity_unit || saleInputUnits(product)[0],
         price_per_mootai: rate,
-        quantity_unit: unit,
         sale_date: saleDate,
         notes: notes.trim() || null,
       }, { showSuccessToast: false });
@@ -136,7 +133,7 @@ export default function RecordRetailSaleModal({ open, onClose }) {
         </div>
 
         <div>
-          <div className="grid grid-cols-[minmax(0,1fr)_76px_72px_82px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+          <div className="grid grid-cols-[minmax(0,1fr)_68px_68px_74px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
             <span>Retail Sale</span>
             <span className="text-center">Unit</span>
             <span className="text-center">Qty</span>
@@ -148,10 +145,14 @@ export default function RecordRetailSaleModal({ open, onClose }) {
               const active = Number(row.quantity) > 0 || Number(row.rate) > 0;
               const alreadySaved = savedProducts.current.has(product.name);
               const units = saleInputUnits(product);
+              const inputUnit = row.quantity_unit || units[0];
+              const otherUnit = units.find((unit) => unit !== inputUnit);
+              const quantity = Number(row.quantity || 0);
+              const rate = Number(row.rate || 0);
               return (
                 <div
                   key={product.id}
-                  className={`grid grid-cols-[minmax(0,1fr)_76px_72px_82px] items-center gap-2 rounded-xl px-2 py-1 ${
+                  className={`grid grid-cols-[minmax(0,1fr)_68px_68px_74px] items-center gap-2 rounded-xl px-2 py-1 ${
                     active ? 'border border-green-300 bg-green-50' : ''
                   }`}
                 >
@@ -159,49 +160,54 @@ export default function RecordRetailSaleModal({ open, onClose }) {
                     <span>{getProductEmoji(product.name, activeProducts)}</span>
                     <span className="min-w-0 truncate">
                       {product.name}
+                      <span className="ml-1 text-[10px] font-medium text-ink-500">({saleInputUnits(product).join(' / ')})</span>
                     </span>
                   </span>
                   <select
                     aria-label={`${product.name} sale unit`}
-                    disabled={alreadySaved}
-                    value={row.unit}
-                    onChange={(event) => updateRow(product.name, 'unit', event.target.value)}
+                    disabled={alreadySaved || units.length === 1}
+                    value={inputUnit}
+                    onChange={(event) => updateRow(product.name, 'quantity_unit', event.target.value)}
                     className="input !px-1 !py-2 text-center text-xs"
                   >
                     {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                   </select>
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <input
-                      aria-label={`${product.name} ${row.unit} quantity`}
-                      type="number"
-                      min="0"
-                      step={row.unit === 'Kattu' ? '1' : '0.001'}
-                      disabled={alreadySaved}
-                      value={row.quantity}
-                      onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
-                      placeholder="0"
-                      className="input hide-number-spinner !px-2 !py-2 text-center"
-                    />
-                    {row.unit !== productSalesUnit(product) && Number(row.quantity) > 0 && (
-                      <span
-                        aria-label={`${product.name} equivalent quantity`}
-                        className="whitespace-nowrap text-center text-[10px] font-medium text-sidebar-accent"
-                      >
-                        = {saleQuantityInSalesUnits(product, row.quantity, row.unit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(product)}
-                      </span>
-                    )}
-                  </span>
                   <input
-                    aria-label={`${product.name} rate per ${row.unit}`}
+                    aria-label={`${product.name} ${inputUnit} quantity`}
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="0.001"
+                    disabled={alreadySaved}
+                    value={row.quantity}
+                    onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
+                    placeholder="0"
+                    className="input !px-2 !py-2 text-center"
+                  />
+                  <input
+                    aria-label={`${product.name} rate per ${inputUnit}`}
+                    type="number"
+                    min="0"
+                    step="0.0001"
                     disabled={alreadySaved}
                     value={row.rate}
                     onChange={(event) => updateRow(product.name, 'rate', event.target.value)}
                     placeholder="0"
-                    className="input hide-number-spinner !px-2 !py-2 text-center"
+                    className="input !px-2 !py-2 text-center"
                   />
+                  {quantity > 0 && (otherUnit || formatMalliKgEquivalent(product, quantity, inputUnit)) && (
+                    <p className="col-span-4 pb-1 text-right text-[11px] font-medium text-ink-500">
+                      {otherUnit && (
+                        <>
+                          {saleQuantityInUnit(product, quantity, inputUnit, otherUnit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {otherUnit}
+                          {rate > 0 && (
+                            <> · {currencyINRPerUnit(saleRateInUnit(product, rate, inputUnit, otherUnit))} per {otherUnit}</>
+                          )}
+                        </>
+                      )}
+                      {otherUnit && formatMalliKgEquivalent(product, quantity, inputUnit) ? ' · ' : ''}
+                      {formatMalliKgEquivalent(product, quantity, inputUnit)}
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -234,7 +240,7 @@ export default function RecordRetailSaleModal({ open, onClose }) {
 
         {(saveError || (invalidEntries && entries.length > 0)) && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-            <p>{saveError || 'Enter both a quantity and rate for each product.'}</p>
+            <p>{saveError || 'For each product, enter both quantity and rate, or leave both as zero.'}</p>
             {saveError && (
               <>
                 {schemaFunctionMissing && (

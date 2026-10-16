@@ -1,11 +1,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { productSalesUnit } from '../lib/business.js';
-
-function quantity(value) {
-  return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
-}
+import { formatProductQuantities } from '../lib/business.js';
 
 export default function LowStockAlerts() {
   const { products, inventorySettings, inventorySummary, inventoryError, offline } = useAppData();
@@ -33,8 +29,8 @@ export default function LowStockAlerts() {
           <ul className="mt-2 space-y-1 text-sm text-amber-900">
             {lowStockProducts.map(({ product, available, threshold }) => (
               <li key={product.id}>
-                <span className="font-semibold">{product.name}</span>: {quantity(available)} {productSalesUnit(product)} left
-                <span className="text-amber-800"> (warning at {quantity(threshold)} or less)</span>
+                <span className="font-semibold">{product.name}</span>: {formatProductQuantities(product, available)} left
+                <span className="text-amber-800"> (warning at {formatProductQuantities(product, threshold)} or less)</span>
               </li>
             ))}
           </ul>

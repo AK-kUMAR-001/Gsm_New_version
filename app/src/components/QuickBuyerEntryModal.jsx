@@ -3,21 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
+  currencyINRPerUnit,
   getProductEmoji,
-  productSalesUnit,
-  saleQuantityInSalesUnits,
-  saleInputUnits,
   todayIST,
+  saleInputUnits,
+  saleQuantityInUnit,
+  saleRateInUnit,
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from './Modal.jsx';
 import { Search } from 'lucide-react';
 
-const emptyRow = (product) => ({
-  quantity: '',
-  rate: '',
-  unit: productSalesUnit(product),
-});
+const emptyRow = (product) => ({ quantity: '', rate: '', quantity_unit: saleInputUnits(product)[0] });
 
 function newRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
@@ -25,7 +22,7 @@ function newRequestIds(products) {
 
 export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) {
   const {
-    buyers, balancesById, activeProducts, insertBuyerSale, insertPayment, showToast,
+    activeBuyers, balancesById, activeProducts, insertBuyerSale, insertPayment, showToast,
   } = useAppData();
   const navigate = useNavigate();
   const [selectedBuyerId, setSelectedBuyerId] = useState('');
@@ -41,7 +38,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
   const savedProducts = useRef(new Set());
   const failedPayment = useRef(false);
 
-  const selectedBuyer = buyers.find((buyer) => buyer.id === selectedBuyerId);
+  const selectedBuyer = activeBuyers.find((buyer) => buyer.id === selectedBuyerId);
   const buyerBalance = balancesById[selectedBuyerId];
 
   useEffect(() => {
@@ -62,21 +59,20 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
 
   const filteredBuyers = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return [...buyers]
+    return [...activeBuyers]
       .filter((buyer) => {
         if (!term) return true;
         return String(buyer.name || '').toLowerCase().includes(term)
           || String(buyer.phone || '').toLowerCase().includes(term);
       })
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-  }, [buyers, query]);
+  }, [activeBuyers, query]);
 
   const entries = activeProducts
     .map((product) => ({
       product,
       quantity: Number(rows[product.name]?.quantity || 0),
       rate: Number(rows[product.name]?.rate || 0),
-      unit: rows[product.name]?.unit || productSalesUnit(product),
     }))
     .filter(({ quantity, rate }) => quantity > 0 || rate > 0);
   const validEntries = entries.filter(({ quantity, rate }) => quantity > 0 && rate > 0);
@@ -98,15 +94,15 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
     setSaving(true);
     setErrorMessage('');
 
-    for (const { product, quantity, rate, unit } of validEntries) {
+    for (const { product, quantity, rate } of validEntries) {
       if (savedProducts.current.has(product.name)) continue;
       const result = await insertBuyerSale({
         id: requestIds.current[product.name],
         buyer_id: selectedBuyerId,
         product: product.name,
         mootais: quantity,
+        quantity_unit: rows[product.name]?.quantity_unit || saleInputUnits(product)[0],
         price_per_mootai: rate,
-        quantity_unit: unit,
         sale_date: saleDate,
         notes: notes.trim() || null,
       });
@@ -245,7 +241,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
           </div>
 
           <div>
-            <div className="grid grid-cols-[minmax(0,1fr)_76px_72px_82px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+            <div className="grid grid-cols-[minmax(0,1fr)_68px_68px_74px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
               <span>Buyer Sale</span><span className="text-center">Unit</span><span className="text-center">Qty</span><span className="text-center">Rate ₹</span>
             </div>
             <div className="space-y-1">
@@ -253,53 +249,56 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                 const row = rows[product.name] || emptyRow(product);
                 const active = Number(row.quantity) > 0 || Number(row.rate) > 0;
                 const units = saleInputUnits(product);
+                const inputUnit = row.quantity_unit || units[0];
+                const otherUnit = units.find((unit) => unit !== inputUnit);
+                const quantity = Number(row.quantity || 0);
+                const rate = Number(row.rate || 0);
                 return (
-                  <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_76px_72px_82px] items-center gap-2 rounded-xl px-2 py-1 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
+                  <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_68px_68px_74px] items-center gap-2 rounded-xl px-2 py-1 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
                     <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink-800">
                       <span>{getProductEmoji(product.name, activeProducts)}</span>
-                      <span className="truncate">{product.name}</span>
+                      <span className="min-w-0 truncate">
+                        {product.name}
+                        <span className="ml-1 text-[10px] font-medium text-ink-500">({saleInputUnits(product).join(' / ')})</span>
+                      </span>
                     </span>
                     <select
                       aria-label={`${product.name} sale unit`}
-                      disabled={savedProducts.current.has(product.name)}
-                      value={row.unit}
-                      onChange={(event) => updateRow(product.name, 'unit', event.target.value)}
+                      disabled={savedProducts.current.has(product.name) || units.length === 1}
+                      value={inputUnit}
+                      onChange={(event) => updateRow(product.name, 'quantity_unit', event.target.value)}
                       className="input !px-1 !py-2 text-center text-xs"
                     >
                       {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                     </select>
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <input
-                        aria-label={`${product.name} ${row.unit} quantity`}
-                        type="number"
-                        disabled={savedProducts.current.has(product.name)}
-                        min="0"
-                        step={row.unit === 'Kattu' ? '1' : '0.001'}
-                        value={row.quantity}
-                        onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
-                        placeholder="0"
-                        className="input hide-number-spinner !px-2 !py-2 text-center"
-                      />
-                      {row.unit !== productSalesUnit(product) && Number(row.quantity) > 0 && (
-                        <span
-                          aria-label={`${product.name} equivalent quantity`}
-                          className="whitespace-nowrap text-center text-[10px] font-medium text-sidebar-accent"
-                        >
-                          = {saleQuantityInSalesUnits(product, row.quantity, row.unit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {productSalesUnit(product)}
-                        </span>
-                      )}
-                    </span>
                     <input
-                      aria-label={`${product.name} rate per ${row.unit}`}
+                      aria-label={`${product.name} ${inputUnit} quantity`}
                       type="number"
                       disabled={savedProducts.current.has(product.name)}
                       min="0"
-                      step="0.01"
+                      step="0.001"
+                      value={row.quantity}
+                      onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
+                      placeholder="0"
+                      className="input !px-2 !py-2 text-center"
+                    />
+                    <input
+                      aria-label={`${product.name} rate per ${inputUnit}`}
+                      type="number"
+                      disabled={savedProducts.current.has(product.name)}
+                      min="0"
+                      step="0.0001"
                       value={row.rate}
                       onChange={(event) => updateRow(product.name, 'rate', event.target.value)}
                       placeholder="0"
-                      className="input hide-number-spinner !px-2 !py-2 text-center"
+                      className="input !px-2 !py-2 text-center"
                     />
+                    {otherUnit && quantity > 0 && rate > 0 && (
+                      <p className="col-span-4 pb-1 text-right text-[11px] font-medium text-ink-500">
+                        {saleQuantityInUnit(product, quantity, inputUnit, otherUnit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {otherUnit}
+                        {' · '}{currencyINRPerUnit(saleRateInUnit(product, rate, inputUnit, otherUnit))} per {otherUnit}
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -318,7 +317,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
                 requestIds.current = newRequestIds(activeProducts);
               }}
               placeholder="e.g. weekly order"
-              className="input hide-number-spinner"
+              className="input"
             />
           </div>
 

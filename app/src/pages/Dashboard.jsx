@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { computeDailyProductProfits, currencyINR, formatDateCompact, getProductEmoji, realTodayIST, todayIST } from '../lib/business.js';
+import {
+  computeDailyProductProfits,
+  currencyINR,
+  formatDateCompact,
+  buildRecentActivity,
+  getProductEmoji,
+  todayIST,
+} from '../lib/business.js';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
@@ -13,13 +20,20 @@ import {
   ChevronRight,
   Leaf,
   CheckCircle2,
+  Pencil,
 } from 'lucide-react';
+import RecentActivityModal from '../components/RecentActivityModal.jsx';
 
 export default function Dashboard() {
   const {
     activeProducts,
+    buyers,
+    buyersById,
     balances,
+    buyerSales,
     products,
+    retailSales,
+    payments,
     today,
     recent,
     inventorySettings,
@@ -29,51 +43,88 @@ export default function Dashboard() {
     inventoryError,
     loadInventory,
     offline,
-    buyerSales,
-    retailSales,
+    updateBuyerSale,
+    updateRetailSale,
+    updateBuyerPayment,
+    deleteBuyerSale,
+    deleteRetailSale,
+    deleteBuyerPayment,
   } = useAppData();
 
   const [saleOpen, setSaleOpen] = useState(false);
   const [retailOpen, setRetailOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityEditTarget, setActivityEditTarget] = useState(null);
+  const allActivities = useMemo(
+    () => buildRecentActivity(buyerSales, payments, buyersById, Number.MAX_SAFE_INTEGER, retailSales),
+    [buyerSales, payments, buyersById, retailSales],
+  );
+
+  const saveActivity = async (activity, fields) => {
+    if (activity.type === 'PAYMENT') {
+      return updateBuyerPayment(activity.id, {
+        buyer_id: fields.buyer_id,
+        amount_paid: Number(fields.amount_paid),
+        paid_at: fields.date,
+        notes: fields.notes.trim() || null,
+      });
+    }
+    if (activity.type === 'RETAIL') {
+      return updateRetailSale(activity.id, {
+        product: fields.product,
+        mootais_sold: Number(fields.quantity),
+        quantity_unit: fields.quantity_unit,
+        price_per_mootai: Number(fields.price),
+        sale_date: fields.date,
+        notes: fields.notes.trim() || null,
+      });
+    }
+    return updateBuyerSale(activity.id, {
+      buyer_id: fields.buyer_id,
+      product: fields.product,
+      mootais: Number(fields.quantity),
+      quantity_unit: fields.quantity_unit,
+      price_per_mootai: Number(fields.price),
+      sale_date: fields.date,
+      notes: fields.notes.trim() || null,
+    });
+  };
+
+  const removeActivity = (activity) => {
+    if (activity.type === 'PAYMENT') return deleteBuyerPayment(activity.id);
+    if (activity.type === 'RETAIL') return deleteRetailSale(activity.id);
+    return deleteBuyerSale(activity.id);
+  };
 
   useEffect(() => {
     if (!offline) loadInventory();
   }, [loadInventory, offline]);
 
-  const activeProductIds = new Set(
-    products.filter((product) => product.active !== false).map((product) => product.id),
-  );
-  const activeInventorySettings = inventorySettings.filter(
-    (setting) => activeProductIds.has(setting.product_id),
-  );
-  const missingStockCounts = activeInventorySettings.filter(
+  const missingStockCounts = inventorySettings.filter(
     (setting) => !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST()),
   );
-
-  const todayFinalProfit = useMemo(() => {
-    const profitsByProductId = computeDailyProductProfits(
-      inventorySettings,
-      inventoryMovements,
-      products,
-      buyerSales,
-      retailSales,
-      realTodayIST(),
-    );
-    return ['Pudina', 'Karuvepillai', 'Malli'].map((name) => {
-      const product = products.find((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
-      const profit = product && profitsByProductId.get(product.id);
-      return { name, amount: profit?.finalProfit ?? null };
-    });
-  }, [inventorySettings, inventoryMovements, products, buyerSales, retailSales]);
-  const finalProfitAvailable = todayFinalProfit.every((item) => item.amount !== null);
-  const totalFinalProfit = finalProfitAvailable
-    ? todayFinalProfit.reduce((total, item) => total + item.amount, 0)
-    : null;
 
   const topOutstanding = balances.list
     .filter((b) => b.balance_due > 0)
     .sort((a, b) => b.balance_due - a.balance_due)
     .slice(0, 5);
+  const todayProductProfits = computeDailyProductProfits(
+    inventorySettings,
+    inventoryMovements,
+    products,
+    buyerSales,
+    retailSales,
+    todayIST('dashboard'),
+  );
+  const todayProfitAvailable = !offline
+    && !inventoryLoading
+    && !inventoryError
+    && inventorySettings.length > 0
+    && todayProductProfits.size === inventorySettings.length
+    && Array.from(todayProductProfits.values()).every((item) => item.finalProfit != null);
+  const todayFinalProfit = todayProfitAvailable
+    ? Array.from(todayProductProfits.values()).reduce((sum, item) => sum + item.finalProfit, 0)
+    : null;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -118,6 +169,24 @@ export default function Dashboard() {
           <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Billed today</div>
         </div>
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
+            Today — Retail
+          </div>
+          <div className="mt-2 break-words text-xl font-extrabold text-brand-purple sm:text-2xl">
+            {currencyINR(today.retail)}
+          </div>
+          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Retail income</div>
+        </div>
+        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
+            Today — Collections
+          </div>
+          <div className="mt-2 break-words text-xl font-extrabold text-green-700 sm:text-2xl">
+            {currencyINR(today.collections)}
+          </div>
+          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Payments received today</div>
+        </div>
+        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex items-center justify-between">
             <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
               Today — Total
@@ -130,45 +199,40 @@ export default function Dashboard() {
           <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Buyers + retail combined</div>
         </div>
         <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
-          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
-            Today — Retail
+          <div className="flex items-center justify-between">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
+              Buyers with Dues
+            </div>
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="mt-2 break-words text-xl font-extrabold text-brand-purple sm:text-2xl">
-            {currencyINR(today.retail)}
+          <div className="mt-2 break-words text-xl font-extrabold text-amber-600 sm:text-2xl">
+            {balances.outstanding_count}
           </div>
-          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Retail income</div>
-        </div>
-        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
-          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
-            Today Final Profit
-          </div>
-          <div className={`mt-2 break-words text-xl font-extrabold sm:text-2xl ${totalFinalProfit === null ? 'text-ink-400' : 'text-emerald-700'}`}>
-            {inventoryLoading
-              ? 'Loading…'
-              : offline || inventoryError || totalFinalProfit === null
-                ? 'Unavailable'
-                : currencyINR(totalFinalProfit)}
-          </div>
-          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">
-            {inventoryLoading
-              ? 'Loading today’s stock costs'
-              : offline || inventoryError || totalFinalProfit === null
-                ? 'Complete stock costs are required'
-                : todayFinalProfit.map((item) => `${item.name} ${currencyINR(item.amount)}`).join(' + ') + ` = ${currencyINR(totalFinalProfit)}`}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-sm sm:p-4">
-          <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 sm:text-[10px] sm:tracking-widest">
-            Today — Collections
-          </div>
-          <div className="mt-2 break-words text-xl font-extrabold text-green-700 sm:text-2xl">
-            {currencyINR(today.collections)}
-          </div>
-          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Payments received today</div>
+          <div className="mt-1 text-[11px] text-ink-500 sm:text-xs">Owing money right now</div>
         </div>
       </div>
 
-      {activeInventorySettings.length > 0 && (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm sm:p-5">
+        <div className="text-xs font-bold uppercase tracking-widest text-emerald-800">Today final profit</div>
+        <div className={`mt-2 break-words text-2xl font-extrabold sm:text-3xl ${todayFinalProfit == null ? 'text-ink-500' : 'text-emerald-800'}`}>
+          {todayFinalProfit == null ? 'Unavailable' : currencyINR(todayFinalProfit)}
+        </div>
+        <p className="mt-1 text-xs text-emerald-900">
+          {inventoryLoading
+            ? 'Loading today’s stock costs…'
+            : offline
+              ? 'Stock cost data is unavailable while offline.'
+              : inventoryError
+                ? `Stock cost data could not be loaded: ${inventoryError}`
+            : todayFinalProfit == null
+                ? Array.from(todayProductProfits.values()).some((item) => item.stockShortage)
+                  ? 'Profit is unavailable while recorded stock is negative; reconcile stock first.'
+                  : 'Profit needs complete linked sale costs for every tracked product.'
+                : 'Sales revenue minus recorded sale stock cost and damage cost.'}
+        </p>
+      </div>
+
+      {inventorySettings.length > 0 && (
         <Link
           to="/inventory"
           className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
@@ -229,18 +293,9 @@ export default function Dashboard() {
         </div>
 
         <div className="order-3 overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm lg:col-start-1 lg:row-start-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <h3 className="font-bold text-ink-900 text-sm">Top Outstanding Buyers</h3>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-1.5">
-                <span className="text-lg font-extrabold leading-none text-amber-700">{balances.outstanding_count}</span>
-                <span className="text-xs font-semibold text-amber-800">
-                  {balances.outstanding_count === 1 ? 'buyer with dues' : 'buyers with dues'}
-                  <span className="block font-normal text-amber-700">Owing money right now</span>
-                </span>
-              </div>
+            <div className="flex items-center gap-2 px-4 py-3">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <h3 className="font-bold text-ink-900 text-sm">Top Outstanding Buyers</h3>
             </div>
             <div className="divide-y divide-ink-50">
               {topOutstanding.length === 0 && (
@@ -269,11 +324,8 @@ export default function Dashboard() {
               <RefreshCw className="w-4 h-4 text-ink-500" />
               <h3 className="font-bold text-ink-900 text-sm">Recent Activity</h3>
             </div>
-            <button
-              aria-label="Refresh"
-              className="p-1 rounded-lg hover:bg-ink-50 text-ink-400"
-            >
-              <RefreshCw className="w-4 h-4" />
+            <button type="button" onClick={() => { setActivityEditTarget(null); setActivityOpen(true); }} className="btn-ghost !px-3 !py-1.5 text-xs">
+              View all / Edit
             </button>
           </div>
           <div className="max-h-[560px] divide-y divide-ink-50 overflow-y-auto">
@@ -284,11 +336,10 @@ export default function Dashboard() {
             )}
             {recent.map((r) => {
               const isSale = r.type === 'SALE';
-              const buyerOrProduct = r.buyer_name ? r.buyer_name : 'Retail';
-              const extra = r.product ? `· ${r.product}` : '';
+              const activityType = r.type === 'PAYMENT' ? 'PAYMENT' : r.type === 'RETAIL' ? 'RETAIL' : 'SALE';
               return (
                 <div
-                  key={`${r.type}-${r.id}`}
+                  key={`${activityType}-${r.id}`}
                   className="flex items-center gap-3 px-4 py-3"
                 >
                   <div
@@ -305,14 +356,15 @@ export default function Dashboard() {
                         <Leaf className="w-4 h-4" />
                       )
                     ) : (
-                      <CheckCircle2 className="w-4 h-4" />
+                      activityType === 'PAYMENT' ? <CheckCircle2 className="w-4 h-4" /> : <Leaf className="w-4 h-4" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-ink-900 truncate">
-                      {r.type === 'PAYMENT' ? 'Payment · ' : ''}
-                      {buyerOrProduct}
+                      {activityType === 'PAYMENT' ? 'Payment · ' : activityType === 'RETAIL' ? 'Retail · ' : ''}
+                      {r.buyer_name || 'Retail'}
                       {r.product && r.buyer_name ? <span className="text-ink-500 font-normal"> · {r.product}</span> : null}
+                      {r.product && !r.buyer_name && activityType === 'RETAIL' ? <span className="text-ink-500 font-normal"> · {r.product}</span> : null}
                     </div>
                     <div className="text-xs text-ink-500 mt-0.5">
                       {formatDateCompact(r.date)}
@@ -326,6 +378,15 @@ export default function Dashboard() {
                     {isSale ? '' : ''}
                     {currencyINR(r.amount)}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => { setActivityEditTarget(r); setActivityOpen(true); }}
+                    aria-label={`Edit ${activityType.toLowerCase()} record`}
+                    title="Edit activity"
+                    className="btn-ghost !p-2 shrink-0"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
                 </div>
               );
             })}
@@ -348,6 +409,16 @@ export default function Dashboard() {
       <RecordRetailSaleModal
         open={retailOpen}
         onClose={() => setRetailOpen(false)}
+      />
+      <RecentActivityModal
+        open={activityOpen}
+        onClose={() => { setActivityOpen(false); setActivityEditTarget(null); }}
+        activities={allActivities}
+        buyers={buyers}
+        products={products}
+        onSave={saveActivity}
+        onDelete={removeActivity}
+        initialActivity={activityEditTarget}
       />
     </div>
   );

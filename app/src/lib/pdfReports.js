@@ -2,11 +2,12 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   formatDateCompact,
+  formatQuantityByUnit,
   formatSaleQuantities,
-  formatUnitQuantities,
+  formatSaleRates,
   inPeriod,
+  saleQuantitiesByUnit,
   realTodayIST,
-  saleQuantitiesForDisplay,
   startOfMonthIST,
   startOfThreeMonthsAgo,
   startOfWeekIST,
@@ -20,7 +21,13 @@ const COLORS = {
 };
 
 const MONEY = (amount) => `INR ${Math.round(Number(amount || 0)).toLocaleString('en-IN')}`;
-const QUANTITY = (amount) => Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
+const RATE = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 6 })}`;
+const quantitiesByUnit = (sales) => (sales || []).reduce((quantities, sale) => {
+  for (const [unit, quantity] of Object.entries(saleQuantitiesByUnit(sale))) {
+    quantities[unit] = (quantities[unit] || 0) + quantity;
+  }
+  return quantities;
+}, {});
 const PERIOD_NAMES = {
   week: 'This Week',
   month: 'This Month',
@@ -40,22 +47,11 @@ function periodLabel(period) {
 
 function safeFilename(value) {
   return String(value || 'report')
-    .normalize('NFKC')
-    .replace(/[^\p{L}\p{N}_ -]/gu, '')
+    .normalize('NFKD')
+    .replace(/[^\w -]/g, '')
     .trim()
     .replace(/\s+/g, '_')
     .slice(0, 60) || 'report';
-}
-
-function pdfSaleRate(sale) {
-  const amount = Number(sale?.mootais ?? sale?.mootais_sold ?? 0)
-    * Number(sale?.price_per_mootai ?? 0);
-  return Object.entries(saleQuantitiesForDisplay(sale))
-    .map(([unit, quantity]) => {
-      const rate = quantity === 0 ? 0 : amount / quantity;
-      return `${rate.toLocaleString('en-IN', { maximumFractionDigits: 6 })} / ${unit}`;
-    })
-    .join('  |  ') || '-';
 }
 
 function startDocument(title, period) {
@@ -111,18 +107,10 @@ function addMetricCards(doc, values, top = 40) {
 function table(doc, options) {
   autoTable(doc, {
     theme: 'striped',
-    styles: {
-      font: 'helvetica',
-      fontSize: 8,
-      cellPadding: 2.2,
-      overflow: 'linebreak',
-      textColor: COLORS.ink,
-      valign: 'middle',
-    },
-    headStyles: { fillColor: COLORS.navy, textColor: 255, fontStyle: 'bold', overflow: 'linebreak' },
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.2, textColor: COLORS.ink },
+    headStyles: { fillColor: COLORS.navy, textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [247, 249, 251] },
     margin: { left: 14, right: 14, bottom: 14 },
-    rowPageBreak: 'avoid',
     ...options,
   });
 }
@@ -165,9 +153,9 @@ export function downloadOverallReportPdf({
     ]],
     body: productRows.map((row) => [
       row.product,
-      formatUnitQuantities(row.wholesale_quantities_by_unit),
+      formatQuantityByUnit(row.wholesale_quantities),
       MONEY(row.wholesale_revenue),
-      formatUnitQuantities(row.retail_quantities_by_unit),
+      formatQuantityByUnit(row.retail_quantities),
       MONEY(row.retail_revenue),
       row.tracked_sales ? MONEY(row.stock_cost) : 'Not tracked',
       MONEY(row.spoilage_cost),
@@ -240,7 +228,7 @@ export function downloadCustomerStatementsPdf({
   let cursorY = 68;
   for (const buyer of statementBuyers) {
     const balance = balanceById.get(buyer.id);
-    if (cursorY > 158) {
+    if (cursorY > 177) {
       doc.addPage();
       cursorY = 18;
     }
@@ -265,7 +253,7 @@ export function downloadCustomerStatementsPdf({
           kind: 'Bill',
           details: sale.product || 'Sale',
           quantity: formatSaleQuantities(sale),
-          rate: pdfSaleRate(sale),
+          rate: formatSaleRates(sale),
           amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
           notes: sale.notes || '',
         })),
@@ -275,8 +263,8 @@ export function downloadCustomerStatementsPdf({
           date: payment.paid_at,
           kind: 'Payment',
           details: 'Payment received',
-          quantity: '-',
-          rate: '-',
+          quantity: '—',
+          rate: '—',
           amount: MONEY(payment.amount_paid),
           notes: payment.notes || '',
         })),
@@ -284,33 +272,20 @@ export function downloadCustomerStatementsPdf({
 
     table(doc, {
       startY: cursorY + 8,
-      showHead: 'everyPage',
-      styles: { fontSize: 8.5, cellPadding: 2.5 },
-      margin: { left: 12, right: 12, top: 28, bottom: 14 },
-      willDrawPage: (data) => {
-        if (data.pageNumber > 1) {
-          doc.setFillColor(...COLORS.pale);
-          doc.rect(12, 10, 273, 12, 'F');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(9);
-          doc.setTextColor(...COLORS.navy);
-          doc.text(`${buyer.name || 'Customer'} - continued`, 16, 18);
-        }
-      },
-      head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate (INR)', 'Amount (INR)', 'Notes']],
+      head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
       body: transactions.length
         ? transactions.map((row) => [
           formatDateCompact(row.date), row.kind, row.details, row.quantity, row.rate, row.amount, row.notes,
         ])
-        : [['-', '-', 'No bills or payments in this period', '-', '-', '-', '']],
+        : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
       columnStyles: {
         0: { cellWidth: 25 },
-        1: { cellWidth: 18, halign: 'center' },
-        2: { cellWidth: 43 },
-        3: { cellWidth: 34, halign: 'right' },
-        4: { cellWidth: 60, halign: 'right' },
-        5: { cellWidth: 33, halign: 'right' },
-        6: { cellWidth: 60 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 58 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 29 },
+        5: { cellWidth: 31 },
+        6: { cellWidth: 76 },
       },
     });
     cursorY = (doc.lastAutoTable?.finalY || cursorY + 12) + 12;
@@ -338,7 +313,7 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
       kind: 'Bill',
       details: sale.product || 'Sale',
       quantity: formatSaleQuantities(sale),
-      rate: pdfSaleRate(sale),
+      rate: formatSaleRates(sale),
       amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
       notes: sale.notes || '',
     })),
@@ -346,47 +321,37 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
       date: payment.paid_at,
       kind: 'Payment',
       details: 'Payment received',
-      quantity: '-',
-      rate: '-',
+      quantity: '—',
+      rate: '—',
       amount: MONEY(payment.amount_paid),
       notes: payment.notes || '',
     })),
   ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.muted);
-  const customerDetails = doc.splitTextToSize(
-    `Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`,
-    269,
-  );
-  doc.text(
-    customerDetails,
-    14,
-    64,
-  );
-  const tableStartY = 64 + customerDetails.length * 4 + 4;
   table(doc, {
-    startY: tableStartY,
-    styles: { fontSize: 8.5, cellPadding: 2.5 },
-    head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate (INR)', 'Amount (INR)', 'Notes']],
+    startY: 68,
+    head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
     body: transactions.length
       ? transactions.map((row) => [
         formatDateCompact(row.date), row.kind, row.details, row.quantity, row.rate, row.amount, row.notes,
       ])
-      : [['-', '-', 'No bills or payments in this period', '-', '-', '-', '']],
+      : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
     columnStyles: {
       0: { cellWidth: 25 },
-      1: { cellWidth: 18, halign: 'center' },
-      2: { cellWidth: 43 },
-      3: { cellWidth: 34, halign: 'right' },
-      4: { cellWidth: 60, halign: 'right' },
-      5: { cellWidth: 33, halign: 'right' },
-      6: { cellWidth: 56 },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 58 },
+      3: { cellWidth: 30 },
+      4: { cellWidth: 29 },
+      5: { cellWidth: 31 },
+      6: { cellWidth: 76 },
     },
   });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.muted);
+  doc.text(`Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`, 14, 64);
   addPageNumbers(doc);
-  doc.save(`${safeFilename(buyer.name)}_GSM_${realTodayIST()}.pdf`);
+  doc.save(`GSM_${safeFilename(buyer.name)}_Statement_${safeFilename(periodName)}.pdf`);
 }
 
 export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
@@ -397,12 +362,6 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   const billPayments = kind === 'monthly'
     ? payments.filter((payment) => String(payment.paid_at || '').slice(0, 7) === monthKey)
     : payments;
-  const quantities = billSales.reduce((totals, sale) => {
-    for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
-      totals[unit] = (totals[unit] || 0) + quantity;
-    }
-    return totals;
-  }, {});
   const billed = billSales.reduce((sum, sale) => (
     sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
   ), 0);
@@ -416,60 +375,48 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...COLORS.ink);
-  const customerDetails = doc.splitTextToSize(
-    `Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`,
-    269,
-  );
-  doc.text(customerDetails, 14, 39);
-  const introY = 39 + customerDetails.length * 5 + 1;
+  doc.text(`Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`, 14, 39);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...COLORS.muted);
-  doc.text(
-    doc.splitTextToSize(
-      `Hi ${buyer.name}, please find your GSM Traders ${kind === 'monthly' ? 'monthly' : 'complete'} bill below.`,
-      269,
-    ),
-    14,
-    introY,
-  );
-  const metricTop = introY + 7;
+  doc.text(`Hi ${buyer.name}, please find your GSM Traders ${kind === 'monthly' ? 'monthly' : 'complete'} bill below.`, 14, 45);
 
   addMetricCards(doc, [
-    { label: 'Total quantities', value: formatUnitQuantities(quantities) },
+    { label: 'Total quantity', value: formatQuantityByUnit(quantitiesByUnit(billSales)) || '0' },
     { label: kind === 'monthly' ? 'Billed this month' : 'Total billed', value: MONEY(billed) },
     { label: kind === 'monthly' ? 'Paid this month' : 'Total paid', value: MONEY(paid) },
     { label: 'Amount pending', value: MONEY(balance?.balance_due) },
-  ], metricTop);
-  const tableStartY = metricTop + 28;
+  ], 52);
 
   if (kind === 'monthly') {
     const byProduct = new Map();
     for (const sale of billSales) {
       const key = sale.product || 'Sale';
-      const row = byProduct.get(key) || { product: key, quantities: {}, rates: {}, billed: 0 };
+      const row = byProduct.get(key) || { quantities: {}, revenueByUnit: {}, billed: 0 };
       const saleQuantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-      const amount = saleQuantity * Number(sale.price_per_mootai || 0);
-      for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
+      const saleRevenue = saleQuantity * Number(sale.price_per_mootai || 0);
+      const quantities = saleQuantitiesByUnit(sale);
+      for (const [unit, quantity] of Object.entries(quantities)) {
         row.quantities[unit] = (row.quantities[unit] || 0) + quantity;
-        row.rates[unit] = (row.rates[unit] || 0) + amount;
+        row.revenueByUnit[unit] = (row.revenueByUnit[unit] || 0) + saleRevenue;
       }
-      row.billed += amount;
+      row.billed += saleRevenue;
       byProduct.set(key, row);
     }
     table(doc, {
-      startY: tableStartY,
-      head: [['Product', 'Quantity', 'Rate (INR) / Unit', 'Total Bill']],
+      startY: 80,
+      head: [['Product', 'Quantity by unit', 'Average rate by unit', 'Total Bill']],
       body: byProduct.size
-        ? Array.from(byProduct.values()).map((row) => [
-          row.product,
-          formatUnitQuantities(row.quantities),
-          Object.entries(row.quantities).map(([unit, quantity]) => (
-            `${Number(quantity ? row.rates[unit] / quantity : 0).toLocaleString('en-IN', { maximumFractionDigits: 6 })} / ${unit}`
-          )).join(' / '),
+        ? Array.from(byProduct.entries()).map(([product, row]) => [
+          product,
+          formatQuantityByUnit(row.quantities),
+          Object.entries(row.quantities)
+            .map(([unit, quantity]) => `${RATE(quantity ? row.revenueByUnit[unit] / quantity : 0)}/${unit}`)
+            .join(' · '),
           MONEY(row.billed),
         ])
-            : [['No sales recorded this month', '-', '-', '-']],
+        : [['—', '—', '—', 'No sales recorded this month']],
+      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 52 }, 2: { cellWidth: 52 }, 3: { cellWidth: 55 } },
     });
     const paymentY = (doc.lastAutoTable?.finalY || 88) + 8;
     doc.setFont('helvetica', 'bold');
@@ -483,7 +430,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
         kind: 'Bill',
         product: sale.product || 'Sale',
         quantity: formatSaleQuantities(sale),
-        rate: pdfSaleRate(sale),
+        rate: formatSaleRates(sale),
         amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
         notes: sale.notes || '',
       })),
@@ -491,34 +438,33 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
         date: paymentRow.paid_at,
         kind: 'Payment',
         product: 'Payment received',
-        quantity: '-',
-        rate: '-',
+        quantity: '—',
+        rate: '—',
         amount: MONEY(paymentRow.amount_paid),
         notes: paymentRow.notes || '',
       })),
     ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
     table(doc, {
-      startY: tableStartY,
-      styles: { fontSize: 8.5, cellPadding: 2.5 },
-      head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate (INR)', 'Amount (INR)', 'Notes']],
+      startY: 80,
+      head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
       body: transactions.length
         ? transactions.map((row) => [
           formatDateCompact(row.date), row.kind, row.product, row.quantity, row.rate, row.amount, row.notes,
         ])
-        : [['-', '-', 'No bills or payments recorded', '-', '-', '-', '']],
+        : [['—', '—', 'No bills or payments recorded', '—', '—', '—', '']],
       columnStyles: {
         0: { cellWidth: 25 },
-        1: { cellWidth: 18, halign: 'center' },
-        2: { cellWidth: 43 },
-        3: { cellWidth: 34, halign: 'right' },
-        4: { cellWidth: 60, halign: 'right' },
-        5: { cellWidth: 33, halign: 'right' },
-        6: { cellWidth: 56 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 58 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 29 },
+        5: { cellWidth: 31 },
+        6: { cellWidth: 76 },
       },
     });
   }
 
   addPageNumbers(doc);
-  const filename = `${safeFilename(buyer.name)}_GSM_${realTodayIST()}.pdf`;
+  const filename = `GSM_${safeFilename(buyer.name)}_${kind === 'monthly' ? 'Monthly_Bill' : 'Complete_Bill'}_${safeFilename(period)}.pdf`;
   return new File([doc.output('blob')], filename, { type: 'application/pdf' });
 }

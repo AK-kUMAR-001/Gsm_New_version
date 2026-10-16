@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gsm-traders-shell-v2';
+const CACHE_NAME = 'gsm-traders-shell-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -50,14 +50,15 @@ self.addEventListener('fetch', (event) => {
 
   if (['script', 'style', 'image', 'font'].includes(request.destination) || url.pathname.endsWith('.webmanifest')) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
+      caches.match(request).then((cached) => {
+        const network = fetch(request).then((response) => {
           if (!response.ok) return response;
           return caches.open(CACHE_NAME)
             .then((cache) => cache.put(request, response.clone()))
             .then(() => response);
-        })
-        .catch(async () => (await caches.match(request)) || Response.error())
+        });
+        return cached || network.catch(() => Response.error());
+      })
     );
   }
 });

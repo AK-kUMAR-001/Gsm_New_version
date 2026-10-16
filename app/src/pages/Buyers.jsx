@@ -5,7 +5,6 @@ import { currencyINR, formatDateCompact } from '../lib/business.js';
 import AddBuyerModal from '../components/AddBuyerModal.jsx';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
-import BillAlertModal from '../components/BillAlertModal.jsx';
 import Avatar from '../components/Avatar.jsx';
 import {
   IndianRupee,
@@ -24,7 +23,7 @@ import {
   Receipt,
   HandCoins,
   AlertCircle,
-  MessageCircle,
+  Archive,
 } from 'lucide-react';
 
 const FILTERS = [
@@ -46,7 +45,7 @@ function latestBuyerActivity(buyer) {
 }
 
 export default function Buyers() {
-  const { buyers, balances, buyerSales, payments } = useAppData();
+  const { activeBuyers, buyersById, balances } = useAppData();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -54,12 +53,24 @@ export default function Buyers() {
   const [addOpen, setAddOpen] = useState(false);
   const [saleBuyerId, setSaleBuyerId] = useState(null);
   const [paymentBuyerId, setPaymentBuyerId] = useState(null);
-  const [billAlertOpen, setBillAlertOpen] = useState(false);
 
   const q = query.trim().toLowerCase();
+  const activeBalanceList = useMemo(
+    () => balances.list.filter((buyer) => !buyersById[buyer.id]?.archived_at),
+    [balances.list, buyersById]
+  );
+  const activeBalanceSummary = useMemo(() => activeBalanceList.reduce((summary, buyer) => {
+    if (buyer.balance_due > 0) {
+      summary.outstandingCount += 1;
+      summary.outstandingTotal += buyer.balance_due;
+    } else {
+      summary.clearedCount += 1;
+    }
+    return summary;
+  }, { outstandingCount: 0, outstandingTotal: 0, clearedCount: 0 }), [activeBalanceList]);
 
   const list = useMemo(() => {
-    let rows = balances.list;
+    let rows = activeBalanceList;
     if (q) {
       rows = rows.filter((b) => {
         const name = String(b.name || '').toLowerCase();
@@ -77,7 +88,7 @@ export default function Buyers() {
     }
     if (sort === 'az') sorted.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     return sorted;
-  }, [balances.list, q, filter, sort]);
+  }, [activeBalanceList, q, filter, sort]);
 
   return (
     <div className="space-y-6">
@@ -87,7 +98,7 @@ export default function Buyers() {
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-ink-500">Total Buyers</div>
-              <div className="mt-2 text-3xl font-extrabold text-ink-900">{buyers.length}</div>
+              <div className="mt-2 text-3xl font-extrabold text-ink-900">{activeBuyers.length}</div>
             </div>
             <div className="w-11 h-11 rounded-2xl bg-sidebar-accent/10 flex items-center justify-center text-sidebar-accent">
               <Users className="w-5 h-5" />
@@ -103,7 +114,7 @@ export default function Buyers() {
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-ink-500">Outstanding</div>
-              <div className="mt-2 text-3xl font-extrabold text-ink-900">{balances.outstanding_count}</div>
+              <div className="mt-2 text-3xl font-extrabold text-ink-900">{activeBalanceSummary.outstandingCount}</div>
             </div>
             <div className="w-11 h-11 rounded-2xl bg-amber-500/15 flex items-center justify-center text-amber-600">
               <AlertCircle className="w-5 h-5" />
@@ -119,7 +130,7 @@ export default function Buyers() {
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-ink-500">Cleared</div>
-              <div className="mt-2 text-3xl font-extrabold text-ink-900">{balances.cleared_count}</div>
+              <div className="mt-2 text-3xl font-extrabold text-ink-900">{activeBalanceSummary.clearedCount}</div>
             </div>
             <div className="w-11 h-11 rounded-2xl bg-brand-green/15 flex items-center justify-center text-green-700">
               <CreditCard className="w-5 h-5" />
@@ -136,7 +147,7 @@ export default function Buyers() {
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-ink-500">Total Due</div>
               <div className="mt-2 break-words text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">
-                {currencyINR(balances.outstanding_total)}
+                {currencyINR(activeBalanceSummary.outstandingTotal)}
               </div>
             </div>
             <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-purple/10 text-brand-purple sm:flex">
@@ -198,14 +209,10 @@ export default function Buyers() {
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400 pointer-events-none" />
           </div>
 
-          <button
-            type="button"
-            onClick={() => setBillAlertOpen(true)}
-            className="btn-outline lg:!px-5 min-h-[44px]"
-          >
-            <MessageCircle className="w-4 h-4" />
-            Bill Alert
-          </button>
+          <Link to="/buyers/deleted" className="btn-outline lg:!px-5 min-h-[44px]">
+            <Archive className="w-4 h-4" />
+            Deleted Customers
+          </Link>
           <button
             onClick={() => setAddOpen(true)}
             className="btn-green lg:!px-5 min-h-[44px]"
@@ -377,14 +384,6 @@ export default function Buyers() {
         open={!!paymentBuyerId}
         onClose={() => setPaymentBuyerId(null)}
         buyerId={paymentBuyerId}
-      />
-      <BillAlertModal
-        open={billAlertOpen}
-        onClose={() => setBillAlertOpen(false)}
-        buyers={buyers}
-        balances={balances}
-        buyerSales={buyerSales}
-        payments={payments}
       />
     </div>
   );

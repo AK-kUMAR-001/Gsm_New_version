@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, Store, BarChart3, Package, Boxes, LogOut,
+  LayoutDashboard, Users, Store, BarChart3, Package, Boxes, LogOut, Archive,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
 
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/inventory', label: 'Daily Stock In', Icon: Boxes },
   { to: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { to: '/buyers',    label: 'Buyers',    Icon: Users },
+  { to: '/buyers/deleted', label: 'Deleted Customers', Icon: Archive },
   { to: '/retail',    label: 'Retail',    Icon: Store },
   { to: '/reports',   label: 'Reports',   Icon: BarChart3 },
   { to: '/products',  label: 'Products',  Icon: Package },

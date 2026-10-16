@@ -1,151 +1,6 @@
 const INDIAN_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const LEGACY_SALE_UNIT_CUTOFF = '2026-10-15';
 
-export const KATTU_PER_MOOTAI = 50;
-export const KG_PER_MOOTAI = 30;
-
-const PRODUCT_UNITS = {
-  malli: { salesUnit: 'Kattu', stockUnit: 'Mootai', stockToSalesFactor: 50 },
-  pudina: { salesUnit: 'Kattu', stockUnit: 'Mootai', stockToSalesFactor: 200 },
-  karuvepillai: { salesUnit: 'Kg', stockUnit: 'Kg', stockToSalesFactor: 1 },
-};
-
-function configuredProductUnits(product) {
-  const name = String(product?.name || '').trim().toLocaleLowerCase();
-  return PRODUCT_UNITS[name];
-}
-
-export function productSalesUnit(product) {
-  const configured = String(product?.sales_unit || '').trim();
-  const defaults = configuredProductUnits(product);
-  return configured || defaults?.salesUnit || 'Mootai';
-}
-
-export function productStockUnit(product) {
-  const configured = String(product?.stock_entry_unit || '').trim();
-  const defaults = configuredProductUnits(product);
-  return configured || defaults?.stockUnit || productSalesUnit(product);
-}
-
-export function productStockToSalesFactor(product) {
-  const defaults = configuredProductUnits(product);
-  const configured = product?.stock_to_sales_factor;
-  const factor = Number(configured ?? defaults?.stockToSalesFactor ?? 1);
-  return Number.isFinite(factor) && factor > 0 ? factor : 1;
-}
-
-export function saleInputUnits(product) {
-  const salesUnit = productSalesUnit(product);
-  const stockUnit = productStockUnit(product);
-  return stockUnit !== salesUnit && productStockToSalesFactor(product) !== 1
-    ? [salesUnit, stockUnit]
-    : [salesUnit];
-}
-
-export function saleQuantityInSalesUnits(product, quantity, inputUnit) {
-  const value = Number(quantity);
-  if (!Number.isFinite(value)) return 0;
-  const factor = inputUnit === productStockUnit(product)
-    ? productStockToSalesFactor(product)
-    : 1;
-  return value * factor;
-}
-
-export function saleQuantityUnit(sale, products = []) {
-  const storedUnit = String(sale?.quantity_unit || '').trim();
-  if (storedUnit) return storedUnit;
-  const saleDate = String(sale?.sale_date || '').slice(0, 10);
-  if (saleDate && saleDate < '2026-10-13') return 'Mootai';
-  const product = products.find((item) => item.name === sale?.product);
-  return productSalesUnit(product || { name: sale?.product });
-}
-
-function findSaleProduct(sale, products) {
-  const name = String(sale?.product || '').trim().toLocaleLowerCase();
-  return products.find((product) => String(product.name || '').trim().toLocaleLowerCase() === name)
-    || { name: sale?.product };
-}
-
-export function saleQuantitiesForDisplay(sale, products = []) {
-  const product = findSaleProduct(sale, products);
-  const quantity = Number(sale?.mootais ?? sale?.mootais_sold ?? 0);
-  const stockUnit = productStockUnit(product);
-  const salesUnit = productSalesUnit(product);
-  const factor = productStockToSalesFactor(product);
-  const storedUnit = saleQuantityUnit(sale, products);
-  const date = String(sale?.sale_date || '').slice(0, 10);
-  const isLegacyStockQuantity = date && date < '2026-10-13'
-    && storedUnit === stockUnit && stockUnit !== salesUnit;
-  const salesQuantity = isLegacyStockQuantity
-    ? quantity * factor
-    : quantity;
-
-  if (date && date <= LEGACY_SALE_UNIT_CUTOFF && stockUnit !== salesUnit) {
-    return { [stockUnit]: salesQuantity / factor };
-  }
-  if (stockUnit !== salesUnit && factor !== 1) {
-    const enteredStockUnit = date >= '2026-10-16' && storedUnit === stockUnit;
-    const enteredUnit = enteredStockUnit ? stockUnit : salesUnit;
-    const enteredQuantity = enteredStockUnit
-      ? salesQuantity / factor
-      : salesQuantity;
-    const equivalentQuantity = enteredStockUnit
-      ? salesQuantity
-      : salesQuantity / factor;
-    const equivalentUnit = enteredStockUnit ? salesUnit : stockUnit;
-    return {
-      [enteredUnit]: enteredQuantity,
-      [equivalentUnit]: equivalentQuantity,
-    };
-  }
-  return { [salesUnit]: salesQuantity };
-}
-
-export function formatSaleQuantities(sale, products = []) {
-  return formatUnitQuantities(saleQuantitiesForDisplay(sale, products));
-}
-
-export function formatSaleRates(sale, products = []) {
-  const amount = Number(sale?.mootais ?? sale?.mootais_sold ?? 0)
-    * Number(sale?.price_per_mootai ?? 0);
-  return Object.entries(saleQuantitiesForDisplay(sale, products))
-    .map(([unit, quantity]) => {
-      const rate = quantity === 0 ? 0 : amount / quantity;
-      return `₹${rate.toLocaleString('en-IN', { maximumFractionDigits: 6 })} per ${unit}`;
-    })
-    .join(' / ');
-}
-
-export function formatUnitQuantities(quantities = {}) {
-  return Object.entries(quantities)
-    .filter(([, quantity]) => Number(quantity) !== 0)
-    .map(([unit, quantity]) => `${Number(quantity).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`)
-    .join(', ') || '0';
-}
-
-export function formatProductQuantityForDate(product, quantity, date) {
-  const salesUnit = productSalesUnit(product);
-  const stockUnit = productStockUnit(product);
-  const useStockUnit = date && date <= LEGACY_SALE_UNIT_CUTOFF && stockUnit !== salesUnit;
-  const value = Number(quantity || 0) / (useStockUnit ? productStockToSalesFactor(product) : 1);
-  const unit = useStockUnit ? stockUnit : salesUnit;
-  return `${value.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`;
-}
-
-export function formatStockCountForDate(product, quantity, date) {
-  const salesUnit = productSalesUnit(product);
-  const stockUnit = productStockUnit(product);
-  const factor = productStockToSalesFactor(product);
-  const stockQuantity = Number(quantity || 0) / factor;
-  if (stockUnit === salesUnit || (date && date <= LEGACY_SALE_UNIT_CUTOFF)) {
-    return `${stockQuantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${stockUnit}`;
-  }
-  return formatUnitQuantities({
-    [stockUnit]: stockQuantity,
-    [salesUnit]: Number(quantity || 0),
-  });
-}
-
 const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
@@ -155,6 +10,227 @@ const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
 export function currencyINR(n) {
   const v = n == null || Number.isNaN(Number(n)) ? 0 : Number(n);
   return CURRENCY_FMT.format(Math.round(v));
+}
+
+export function currencyINRPerUnit(n) {
+  const value = Number(n || 0);
+  return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 6 })}`;
+}
+
+export function productSalesUnit(product) {
+  const name = String(product?.name || '').trim().toLocaleLowerCase();
+  const productUnits = {
+    malli: { salesUnit: 'Kattu', stockUnit: 'Mootai', factor: 50 },
+    pudina: { salesUnit: 'Kattu', stockUnit: 'Mootai', factor: 200 },
+    karuvepillai: { salesUnit: 'Kg', stockUnit: 'Kg', factor: 1 },
+  };
+  const standard = productUnits[name];
+  if (standard) return standard.salesUnit;
+  return String(product?.sales_unit || 'Mootai').trim() || 'Mootai';
+}
+
+export function isRemovedProductName(name) {
+  return ['puundu', 'poondu'].includes(String(name || '').trim().toLocaleLowerCase());
+}
+
+export function productStockUnit(product) {
+  const name = String(product?.name || '').trim().toLocaleLowerCase();
+  const standard = { malli: 'Mootai', pudina: 'Mootai', karuvepillai: 'Kg' }[name];
+  return standard || String(product?.stock_entry_unit || productSalesUnit(product)).trim() || productSalesUnit(product);
+}
+
+export function productStockToSalesFactor(product) {
+  const name = String(product?.name || '').trim().toLocaleLowerCase();
+  const standard = { malli: 50, pudina: 200, karuvepillai: 1 }[name];
+  if (standard) return standard;
+  const factor = Number(product?.stock_to_sales_factor ?? 1);
+  return Number.isFinite(factor) && factor > 0 ? factor : 1;
+}
+
+export function saleQuantityUnit(sale) {
+  const storedUnit = String(sale?.quantity_unit || '').trim();
+  if (storedUnit) return storedUnit;
+  const name = String(sale?.product || '').trim().toLocaleLowerCase();
+  const stockUnit = productStockUnit({ name });
+  const saleDate = String(sale?.sale_date || '').slice(0, 10);
+  return saleDate && saleDate < '2026-10-13'
+    ? stockUnit
+    : productSalesUnit({ name });
+}
+
+function saleQuantityInSalesUnit(sale, product) {
+  const quantity = Number(sale?.mootais ?? sale?.mootais_sold ?? 0);
+  const storedUnit = saleQuantityUnit(sale);
+  if (storedUnit === productSalesUnit(product)) return quantity;
+  if (storedUnit === productStockUnit(product)) {
+    return quantity * productStockToSalesFactor(product);
+  }
+  return quantity;
+}
+
+export function saleInputUnits(product) {
+  const salesUnit = productSalesUnit(product);
+  const stockUnit = productStockUnit(product);
+  return salesUnit === stockUnit || productStockToSalesFactor(product) === 1
+    ? [salesUnit]
+    : [stockUnit, salesUnit];
+}
+
+export function normalizeSaleInput(product, quantity, rate, inputUnit) {
+  const value = Number(quantity);
+  const unitRate = Number(rate);
+  const salesUnit = productSalesUnit(product);
+  const stockUnit = productStockUnit(product);
+  if (inputUnit !== salesUnit && inputUnit !== stockUnit) {
+    throw new Error('Choose a valid sale unit for this product.');
+  }
+  const factor = inputUnit === stockUnit ? productStockToSalesFactor(product) : 1;
+  return {
+    quantity: value * factor,
+    rate: unitRate / factor,
+  };
+}
+
+export function saleQuantityInUnit(product, quantity, inputUnit, targetUnit) {
+  const salesQuantity = normalizeSaleInput(product, quantity, 0, inputUnit).quantity;
+  const factor = productStockToSalesFactor(product);
+  return targetUnit === productStockUnit(product) ? salesQuantity / factor : salesQuantity;
+}
+
+export function saleRateInUnit(product, rate, inputUnit, targetUnit) {
+  const salesRate = normalizeSaleInput(product, 0, rate, inputUnit).rate;
+  const factor = productStockToSalesFactor(product);
+  return targetUnit === productStockUnit(product) ? salesRate * factor : salesRate;
+}
+
+export function malliKgEquivalent(product, quantity, unit) {
+  if (String(product?.name || '').trim().toLocaleLowerCase() !== 'malli') return null;
+  const value = Number(quantity);
+  if (!Number.isFinite(value)) return null;
+  if (unit === 'Kg') return value;
+  if (unit === 'Mootai') return value * 35;
+  if (unit === 'Kattu') return value * 35 / 50;
+  return null;
+}
+
+export function formatMalliKgEquivalent(product, quantity, unit) {
+  const kg = malliKgEquivalent(product, quantity, unit);
+  return kg == null ? '' : `${formatQuantity(kg)} Kg`;
+}
+
+function findSaleProduct(sale, products = []) {
+  const productName = String(sale?.product || '').trim().toLocaleLowerCase();
+  return products.find((item) => String(item.name || '').trim().toLocaleLowerCase() === productName)
+    || { name: sale?.product };
+}
+
+export function productQuantitiesByUnit(product, salesQuantity) {
+  const quantity = Number(salesQuantity);
+  const salesUnit = productSalesUnit(product);
+  const stockUnit = productStockUnit(product);
+  const factor = productStockToSalesFactor(product);
+  const quantities = stockUnit === salesUnit || factor === 1
+    ? { [salesUnit]: quantity }
+    : { [stockUnit]: quantity / factor, [salesUnit]: quantity };
+  const kg = malliKgEquivalent(product, quantity, salesUnit);
+  if (kg != null) quantities.Kg = kg;
+  return quantities;
+}
+
+export function formatProductQuantities(product, salesQuantity) {
+  return Object.entries(productQuantitiesByUnit(product, salesQuantity))
+    .map(([unit, quantity]) => `${formatQuantity(quantity)} ${unit}`)
+    .join(' / ');
+}
+
+export function formatSalesQuantityForDate(product, salesQuantity, date) {
+  if (date && date <= LEGACY_SALE_UNIT_CUTOFF) {
+    const stockUnit = productStockUnit(product);
+    if (stockUnit !== productSalesUnit(product)) {
+      const legacyQuantity = Number(salesQuantity || 0) / productStockToSalesFactor(product);
+      const kg = malliKgEquivalent(product, salesQuantity, productSalesUnit(product));
+      return [
+        `${formatQuantity(legacyQuantity)} ${stockUnit}`,
+        kg == null ? '' : `${formatQuantity(kg)} Kg`,
+      ].filter(Boolean).join(' / ');
+    }
+  }
+  return formatProductQuantities(product, salesQuantity);
+}
+
+export function movementQuantityInSalesUnits(movement, product, sale, products = []) {
+  const quantity = Number(movement?.quantity_delta || 0);
+  if (sale) {
+    const salesQuantity = saleQuantityInSalesUnit(sale, findSaleProduct(sale, products));
+    return Math.sign(quantity) * salesQuantity;
+  }
+
+  const movementUnit = String(movement?.quantity_unit || '').trim();
+  if (movementUnit === productStockUnit(product) && movementUnit !== productSalesUnit(product)) {
+    return quantity * productStockToSalesFactor(product);
+  }
+  return quantity;
+}
+
+export function formatMovementQuantities(movement, product, sale, products = []) {
+  if (sale) {
+    const direction = Math.sign(Number(movement?.quantity_delta || 0));
+    return Object.entries(saleQuantitiesByUnit(sale, products))
+      .map(([unit, quantity]) => `${formatQuantity(direction * quantity)} ${unit}`)
+      .join(' / ');
+  }
+  return formatProductQuantities(
+    product,
+    movementQuantityInSalesUnits(movement, product, sale, products)
+  );
+}
+
+export function saleQuantitiesByUnit(sale, products = []) {
+  const product = findSaleProduct(sale, products);
+  const salesQuantity = saleQuantityInSalesUnit(sale, product);
+  const saleDate = String(sale?.sale_date || '').slice(0, 10);
+  if (saleDate && saleDate <= LEGACY_SALE_UNIT_CUTOFF) {
+    const stockUnit = productStockUnit(product);
+    if (stockUnit !== productSalesUnit(product)) {
+      const quantities = {
+        [stockUnit]: salesQuantity / productStockToSalesFactor(product),
+      };
+      const kg = malliKgEquivalent(product, salesQuantity, productSalesUnit(product));
+      if (kg != null) quantities.Kg = kg;
+      return quantities;
+    }
+  }
+  return productQuantitiesByUnit(product, salesQuantity);
+}
+
+export function formatSaleQuantities(sale, products = []) {
+  return Object.entries(saleQuantitiesByUnit(sale, products))
+    .map(([unit, quantity]) => `${formatQuantity(quantity)} ${unit}`)
+    .join(' / ');
+}
+
+export function formatSaleRates(sale, products = []) {
+  const amount = Number(sale?.mootais ?? sale?.mootais_sold ?? 0)
+    * Number(sale?.price_per_mootai ?? 0);
+  return Object.entries(saleQuantitiesByUnit(sale, products))
+    .map(([unit, quantity]) => `${currencyINRPerUnit(quantity === 0 ? 0 : amount / quantity)} per ${unit}`)
+    .join(' / ');
+}
+
+export function formatQuantity(value) {
+  return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
+}
+
+export function formatQuantityByUnit(quantities) {
+  return Object.entries(quantities || {})
+    .filter(([, quantity]) => Number(quantity) !== 0)
+    .map(([unit, quantity]) => `${formatQuantity(quantity)} ${unit}`)
+    .join(' / ');
+}
+
+function addQuantityByUnit(target, unit, quantity) {
+  const key = unit || 'Mootai';
+  target[key] = (target[key] || 0) + Number(quantity || 0);
 }
 
 export function formatDateCompact(iso) {
@@ -260,6 +336,7 @@ export function computeInventoryCostReport(movements, buyerSales, retailSales, p
   let trackedSaleCost = 0;
   let trackedSaleRevenue = 0;
   let trackedSalesCount = 0;
+  const stockBalances = new Map();
   for (const movement of inPeriodMovements) {
     const cost = Number(movement.cost_delta || 0);
     if (movement.movement_type === 'receipt') receiptCost += cost;
@@ -273,6 +350,14 @@ export function computeInventoryCostReport(movements, buyerSales, retailSales, p
       }
     }
   }
+  for (const movement of movements || []) {
+    if (String(movement.movement_date || '').slice(0, 10) > todayIST('reports')) continue;
+    stockBalances.set(
+      movement.product_id,
+      (stockBalances.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+    );
+  }
+  const stockShortage = Array.from(stockBalances.values()).some((quantity) => quantity < 0);
 
   return {
     receiptCost,
@@ -280,8 +365,9 @@ export function computeInventoryCostReport(movements, buyerSales, retailSales, p
     trackedSaleCost,
     trackedSaleRevenue,
     trackedSalesCount,
-    trackedGrossProfit: trackedSaleRevenue - trackedSaleCost,
-    tradingProfit: trackedSaleRevenue - trackedSaleCost - spoilageCost,
+    trackedGrossProfit: stockShortage ? null : trackedSaleRevenue - trackedSaleCost,
+    tradingProfit: stockShortage ? null : trackedSaleRevenue - trackedSaleCost - spoilageCost,
+    stockShortage,
     trackedRevenueCoverage: totalRevenue > 0
       ? Math.min(100, (trackedSaleRevenue / totalRevenue) * 100)
       : 0,
@@ -294,14 +380,14 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
   const salesByProduct = new Map();
   const addSale = (sale, sourceKind, quantity, price) => {
     if (String(sale.sale_date || '').slice(0, 10) !== date) return;
+    const productName = String(sale.product || '').trim().toLocaleLowerCase();
     const revenue = Number(quantity || 0) * Number(price || 0);
-    const productSales = salesByProduct.get(sale.product) || { revenue: 0, salesCount: 0 };
-    productSales.revenue += revenue;
-    productSales.salesCount += 1;
-    salesByProduct.set(sale.product, productSales);
-    salesBySource.set(`${sourceKind}:${sale.id}`, sale.product);
+    const sales = salesByProduct.get(productName) || { revenue: 0, salesCount: 0 };
+    sales.revenue += revenue;
+    sales.salesCount += 1;
+    salesByProduct.set(productName, sales);
+    salesBySource.set(`${sourceKind}:${sale.id}`, { productName, revenue });
   };
-
   for (const sale of buyerSales || []) {
     addSale(sale, 'buyer_sales', sale.mootais, sale.price_per_mootai);
   }
@@ -309,37 +395,92 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
     addSale(sale, 'retail_sales', sale.mootais_sold, sale.price_per_mootai);
   }
 
-  const profitsByProductId = new Map();
+  const productCosts = new Map();
   for (const setting of settings || []) {
     const product = productsById.get(setting.product_id);
-    if (!product || product.active === false) continue;
-
-    const productSales = salesByProduct.get(product.name) || { revenue: 0, salesCount: 0 };
-    let saleCostTotal = 0;
-    let costedSalesCount = 0;
-    let damageCost = 0;
-    for (const movement of movements || []) {
-      if (movement.product_id !== setting.product_id || movement.movement_date !== date) continue;
-      if (movement.movement_type === 'sale') {
-        const saleProduct = salesBySource.get(`${movement.source_kind}:${movement.source_id}`);
-        if (saleProduct === product.name) {
-          saleCostTotal += Number(movement.cost_delta || 0);
-          costedSalesCount += 1;
-        }
-      } else if (movement.movement_type === 'spoilage') {
-        damageCost -= Number(movement.cost_delta || 0);
-      }
-    }
-
-    const saleCost = Math.abs(saleCostTotal);
-    const hasCompleteSaleCosts = costedSalesCount >= productSales.salesCount;
-    profitsByProductId.set(setting.product_id, {
-      saleCost,
-      damageCost,
-      finalProfit: hasCompleteSaleCosts ? productSales.revenue - saleCost - damageCost : null,
+    if (!product) continue;
+    productCosts.set(setting.product_id, {
+      product,
+      revenue: salesByProduct.get(String(product.name || '').trim().toLocaleLowerCase())?.revenue || 0,
+      salesCount: salesByProduct.get(String(product.name || '').trim().toLocaleLowerCase())?.salesCount || 0,
+      saleCost: 0,
+      costedSalesCount: 0,
+      damageCost: 0,
+      stockBalance: 0,
     });
   }
-  return profitsByProductId;
+
+  for (const movement of movements || []) {
+    if (movement.movement_date !== date) continue;
+    const costs = productCosts.get(movement.product_id);
+    if (!costs) continue;
+    costs.stockBalance += Number(movement.quantity_delta || 0);
+    if (movement.movement_type === 'sale') {
+      const sale = salesBySource.get(`${movement.source_kind}:${movement.source_id}`);
+      if (sale && sale.productName === String(costs.product.name || '').trim().toLocaleLowerCase()) {
+        costs.saleCost -= Number(movement.cost_delta || 0);
+        costs.costedSalesCount += 1;
+      }
+    } else if (movement.movement_type === 'spoilage') {
+      costs.damageCost -= Number(movement.cost_delta || 0);
+    }
+  }
+
+  return new Map(Array.from(productCosts.entries()).map(([productId, costs]) => {
+    const costsComplete = costs.costedSalesCount >= costs.salesCount;
+    const stockShortage = costs.stockBalance < 0;
+    return [productId, {
+      ...costs,
+      finalProfit: costsComplete && !stockShortage
+        ? costs.revenue - costs.saleCost - costs.damageCost
+        : null,
+      costsComplete,
+      stockShortage,
+    }];
+  }));
+}
+
+export function buildDailyStockClosingRows(settings, movements, counts, products, date) {
+  const productsById = new Map((products || []).map((product) => [product.id, product]));
+  const countsByProduct = new Map(
+    (counts || []).filter((count) => count.stock_date === date).map((count) => [count.product_id, count])
+  );
+  return (settings || []).map((setting) => {
+    const product = productsById.get(setting.product_id);
+    const todaysMovements = (movements || []).filter(
+      (movement) => movement.product_id === setting.product_id && movement.movement_date === date
+    );
+    const quantityOf = (predicate, sign = 1) => todaysMovements
+      .filter(predicate)
+      .reduce((sum, movement) => sum + sign * Number(movement.quantity_delta || 0), 0);
+    const opening = quantityOf((movement) => movement.movement_type === 'opening');
+    const buyerSold = quantityOf(
+      (movement) => movement.movement_type === 'sale' && movement.source_kind === 'buyer_sales',
+      -1
+    );
+    const retailSold = quantityOf(
+      (movement) => movement.movement_type === 'sale' && movement.source_kind === 'retail_sales',
+      -1
+    );
+    const count = countsByProduct.get(setting.product_id);
+    return {
+      productId: setting.product_id,
+      product,
+      productName: product?.name || 'Unknown product',
+      unit: productSalesUnit(product),
+      opening,
+      receipts: quantityOf((movement) => movement.movement_type === 'receipt'),
+      buyerSold,
+      retailSold,
+      sold: buyerSold + retailSold,
+      damaged: quantityOf((movement) => movement.movement_type === 'spoilage', -1),
+      countVariance: quantityOf((movement) => movement.movement_type === 'count_adjustment'),
+      corrections: quantityOf((movement) => movement.movement_type === 'correction'),
+      closing: todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
+      countedQuantity: count?.counted_quantity ?? null,
+      countRecorded: !!count,
+    };
+  }).sort((a, b) => a.productName.localeCompare(b.productName));
 }
 
 export function buildProductPerformance(buyerSales, retailSales, movements, productCatalog = []) {
@@ -350,11 +491,9 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     if (!products.has(productName)) {
       products.set(productName, {
         product: productName,
-        wholesale_quantity: 0,
-        wholesale_quantities_by_unit: {},
+        wholesale_quantities: {},
         wholesale_revenue: 0,
-        retail_quantity: 0,
-        retail_quantities_by_unit: {},
+        retail_quantities: {},
         retail_revenue: 0,
         tracked_revenue: 0,
         stock_cost: 0,
@@ -370,9 +509,8 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
     const revenue = quantity * Number(sale.price_per_mootai || 0);
     const row = getProduct(sale.product);
-    row.wholesale_quantity += quantity;
-    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(sale, productCatalog))) {
-      row.wholesale_quantities_by_unit[unit] = (row.wholesale_quantities_by_unit[unit] || 0) + displayQuantity;
+    for (const [unit, value] of Object.entries(saleQuantitiesByUnit(sale, productCatalog))) {
+      addQuantityByUnit(row.wholesale_quantities, unit, value);
     }
     row.wholesale_revenue += revenue;
     salesById.set(`buyer_sales:${sale.id}`, { row, revenue });
@@ -381,9 +519,8 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     const quantity = Number(sale.mootais_sold ?? sale.mootais ?? 0);
     const revenue = quantity * Number(sale.price_per_mootai || 0);
     const row = getProduct(sale.product);
-    row.retail_quantity += quantity;
-    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(sale, productCatalog))) {
-      row.retail_quantities_by_unit[unit] = (row.retail_quantities_by_unit[unit] || 0) + displayQuantity;
+    for (const [unit, value] of Object.entries(saleQuantitiesByUnit(sale, productCatalog))) {
+      addQuantityByUnit(row.retail_quantities, unit, value);
     }
     row.retail_revenue += revenue;
     salesById.set(`retail_sales:${sale.id}`, { row, revenue });
@@ -400,11 +537,17 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     }
     if (movement.movement_type === 'spoilage') row.spoilage_cost -= cost;
   }
+  for (const movement of movements || []) {
+    if (String(movement.movement_date || '').slice(0, 10) > todayIST('reports')) continue;
+    const row = getProduct(movement.product_name || productNamesById.get(movement.product_id));
+    row.stock_balance = Number(row.stock_balance || 0) + Number(movement.quantity_delta || 0);
+  }
 
   return Array.from(products.values())
     .map((row) => ({
       ...row,
-      trading_profit: row.tracked_sales
+      stock_shortage: Number(row.stock_balance || 0) < 0,
+      trading_profit: row.tracked_sales && Number(row.stock_balance || 0) >= 0
         ? row.tracked_revenue - row.stock_cost - row.spoilage_cost
         : null,
     }))
@@ -425,8 +568,8 @@ export function buildWhatsAppBillUrl(buyer, balance, buyerSales, buyerPayments) 
     if (!monthly.has(month)) monthly.set(month, { quantities: {}, billed: 0, paid: 0 });
     const row = monthly.get(month);
     const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
-      row.quantities[unit] = (row.quantities[unit] || 0) + displayQuantity;
+    for (const [unit, value] of Object.entries(saleQuantitiesByUnit(sale))) {
+      addQuantityByUnit(row.quantities, unit, value);
     }
     row.billed += quantity * Number(sale.price_per_mootai || 0);
   }
@@ -436,26 +579,28 @@ export function buildWhatsAppBillUrl(buyer, balance, buyerSales, buyerPayments) 
     if (!monthly.has(month)) monthly.set(month, { quantities: {}, billed: 0, paid: 0 });
     monthly.get(month).paid += Number(payment.amount_paid || 0);
   }
+  const totalQuantities = {};
+  for (const sale of buyerSales || []) {
+    if (sale.buyer_id === buyer.id) {
+      for (const [unit, value] of Object.entries(saleQuantitiesByUnit(sale))) {
+        addQuantityByUnit(totalQuantities, unit, value);
+      }
+    }
+  }
+
   const monthLines = Array.from(monthly.entries())
     .sort(([left], [right]) => right.localeCompare(left))
     .slice(0, 12)
     .reverse()
     .map(([month, amounts]) => (
-      `${new Date(`${month}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}: ${formatUnitQuantities(amounts.quantities)} | billed INR ${Math.round(amounts.billed).toLocaleString('en-IN')} | paid INR ${Math.round(amounts.paid).toLocaleString('en-IN')}`
+      `${new Date(`${month}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}: ${formatQuantityByUnit(amounts.quantities)} | billed INR ${Math.round(amounts.billed).toLocaleString('en-IN')} | paid INR ${Math.round(amounts.paid).toLocaleString('en-IN')}`
     ));
   const message = [
     `Hi ${buyer.name},`,
     'GSM Traders bill reminder:',
     '',
     ...(monthLines.length ? ['Monthly summary (latest 12 months):', ...monthLines, ''] : []),
-    `Total quantities purchased: ${formatUnitQuantities((buyerSales || [])
-      .filter((sale) => sale.buyer_id === buyer.id)
-      .reduce((totals, sale) => {
-        for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale))) {
-          totals[unit] = (totals[unit] || 0) + quantity;
-        }
-        return totals;
-      }, {}))}`,
+    `Total quantity purchased: ${formatQuantityByUnit(totalQuantities)}`,
     `Total billed: INR ${Math.round(balance?.total_sales || 0).toLocaleString('en-IN')}`,
     `Total paid: INR ${Math.round(balance?.total_paid || 0).toLocaleString('en-IN')}`,
     `Amount pending: INR ${Math.round(balance?.balance_due || 0).toLocaleString('en-IN')}`,
@@ -514,7 +659,6 @@ export function getProductEmoji(productName, products = []) {
     Malli: '🌼',
     Pudina: '🌿',
     Karuvepillai: '🍃',
-    poondu: '🧄',
   };
   return map[productName] || '🌱';
 }
@@ -615,15 +759,14 @@ export function computeBuyerBalances(buyers, buyerSales, buyerPayments) {
   return out;
 }
 
-export function computeProductRevenue(buyerSales, retailSales, products = []) {
+export function computeProductRevenue(buyerSales, retailSales, productCatalog = []) {
   const agg = new Map();
-  const bump = (sale, revenue) => {
-    const productName = sale.product;
+  const bump = (productName, quantities, revenue) => {
     const k = productName || '(Unknown)';
-    if (!agg.has(k)) agg.set(k, { product: k, quantities_by_unit: {}, total_revenue: 0, sales_count: 0 });
+    if (!agg.has(k)) agg.set(k, { product: k, total_quantities: {}, total_revenue: 0, sales_count: 0 });
     const e = agg.get(k);
-    for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale, products))) {
-      e.quantities_by_unit[unit] = (e.quantities_by_unit[unit] || 0) + quantity;
+    for (const [unit, quantity] of Object.entries(quantities)) {
+      addQuantityByUnit(e.total_quantities, unit, quantity);
     }
     e.total_revenue += Number(revenue || 0);
     e.sales_count += 1;
@@ -631,12 +774,12 @@ export function computeProductRevenue(buyerSales, retailSales, products = []) {
   for (const s of buyerSales || []) {
     const q = s.mootais ?? s.mootais_sold ?? 0;
     const r = s.price_per_mootai ?? 0;
-    bump(s, q * r);
+    bump(s.product, saleQuantitiesByUnit(s, productCatalog), q * r);
   }
   for (const s of retailSales || []) {
     const q = s.mootais_sold ?? s.mootais ?? 0;
     const r = s.price_per_mootai ?? 0;
-    bump(s, q * r);
+    bump(s.product, saleQuantitiesByUnit(s, productCatalog), q * r);
   }
   return Array.from(agg.values()).sort((a, b) => b.total_revenue - a.total_revenue);
 }
@@ -652,7 +795,7 @@ export function todayFigures(buyerSales, retailSales, buyerPayments) {
   return { buyers, retail, collections, total: buyers + retail };
 }
 
-export function buildRecentActivity(buyerSales, payments, buyersById = {}, limit = 8) {
+export function buildRecentActivity(buyerSales, payments, buyersById = {}, limit = 8, retailSales = []) {
   const rows = [];
   for (const s of buyerSales || []) {
     const buyer = buyersById[s.buyer_id];
@@ -661,10 +804,12 @@ export function buildRecentActivity(buyerSales, payments, buyersById = {}, limit
       type: 'SALE',
       id: s.id,
       product: s.product,
-      buyer_name: buyer ? buyer.name : '',
+      buyer_name: buyer ? (buyer.archived_at ? 'Deleted user' : buyer.name) : '',
       buyer_id: s.buyer_id,
       amount: (s.mootais ?? s.mootais_sold ?? 0) * (s.price_per_mootai ?? 0),
       date: s.sale_date || null,
+      buyer,
+      record: s,
     });
   }
   for (const p of payments || []) {
@@ -674,10 +819,26 @@ export function buildRecentActivity(buyerSales, payments, buyersById = {}, limit
       type: 'PAYMENT',
       id: p.id,
       product: null,
-      buyer_name: buyer ? buyer.name : '',
+      buyer_name: buyer ? (buyer.archived_at ? 'Deleted user' : buyer.name) : '',
       buyer_id: p.buyer_id,
       amount: Number(p.amount_paid ?? 0),
       date: p.paid_at || null,
+      buyer,
+      record: p,
+    });
+  }
+  for (const s of retailSales || []) {
+    rows.push({
+      ts: s.sale_date || s.created_at || '',
+      type: 'RETAIL',
+      id: s.id,
+      product: s.product,
+      buyer_name: '',
+      buyer_id: null,
+      amount: (s.mootais_sold ?? s.mootais ?? 0) * (s.price_per_mootai ?? 0),
+      date: s.sale_date || null,
+      buyer: null,
+      record: s,
     });
   }
   rows.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));

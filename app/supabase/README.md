@@ -67,34 +67,99 @@ order:
 5. `202610130003_enforce_stock_before_sales.sql` after the import is complete
 6. `202610130004_set_stock_quantity.sql` to enable setting an exact stock
    balance, including zero
-7. `202610140001_enforce_stock_and_archive_products.sql` to reassert
-   server-side sale stock checks and make deletion archive products with
-   inventory history instead of deleting referenced ledger records
-8. `202610150001_product_units_and_historical_conversion.sql` to configure
-   Malli/Pudina in Kattu per Mootai, configure Karuvepillai in Kg, and convert
-   sales and inventory records dated 13 Oct 2026 onward without changing
-   revenue
-9. `202610150002_daily_stock_reset.sql` to show only today's stock balance and
-   require a new physical count for each India-time day
-10. `202610150003_sale_entry_units.sql` to allow sales to be entered in either
-    the product's configured sales unit or stock-entry unit, while storing
-    canonical sales-unit quantities and adjusted per-unit rates
-11. `202610160001_preserve_sale_entry_units.sql` to retain the chosen input
-    unit on each new sale for display, without changing canonical quantities,
-    stock movements, rates, or sale totals
+7. `202610150001_product_units_and_historical_conversion.sql` after the
+   historical import and ledger reconciliation are complete
+8. `202610150002_daily_stock_reset.sql` to start each India-time calendar day
+   with zero available stock until that day's count or stock entries are recorded
+9. `202610150003_sale_input_unit_conversion.sql` to convert any still-original
+   15 Oct Malli/Pudina sale entries and add unit-aware sale RPCs
+10. `202610150005_reconcile_sale_movement_units.sql` if 15 Oct stock movements
+    still show the original Mootai quantities as Kattu; it verifies the saved
+    sale totals against the original records, then normalizes only linked sale
+    movement quantities without changing costs or morning counts
+11. `202610150004_repair_sale_cost_unit_conversion.sql` only if migration 003
+    was run with the earlier cost-multiplication bug and the report totals match
+    its guarded 15 Oct values. Run 005 before 004 if 004 has not yet been
+    applied, since 004 expects canonical movement quantities. If 004 is already
+    applied, 005 can still be run afterward to reconcile quantities.
+12. `202610160001_buyer_lifecycle.sql` to add archive/restore, the Deleted
+    Customers view, and audited permanent purge support. Apply it after
+    `202610110001_inventory_ledger.sql` and `202610110002_delete_buyer_data.sql`.
+    Run it in the Supabase SQL Editor for the new project; the app requires
+    this migration for archive and permanent purge actions.
+13. `202610160002_transaction_corrections.sql` to enable owner-authorized
+    editing and deletion of buyer sales, retail sales, and buyer payments.
+    Apply it after `202610160001_buyer_lifecycle.sql`; sale corrections use
+    database functions to keep the inventory ledger consistent. If you applied
+    an earlier copy before the final hardening updates, rerun the current file
+    in the Supabase SQL Editor before using transaction corrections.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
 also requires stock tracking for every newly recorded sale and rejects sales
 that exceed the usable balance. Existing sale rows are not rewritten.
-Record Malli and Pudina morning physical counts in Mootai; the app converts
-them to canonical Kattu quantities for the stock ledger. Karuvepillai counts
-remain in Kg.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
-level to tracked products. It defaults to 5 Mootais; set it to 0 to turn off the
-warning for a product. The app displays warnings on the dashboard and Daily Stock
-In page and refreshes the balance after a successful sale.
+level to tracked products. It defaults to 5 of the product's sales units; set it
+to 0 to turn off the warning for a product. The app displays warnings on the
+dashboard and Daily Stock In page and refreshes the balance after a successful
+sale.
+
+The product-unit migration sets product-specific sales and stock-entry units.
+Its initial configuration is Pudina: 200 Kattu per Mootai; Malli: 50 Kattu per
+Mootai; Karuvepillai: Kg for both stock and sales. Sales dated 13 Oct 2026 or
+later, tracked stock movements, counts, and low-stock thresholds for these
+products are converted to the configured sales unit. Sale revenue and stock
+value are preserved; earlier sales keep their saved Mootai units. The migration
+stops rather than silently mixing units if these tracked products have stock
+movements or counts before 13 Oct 2026. After transactions exist, product unit
+settings are protected from edits that would reinterpret saved quantities.
+
+The sale input-unit migration is safe to run after the product-unit migration.
+It converts only 15 Oct Malli/Pudina rows that still have their original
+per-Mootai rates, and leaves rows already converted by the earlier migration
+unchanged. If it finds a mix of original and converted rates for that date, it
+stops for review rather than risk a double conversion. It also adds buyer and
+retail RPCs that convert entered Mootai quantities and rates to canonical
+accounting units before saving. The conversion preserves sale totals and
+updates the matching sale stock quantities while preserving each movement's
+total cost; it does not change morning counts or invent missing stock. Any
+negative balance after conversion is a real reconciliation issue and must be
+resolved from verified stock records before relying on profit.
+
+Sale histories dated through 15 Oct 2026 display in their original Mootai/Kg
+units and rates, while stock, revenue, and profit calculations continue to use
+the normalized accounting quantities internally. Sales dated 16 Oct 2026 or
+later display both the entered stock unit and its equivalent sales unit; buyer
+and retail entry forms allow selecting either unit and normalize it before
+saving.
+
+The one-time 004 repair is for databases where an earlier version of migration
+003 also multiplied linked Malli/Pudina sale movement costs by 50/200. It
+divides only the matched 15 Oct movement costs back by those factors, and aborts
+unless the migrated sales, quantities, revenue, and cost totals match the
+verified report snapshot. It does not change sale revenue, quantities, counts,
+or non-sale movements.
+
+The 005 reconciliation verifies the original 15 Oct totals (Malli 4,975 Kattu,
+Pudina 27,200 Kattu, and Karuvepillai 33.5 Kg) and requires each of the 11 buyer
+sales to have exactly one linked movement with either its original or canonical
+quantity. It then writes each linked movement's canonical quantity and unit,
+without changing sale rows, movement costs, or morning counts. It deliberately
+does not create missing 14 Oct stock movements or receipts; their stock cost
+and opening-stock history must be verified separately.
+
+The daily stock reset migration makes the displayed and enforced available
+balance, its average cost, and stock corrections use only movements dated today
+in India time. Yesterday's closing stock remains in the ledger for historical
+reports but does not carry into today's available balance. Record today's
+physical count or stock entry before making sales; an untouched product is
+shown as not entered today.
+
+Daily closing uses only movements dated on the selected day, consistent with
+the daily stock reset. Daily final profit is sales revenue minus linked sale
+stock cost and recorded spoilage cost; it is shown as unavailable when any
+tracked sale is missing its linked cost.
 
 Before applying the inventory and low-stock migrations to a new database:
 
@@ -103,33 +168,12 @@ Before applying the inventory and low-stock migrations to a new database:
    retries, and overselling in this new project.
 3. Reconcile balances before using inventory features for live business.
 
-Tracked products require an opening stock record and a physical count for the
-current India Standard Time date before a sale can be recorded. The sale row and
-its stock deduction are written in one database transaction. Historical sales
-remain untracked and their costs are not inferred.
-
-The two 15 Oct product-unit migrations must be run in order after
-`202610140001_enforce_stock_and_archive_products.sql`. Back up and reconcile
-the database first. The product-unit migration converts existing sales and
-ledger quantities from Mootai to the configured sales units for records dated
-13 Oct 2026 onward; it intentionally stops if it was already applied or if
-pre-13 Oct tracked stock needs review. Do not run either migration again once
-it has succeeded. Deploy the matching app only after both migrations complete.
-
-Apply `202610150003_sale_entry_units.sql` after both product-unit migrations
-and `202610160001_preserve_sale_entry_units.sql` after it; deploy the matching
-app afterward. Buyer and retail sale forms can then accept either Kattu or
-Mootai for Malli and Pudina; the database converts the quantity to Kattu and
-adjusts the rate per Kattu without changing the sale total while retaining
-which unit was entered. Karuvepillai remains entered and stored in Kg. Do not
-deploy the updated forms before both migrations, because they send the
-selected input unit to the sale RPCs.
-
-Sales through 15 Oct 2026 display in the original Mootai/Kg units and rates;
-their stored Kattu quantities remain canonical for stock and profit accounting.
-Sales dated 16 Oct 2026 onward display the entered quantity/rate first, followed
-by its equivalent in the other unit. Buyer and retail entry forms continue to
-let the user choose either input unit.
+Tracked products require an initial opening stock record and a physical count
+for each current India Standard Time date before a sale can be recorded. Each
+date's available balance starts at zero; only that date's count and movements
+are usable for sales. The sale row and its stock deduction are written in one
+database transaction. Historical sales remain untracked and their costs are not
+inferred.
 
 For the live-data clone, run the historical-untracked-sales migration before
 syncing so the recovered past sales can be imported. After verifying the
@@ -138,12 +182,7 @@ temporary allowance for new untracked sales without modifying historical rows.
 Apply `202610130004_set_stock_quantity.sql` to enable the Inventory page's
 Edit stock action to set the exact available balance, including zero. This
 records only the balance difference as a correction; it does not rewrite past
-movements or sales. Apply
-`202610140001_enforce_stock_and_archive_products.sql` after it: buyer and retail
-sales then require an active, tracked product, today's physical count, and
-sufficient stock, enforced atomically by database triggers. Product deletion
-archives products with inventory history; products without stock history can
-still be permanently deleted.
+movements or sales.
 Buyer deletion follows the inventory ledger because it cooperates with the
 ledger's sale-protection triggers.
 
@@ -173,19 +212,22 @@ prints today's totals without showing customer or transaction details. The
 command is idempotent; if a network error interrupts it, inspect the result and
 rerun it with the same backup.
 
-The `202610110002_delete_buyer_data.sql` migration adds the buyer delete action.
-It permanently removes the buyer, all buyer sales and payments, and (if the
-inventory ledger exists) the sale movements linked to those sales. Removing
-the sale movements increases the stock balance for tracked products; this is
-explained in the confirmation dialog. This migration can be applied with or
-without the inventory-ledger migration. The delete RPC has not been applied
-to a database. If the RPC is missing, the app tries direct deletes using the
-signed-in user's database permissions. Direct deletes run as separate requests,
-so a later permission error can leave some linked rows already deleted; the app
-reports this instead of showing a success message. Tracked-sale protections
-can also reject direct deletion.
+The buyer lifecycle migration keeps archived buyers and all their historical
+sales, payments, and stock movements in the live database, so reports and
+aggregates remain unchanged. It removes archived buyers from the normal buyer
+list and allows them to be restored. Permanent purge is only allowed after
+archiving and runs in one database transaction: it first copies the buyer,
+sales, payments (including a legacy `payments` table when present), and linked
+buyer-sale inventory movements to `app_private.buyer_purge_recycle_bin`, then
+removes those records and movements from live tables. The recycle bin is not
+granted to `anon` or `authenticated` and is not exposed through the app. The
+migration revokes direct authenticated deletes on buyer-linked tables and
+disables the older delete RPC so a purge cannot bypass the backup. The app has
+no client-side partial-delete fallback; missing migration or RPC errors leave
+the live data untouched and are reported to the operator.
 
-The migration does not provide a general correction workflow for saved
-transactions. Tracked sale edits and direct deletions remain blocked; do not
-edit transaction rows directly. Complete and test audited correction
-operations before treating v0.2 as production-ready.
+The transaction-corrections migration provides the audited workflow for saved
+buyer sales, retail sales, and buyer payments. The app uses these RPCs instead
+of directly editing or deleting tracked transactions. Apply the latest
+`202610160002_transaction_corrections.sql` revision before using the correction
+controls so its stock checks and table permissions are current.

@@ -56,15 +56,6 @@ body {
 .input {
   @apply w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-ink-200 bg-white text-ink-900 placeholder:text-ink-400 focus:outline-none focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition text-sm;
 }
-.input.hide-number-spinner {
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-.input.hide-number-spinner::-webkit-inner-spin-button,
-.input.hide-number-spinner::-webkit-outer-spin-button {
-  margin: 0;
-  -webkit-appearance: none;
-}
 .label {
   @apply block text-xs font-bold uppercase tracking-wider text-ink-500 mb-1.5;
 }

@@ -10,6 +10,7 @@ import {
   inPeriod,
   setRefToday,
   realTodayIST,
+  isRemovedProductName,
 } from '../lib/business.js';
 
 const AppDataContext = createContext(null);
@@ -58,6 +59,7 @@ export function AppDataProvider({ children }) {
   const auth = useAuth();
   const [buyers, setBuyers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [removedProductIds, setRemovedProductIds] = useState(new Set());
   const [suppliers, setSuppliers] = useState([]);
   const [buyerSales, setBuyerSales] = useState([]);
   const [retailSales, setRetailSales] = useState([]);
@@ -106,6 +108,10 @@ export function AppDataProvider({ children }) {
       loadError = failed.error;
     } else {
       [b, p, s, bs, rs, pay] = results.map((result) => result.data);
+      setRemovedProductIds(new Set(p.filter((product) => isRemovedProductName(product.name)).map((product) => product.id)));
+      p = p.filter((product) => !isRemovedProductName(product.name));
+      bs = bs.filter((sale) => !isRemovedProductName(sale.product));
+      rs = rs.filter((sale) => !isRemovedProductName(sale.product));
       setDataLoadError('');
       setOffline(false);
     }
@@ -125,6 +131,7 @@ export function AppDataProvider({ children }) {
     if (!auth.isAuthed) {
       setBuyers([]);
       setProducts([]);
+      setRemovedProductIds(new Set());
       setSuppliers([]);
       setBuyerSales([]);
       setRetailSales([]);
@@ -153,12 +160,12 @@ export function AppDataProvider({ children }) {
       supabase.from('inventory_product_settings').select('product_id, enabled_at, low_stock_threshold'),
       supabase.from('inventory_stock_summary').select('product_id, quantity_on_hand, inventory_value, average_unit_cost, enabled_at'),
       fetchAllPaginated(supabase, 'inventory_daily_counts', {
-        columns: 'product_id, stock_date, counted_quantity, expected_quantity, variance_quantity, recorded_by, created_at',
+        columns: 'product_id, stock_date, counted_quantity, expected_quantity, variance_quantity, quantity_unit, recorded_by, created_at',
         orderCol: 'stock_date',
         orderAsc: true,
       }),
       fetchAllPaginated(supabase, 'inventory_stock_movements', {
-        columns: 'id, product_id, movement_type, quantity_delta, cost_delta, movement_date, supplier_id, source_kind, source_id, reason, created_at',
+        columns: 'id, product_id, movement_type, quantity_delta, cost_delta, quantity_unit, movement_date, supplier_id, source_kind, source_id, reason, created_at',
         orderCol: 'created_at',
       }),
     ]);
@@ -169,13 +176,14 @@ export function AppDataProvider({ children }) {
       return { error: failed.error };
     }
 
-    setInventorySettings(settings.data || []);
-    setInventorySummary(summary.data || []);
-    setInventoryCounts(counts.data || []);
-    setInventoryMovements(movements.data || []);
+    const visibleRows = (rows) => (rows || []).filter((row) => !removedProductIds.has(row.product_id));
+    setInventorySettings(visibleRows(settings.data));
+    setInventorySummary(visibleRows(summary.data));
+    setInventoryCounts(visibleRows(counts.data));
+    setInventoryMovements(visibleRows(movements.data));
     setInventoryLoading(false);
     return { data: true };
-  }, [offline]);
+  }, [offline, removedProductIds]);
 
   const updateInventoryLowStockThreshold = async (productId, threshold) => {
     if (offline) {
@@ -222,6 +230,11 @@ export function AppDataProvider({ children }) {
     return m;
   }, [buyers]);
 
+  const activeBuyers = useMemo(
+    () => buyers.filter((buyer) => !buyer.archived_at),
+    [buyers]
+  );
+
   const balances = useMemo(
     () => computeBuyerBalances(buyers, buyerSales, payments),
     [buyers, buyerSales, payments]
@@ -244,8 +257,8 @@ export function AppDataProvider({ children }) {
   );
 
   const recent = useMemo(
-    () => buildRecentActivity(buyerSales, payments, buyersById, 8),
-    [buyerSales, payments, buyersById]
+    () => buildRecentActivity(buyerSales, payments, buyersById, 8, retailSales),
+    [buyerSales, payments, buyersById, retailSales]
   );
 
   const activeProducts = useMemo(
@@ -275,87 +288,68 @@ export function AppDataProvider({ children }) {
     return { data: data?.[0] };
   };
 
-  const deleteBuyer = async (id) => {
+  const setBuyerArchived = async (id, archived) => {
     if (offline) {
-      const error = new Error('Buyer deletion requires the live database.');
+      const error = new Error('Buyer archiving requires the live database.');
       showToast(error.message, 'warn');
       return { error };
     }
 
-    const finishBuyerDeletion = async () => {
-      setBuyers((prev) => prev.filter((buyer) => buyer.id !== id));
-      setBuyerSales((prev) => prev.filter((sale) => sale.buyer_id !== id));
-      setPayments((prev) => prev.filter((payment) => payment.buyer_id !== id));
-      showToast('Buyer, sales, and payments deleted', 'success');
-      const inventoryRefresh = await loadInventory();
-      if (inventoryRefresh.error) {
-        showToast('Buyer data was deleted, but stock could not refresh. Refresh Inventory to check its balance.', 'warn');
-      }
-      return { data: true };
-    };
+    const { error } = await supabase.rpc('set_buyer_archived', {
+      p_buyer_id: id,
+      p_archived: archived,
+    });
+    if (error) {
+      showToast(`Could not ${archived ? 'archive' : 'restore'} buyer: ${error.message}`, 'error');
+      return { error };
+    }
 
-    const { error: rpcError } = await supabase.rpc('delete_buyer_and_all_data', {
+    const archivedAt = archived ? new Date().toISOString() : null;
+    setBuyers((prev) => prev.map((buyer) => (
+      buyer.id === id ? { ...buyer, archived_at: archivedAt } : buyer
+    )));
+    showToast(archived ? 'Buyer archived; history and reports are unchanged.' : 'Buyer restored.', 'success');
+    return { data: true };
+  };
+
+  const purgeBuyer = async (id) => {
+    if (offline) {
+      const error = new Error('Permanent buyer purge requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+
+    const { error } = await supabase.rpc('purge_archived_buyer', {
       p_buyer_id: id,
     });
-    if (!rpcError) return finishBuyerDeletion();
-
-    const missingDeleteFunction = rpcError.code === 'PGRST202'
-      || rpcError.message?.includes('delete_buyer_and_all_data')
-      || rpcError.message?.includes('schema cache');
-    if (!missingDeleteFunction) {
-      showToast('Could not delete buyer: ' + rpcError.message, 'error');
-      return { error: rpcError };
-    }
-
-    let salesDeleted = false;
-    let paymentsDeleted = false;
-    const refreshAfterPartialDelete = async (stage, error) => {
-      if (salesDeleted || paymentsDeleted) {
-        const refreshed = await load();
-        const detail = refreshed.error
-          ? ' Local data could not refresh; reload the app to check saved records.'
-          : ' Some linked records may already be deleted; the buyer profile was not confirmed deleted.';
-        const partialError = new Error(`Could not finish deleting this buyer while deleting ${stage}: ${error.message}.${detail}`);
-        showToast(partialError.message, 'error');
-        return { error: partialError, partial: true };
-      }
-      showToast(`Could not delete buyer: ${error.message}`, 'error');
+    if (error) {
+      showToast(`Could not permanently purge buyer: ${error.message}`, 'error');
       return { error };
-    };
-
-    const { error: salesError } = await supabase
-      .from('buyer_sales')
-      .delete()
-      .eq('buyer_id', id);
-    if (salesError) return refreshAfterPartialDelete('sales', salesError);
-    salesDeleted = true;
-
-    for (const table of ['buyer_payments', 'payments']) {
-      const { error } = await supabase.from(table).delete().eq('buyer_id', id);
-      if (!error) {
-        paymentsDeleted = true;
-        continue;
-      }
-      const missingTable = error.code === 'PGRST205' || error.code === '42P01';
-      if (missingTable) continue;
-      return refreshAfterPartialDelete('payments', error);
     }
 
-    const { data, error: buyerError } = await supabase
-      .from('buyers')
-      .delete()
-      .eq('id', id)
-      .select('id');
-    if (buyerError) return refreshAfterPartialDelete('buyer record', buyerError);
-    if (!data?.length) {
-      return refreshAfterPartialDelete('buyer record', new Error('No buyer row was deleted. Check database delete permissions.'));
-    }
+    const saleIds = new Set(buyerSales.filter((sale) => sale.buyer_id === id).map((sale) => sale.id));
+    setBuyers((prev) => prev.filter((buyer) => buyer.id !== id));
+    setBuyerSales((prev) => prev.filter((sale) => sale.buyer_id !== id));
+    setPayments((prev) => prev.filter((payment) => payment.buyer_id !== id));
+    setInventoryMovements((prev) => prev.filter((movement) => (
+      movement.source_kind !== 'buyer_sales' || !saleIds.has(movement.source_id)
+    )));
+    showToast('Buyer and linked history permanently purged from live data.', 'success');
 
-    return finishBuyerDeletion();
+    const inventoryRefresh = await loadInventory();
+    if (inventoryRefresh.error) {
+      showToast('Buyer data was purged, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    }
+    return { data: true };
   };
 
   const updateProduct = async (id, patch) => {
     if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
+    if (isRemovedProductName(patch.name)) {
+      const error = new Error('Puundu is no longer available in the application.');
+      showToast(error.message, 'error');
+      return { error };
+    }
     const { data, error } = await supabase.from('products').update(patch).eq('id', id).select();
     if (error) { showToast('Could not update product: ' + error.message, 'error'); return { error }; }
     if (data?.[0]) setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...data[0] } : p)));
@@ -369,11 +363,19 @@ export function AppDataProvider({ children }) {
       showToast(error.message, 'warn');
       return { error };
     }
+    if (isRemovedProductName(input.name)) {
+      const error = new Error('Puundu is no longer available in the application.');
+      showToast(error.message, 'error');
+      return { error };
+    }
     const payload = {
       name: input.name.trim(),
       emoji: input.emoji,
       sort_order: Number(input.sort_order),
       active: input.active,
+      sales_unit: input.sales_unit,
+      stock_entry_unit: input.stock_entry_unit,
+      stock_to_sales_factor: Number(input.stock_to_sales_factor),
     };
     const { data, error } = await supabase.from('products').insert([payload]).select();
     if (error) {
@@ -396,39 +398,141 @@ export function AppDataProvider({ children }) {
       showToast(error.message, 'warn');
       return { error };
     }
-    const { data, error } = await supabase.rpc('inventory_delete_or_archive_product', {
-      p_product_id: id,
-    });
+    const { data, error } = await supabase.from('products').delete().eq('id', id).select('id');
     if (error) {
       showToast('Could not delete product: ' + error.message, 'error');
       return { error };
     }
-    if (data === 'archived') {
-      setProducts((prev) => prev.map((product) => (
-        product.id === id ? { ...product, active: false } : product
-      )));
-      showToast('Product has stock history, so it was archived to preserve the ledger.', 'info');
-      return { data: 'archived' };
-    }
-    if (data !== 'deleted') {
-      const missingRowError = new Error('The database did not confirm product deletion.');
+    if (!data?.length) {
+      const missingRowError = new Error('No product was deleted. Check database delete permissions.');
       showToast(missingRowError.message, 'error');
       return { error: missingRowError };
     }
     setProducts((prev) => prev.filter((product) => product.id !== id));
     showToast('Product deleted', 'success');
-    return { data: 'deleted' };
+    return { data: true };
+  };
+
+  const updateBuyerSale = async (id, row) => {
+    if (offline) return { error: new Error('Buyer sale edits require the live database.') };
+    const { data, error } = await supabase.rpc('inventory_update_buyer_sale', {
+      p_id: id,
+      p_buyer_id: row.buyer_id,
+      p_product: row.product,
+      p_quantity: row.mootais,
+      p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
+      p_sale_date: row.sale_date,
+      p_notes: row.notes,
+    });
+    if (error) {
+      showToast(`Could not update buyer sale: ${error.message}`, 'error');
+      return { error };
+    }
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!updated) {
+      const missingRowError = new Error('The database did not return the updated buyer sale.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setBuyerSales((prev) => prev.map((sale) => (sale.id === id ? updated : sale)));
+    showToast('Buyer sale updated; balances and reports recalculated.', 'success');
+    const refresh = await loadInventory();
+    if (refresh.error) showToast('Sale updated, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    return { data: updated };
+  };
+
+  const updateRetailSale = async (id, row) => {
+    if (offline) return { error: new Error('Retail sale edits require the live database.') };
+    const { data, error } = await supabase.rpc('inventory_update_retail_sale', {
+      p_id: id,
+      p_product: row.product,
+      p_quantity: row.mootais_sold,
+      p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
+      p_sale_date: row.sale_date,
+      p_notes: row.notes,
+    });
+    if (error) {
+      showToast(`Could not update retail sale: ${error.message}`, 'error');
+      return { error };
+    }
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!updated) {
+      const missingRowError = new Error('The database did not return the updated retail sale.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setRetailSales((prev) => prev.map((sale) => (sale.id === id ? updated : sale)));
+    showToast('Retail sale updated; stock and reports recalculated.', 'success');
+    const refresh = await loadInventory();
+    if (refresh.error) showToast('Sale updated, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    return { data: updated };
+  };
+
+  const updateBuyerPayment = async (id, row) => {
+    if (offline) return { error: new Error('Payment edits require the live database.') };
+    const { data, error } = await supabase.rpc('inventory_update_buyer_payment', {
+      p_id: id,
+      p_buyer_id: row.buyer_id,
+      p_amount_paid: row.amount_paid,
+      p_paid_at: row.paid_at,
+      p_notes: row.notes,
+    });
+    if (error) {
+      showToast(`Could not update payment: ${error.message}`, 'error');
+      return { error };
+    }
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!updated) {
+      const missingRowError = new Error('The database did not return the updated payment.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setPayments((prev) => prev.map((payment) => (payment.id === id ? updated : payment)));
+    showToast('Payment updated; buyer balance and reports recalculated.', 'success');
+    return { data: updated };
+  };
+
+  const deleteSaleRecord = async (rpcName, id, kind) => {
+    if (offline) return { error: new Error('Sale deletion requires the live database.') };
+    const { error } = await supabase.rpc(rpcName, { p_id: id });
+    if (error) {
+      showToast(`Could not delete ${kind}: ${error.message}`, 'error');
+      return { error };
+    }
+    if (kind === 'buyer sale') setBuyerSales((prev) => prev.filter((sale) => sale.id !== id));
+    else setRetailSales((prev) => prev.filter((sale) => sale.id !== id));
+    showToast(`${kind === 'buyer sale' ? 'Buyer sale' : 'Retail sale'} deleted and stock reversed.`, 'success');
+    const refresh = await loadInventory();
+    if (refresh.error) showToast('Sale deleted, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    return { data: true };
+  };
+
+  const deleteBuyerSale = (id) => deleteSaleRecord('inventory_delete_buyer_sale', id, 'buyer sale');
+  const deleteRetailSale = (id) => deleteSaleRecord('inventory_delete_retail_sale', id, 'retail sale');
+
+  const deleteBuyerPayment = async (id) => {
+    if (offline) return { error: new Error('Payment deletion requires the live database.') };
+    const { error } = await supabase.rpc('inventory_delete_buyer_payment', { p_id: id });
+    if (error) {
+      showToast(`Could not delete payment: ${error.message}`, 'error');
+      return { error };
+    }
+    setPayments((prev) => prev.filter((payment) => payment.id !== id));
+    showToast('Payment deleted; buyer balance and reports recalculated.', 'success');
+    return { data: true };
   };
 
   const insertBuyerSale = async (row) => {
     if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
-    const rpcResult = await supabase.rpc('inventory_record_buyer_sale', {
+    const rpcResult = await supabase.rpc('inventory_record_buyer_sale_with_unit', {
       p_id: row.id,
       p_buyer_id: row.buyer_id,
       p_product: row.product,
-      p_mootais: row.mootais,
-      p_price_per_mootai: row.price_per_mootai,
+      p_quantity: row.mootais,
       p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
       p_sale_date: row.sale_date,
       p_notes: row.notes,
     });
@@ -469,12 +573,12 @@ export function AppDataProvider({ children }) {
 
   const insertRetailSale = async (row, { showSuccessToast = true } = {}) => {
     if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
-    const { data, error } = await supabase.rpc('inventory_record_retail_sale', {
+    const { data, error } = await supabase.rpc('inventory_record_retail_sale_with_unit', {
       p_id: row.id,
       p_product: row.product,
-      p_mootais_sold: row.mootais_sold,
-      p_price_per_mootai: row.price_per_mootai,
+      p_quantity: row.mootais_sold,
       p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
       p_sale_date: row.sale_date,
       p_notes: row.notes,
     });
@@ -563,12 +667,14 @@ export function AppDataProvider({ children }) {
   }, []);
 
   const value = {
-    buyers, products, suppliers, buyerSales, retailSales, payments,
+    buyers, activeBuyers, products, suppliers, buyerSales, retailSales, payments,
     inventorySettings, inventorySummary, inventoryCounts, inventoryMovements,
     buyersById, balances, balancesById, productRevenue, today, recent, activeProducts,
     loading, offline, dataLoadError, toast, showToast, load,
     inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
-    insertBuyer, updateBuyer, deleteBuyer, updateProduct, insertProduct, deleteProduct, insertBuyerSale, insertPayment, insertRetailSale,
+    insertBuyer, updateBuyer, setBuyerArchived, purgeBuyer, updateProduct, insertProduct, deleteProduct,
+    insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
+    deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
     startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     filterByPeriod,
   };

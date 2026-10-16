@@ -5,9 +5,12 @@ import {
   todayIST,
   getProductEmoji,
   currencyINR,
+  currencyINRPerUnit,
   productSalesUnit,
-  saleQuantityInSalesUnits,
   saleInputUnits,
+  saleQuantityInUnit,
+  saleRateInUnit,
+  formatMalliKgEquivalent,
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from '../components/Modal.jsx';
@@ -17,7 +20,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   const { activeProducts, insertBuyerSale, insertPayment } = useAppData();
   const navigate = useNavigate();
   const [product, setProduct] = useState('');
-  const [saleUnit, setSaleUnit] = useState('');
+  const [quantityUnit, setQuantityUnit] = useState('');
   const [mootais, setMootais] = useState('');
   const [price_per_mootai, setPricePerMootai] = useState('');
   const [payment, setPayment] = useState('');
@@ -31,9 +34,8 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   useEffect(() => {
     if (open) {
       requestId.current = window.crypto.randomUUID();
-      const firstProduct = activeProducts[0];
-      setProduct(firstProduct?.name || '');
-      setSaleUnit(productSalesUnit(firstProduct));
+      setProduct(activeProducts[0]?.name || '');
+      setQuantityUnit(activeProducts[0] ? saleInputUnits(activeProducts[0])[0] : '');
       setMootais('');
       setPricePerMootai('');
       setPayment('');
@@ -46,10 +48,12 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   }, [open, activeProducts]);
 
   const total = (Number(mootais) || 0) * (Number(price_per_mootai) || 0);
-  const stockGuidance = saleStockGuidance(saveError, product);
   const selectedProduct = activeProducts.find((item) => item.name === product);
   const salesUnit = productSalesUnit(selectedProduct);
-  const inputUnits = saleInputUnits(selectedProduct);
+  const inputUnits = selectedProduct ? saleInputUnits(selectedProduct) : [];
+  const inputUnit = inputUnits.includes(quantityUnit) ? quantityUnit : inputUnits[0] || salesUnit;
+  const otherUnit = inputUnits.find((unit) => unit !== inputUnit);
+  const stockGuidance = saleStockGuidance(saveError, product);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -60,8 +64,8 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
       buyer_id: buyerId,
       product,
       mootais: Number(mootais),
+      quantity_unit: inputUnit,
       price_per_mootai: Number(price_per_mootai),
-      quantity_unit: saleUnit,
       sale_date,
       notes: notes.trim() || null,
     });
@@ -114,9 +118,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
               onChange={(e) => {
                 const nextProduct = activeProducts.find((item) => item.name === e.target.value);
                 setProduct(e.target.value);
-                setSaleUnit(productSalesUnit(nextProduct));
-                setMootais('');
-                setPricePerMootai('');
+                setQuantityUnit(nextProduct ? saleInputUnits(nextProduct)[0] : '');
               }}
               className="input appearance-none pr-10"
             >
@@ -130,52 +132,62 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Unit</label>
+            <label className="label">Quantity unit</label>
             <select
-              value={saleUnit}
-              onChange={(e) => setSaleUnit(e.target.value)}
+              value={inputUnit}
+              onChange={(event) => setQuantityUnit(event.target.value)}
               className="input"
             >
               {inputUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
             </select>
           </div>
           <div>
-            <label className="label">Qty ({saleUnit}) <span className="text-red-500">*</span></label>
+            <label className="label">{inputUnit} quantity <span className="text-red-500">*</span></label>
             <input
               required
               type="number"
-              min={saleUnit === 'Kattu' ? '1' : '0.001'}
-              step={saleUnit === 'Kattu' ? '1' : '0.001'}
+              min="0.001"
+              step="0.001"
               value={mootais}
               onChange={(e) => setMootais(e.target.value)}
               placeholder="0"
-              className="input hide-number-spinner"
+              className="input"
             />
-            {saleUnit !== salesUnit && Number(mootais) > 0 && (
-              <p className="mt-1 text-xs font-medium text-sidebar-accent" aria-live="polite">
-                = {saleQuantityInSalesUnits(selectedProduct, mootais, saleUnit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {salesUnit}
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="label">Rate / {saleUnit} <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <IndianRupee className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
-              <input
-                required
-                type="number"
-                min="0"
-                step="0.01"
-                value={price_per_mootai}
-                onChange={(e) => setPricePerMootai(e.target.value)}
-                placeholder="0"
-                className="input hide-number-spinner pl-11"
-              />
-            </div>
           </div>
         </div>
+
+        <div>
+          <label className="label">Price / {inputUnit} <span className="text-red-500">*</span></label>
+          <div className="relative">
+            <IndianRupee className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
+            <input
+              required
+              type="number"
+              min="0"
+              step="0.0001"
+              value={price_per_mootai}
+              onChange={(e) => setPricePerMootai(e.target.value)}
+              placeholder="0"
+              className="input pl-11"
+            />
+          </div>
+        </div>
+        {Number(mootais) > 0 && (otherUnit || formatMalliKgEquivalent(selectedProduct, Number(mootais), inputUnit)) && (
+          <p className="-mt-3 text-xs font-medium text-ink-500">
+            {otherUnit && (
+              <>
+                {saleQuantityInUnit(selectedProduct, Number(mootais), inputUnit, otherUnit).toLocaleString('en-IN', { maximumFractionDigits: 3 })} {otherUnit}
+                {Number(price_per_mootai) > 0 && (
+                  <> · {currencyINRPerUnit(saleRateInUnit(selectedProduct, Number(price_per_mootai), inputUnit, otherUnit))} per {otherUnit}</>
+                )}
+              </>
+            )}
+            {otherUnit && formatMalliKgEquivalent(selectedProduct, Number(mootais), inputUnit) ? ' · ' : ''}
+            {formatMalliKgEquivalent(selectedProduct, Number(mootais), inputUnit)}
+          </p>
+        )}
 
         <div>
           <label className="label">Sale Date</label>
@@ -198,7 +210,6 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
             step="0.01"
             value={payment}
             onChange={(e) => setPayment(e.target.value)}
-            className="input hide-number-spinner"
             placeholder="0 (optional)"
             className="input"
           />

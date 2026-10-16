@@ -3,19 +3,20 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
   getProductEmoji,
+  buildMonthlyBuckets,
+  buildDailyStockClosingRows,
   buildProductPerformance,
-  computeInventoryCostReport,
   computeDailyProductProfits,
-  formatUnitQuantities,
-  formatStockCountForDate,
-  formatProductQuantityForDate,
+  computeInventoryCostReport,
+  formatProductQuantities,
+  formatSalesQuantityForDate,
   formatSaleQuantities,
   formatSaleRates,
+  formatQuantityByUnit,
   inPeriod,
   parseDateStr,
-  productSalesUnit,
   realTodayIST,
-  saleQuantitiesForDisplay,
+  saleQuantitiesByUnit,
 } from '../lib/business.js';
 import PeriodPills from '../components/PeriodPills.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
@@ -45,10 +46,6 @@ function formatReportDate(dateKeyValue, options) {
   return date.toLocaleDateString('en-IN', options);
 }
 
-function shouldHideHistoricalBalance(date) {
-  return date >= '2026-10-13' && date <= '2026-10-15';
-}
-
 function entryTime(entry) {
   if (!entry.created_at || !String(entry.created_at).includes('T')) return '';
   const date = new Date(entry.created_at);
@@ -62,106 +59,6 @@ function sortEntriesByCreatedAt(entries) {
     String(a.created_at || `${a.sale_date || a.paid_at || ''}T00:00:00`)
       .localeCompare(String(b.created_at || `${b.sale_date || b.paid_at || ''}T00:00:00`))
   ));
-}
-
-function buildDailyStockClosingRows(settings, movements, counts, products, date, buyerSales, retailSales) {
-  const productsById = new Map(products.map((product) => [product.id, product]));
-  const countsByProduct = new Map(
-    counts.filter((count) => count.stock_date === date).map((count) => [count.product_id, count])
-  );
-  const salesByProduct = new Map();
-  const addSale = (sale, sourceKind, revenue) => {
-    const productSales = salesByProduct.get(sale.product) || {
-      buyerQuantitiesByUnit: {},
-      buyerRevenue: 0,
-      retailQuantitiesByUnit: {},
-      retailRevenue: 0,
-    };
-    const quantitiesByUnit = saleQuantitiesForDisplay(sale, products);
-    if (sourceKind === 'buyer_sales') {
-      for (const [unit, displayQuantity] of Object.entries(quantitiesByUnit)) {
-        productSales.buyerQuantitiesByUnit[unit] = (productSales.buyerQuantitiesByUnit[unit] || 0) + displayQuantity;
-      }
-      productSales.buyerRevenue += revenue;
-    } else {
-      for (const [unit, displayQuantity] of Object.entries(quantitiesByUnit)) {
-        productSales.retailQuantitiesByUnit[unit] = (productSales.retailQuantitiesByUnit[unit] || 0) + displayQuantity;
-      }
-      productSales.retailRevenue += revenue;
-    }
-    salesByProduct.set(sale.product, productSales);
-  };
-  for (const sale of buyerSales) {
-    addSale(
-      sale,
-      'buyer_sales',
-      Number(sale.mootais ?? 0) * Number(sale.price_per_mootai ?? 0),
-    );
-  }
-  for (const sale of retailSales) {
-    addSale(
-      sale,
-      'retail_sales',
-      Number(sale.mootais_sold ?? 0) * Number(sale.price_per_mootai ?? 0),
-    );
-  }
-  const profitsByProductId = computeDailyProductProfits(
-    settings,
-    movements,
-    products,
-    buyerSales,
-    retailSales,
-    date,
-  );
-  return settings.filter((setting) => {
-    const product = productsById.get(setting.product_id);
-    return product && product.active !== false;
-  }).map((setting) => {
-    const product = productsById.get(setting.product_id);
-    const productMovements = movements.filter((movement) => movement.product_id === setting.product_id);
-    const todaysMovements = productMovements.filter((movement) => movement.movement_date === date);
-    const damaged = todaysMovements
-      .filter((movement) => movement.movement_type === 'spoilage')
-      .reduce((sum, movement) => sum - Number(movement.quantity_delta || 0), 0);
-    const count = countsByProduct.get(setting.product_id);
-    const salesRevenue = salesByProduct.get(product?.name) || {
-      buyerQuantitiesByUnit: {},
-      buyerRevenue: 0,
-      retailQuantitiesByUnit: {},
-      retailRevenue: 0,
-    };
-    const profit = profitsByProductId.get(setting.product_id);
-    const totalRevenue = salesRevenue.buyerRevenue + salesRevenue.retailRevenue;
-    const buyerSold = salesRevenue.buyerQuantitiesByUnit;
-    const retailSold = salesRevenue.retailQuantitiesByUnit;
-    const sold = { ...buyerSold };
-    for (const [unit, quantity] of Object.entries(retailSold)) {
-      sold[unit] = (sold[unit] || 0) + quantity;
-    }
-    return {
-      productId: setting.product_id,
-      product,
-      productName: product?.name || 'Unknown product',
-      salesUnit: productSalesUnit(product),
-      buyerSold,
-      buyerRevenue: salesRevenue.buyerRevenue,
-      retailSold,
-      retailRevenue: salesRevenue.retailRevenue,
-      sold,
-      damaged,
-      saleCost: profit?.saleCost ?? 0,
-      damageCost: profit?.damageCost ?? 0,
-      totalRevenue,
-      finalProfit: profit?.finalProfit ?? null,
-      balance: todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
-      countedQuantity: count?.counted_quantity ?? null,
-      countRecorded: !!count,
-    };
-  }).sort((a, b) => a.productName.localeCompare(b.productName));
-}
-
-function formatQuantity(value) {
-  return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 });
 }
 
 function DailyActivitySection({ title, count, total, emptyText, children }) {
@@ -189,14 +86,14 @@ function DailyClosingSummary({
   date,
   buyerSalesTotal,
   retailSalesTotal,
+  paymentsTotal,
   receiptCost,
+  finalProfit,
   rows,
   offline,
   inventoryError,
   onRequestDownload,
 }) {
-  const hideBalance = shouldHideHistoricalBalance(date);
-
   return (
     <section className="rounded-3xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -204,42 +101,52 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Final profit = sales revenue − recorded cost of stock sold − damage cost.
-            {hideBalance
-              ? ' Historical stock balance is hidden for this date.'
-              : ' Balance is the closing stock after this date’s movements.'}
+            Stock is shown in each product’s sales unit. Closing uses this date’s movements only; it does not carry forward prior-day stock.
           </p>
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
-          <Download className="h-4 w-4" /> Download daily stock CSV
+          <Download className="h-4 w-4" /> Download stock closing CSV
         </button>
       </div>
 
-      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-5">
         <ReportCostCard label="Buyer sales" amount={buyerSalesTotal} />
         <ReportCostCard label="Retail sales" amount={retailSalesTotal} />
+        <ReportCostCard label="Payments received" amount={paymentsTotal} />
         <ReportCostCard label="Stock purchase cost" amount={offline || inventoryError ? null : receiptCost} />
+        <ReportCostCard label="Final profit" amount={offline || inventoryError ? null : finalProfit} />
       </div>
+      {!offline && !inventoryError && finalProfit == null && rows.length > 0 && (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {rows.some((row) => row.stockShortage)
+            ? 'Final profit is unavailable while a tracked product has negative closing stock. Reconcile stock first.'
+            : 'Final profit is unavailable because at least one tracked sale does not have a linked stock cost.'}
+        </p>
+      )}
 
       {offline || inventoryError ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Stock balance quantities are unavailable until the inventory database migration is applied and loaded.
+          Stock opening and closing quantities are unavailable until the inventory database migration is applied and loaded.
         </div>
       ) : rows.length === 0 ? (
         <p className="rounded-2xl bg-ink-50 p-4 text-sm text-ink-600">
-          No tracked products yet. Start stock tracking to include balance quantities.
+          No tracked products yet. Start stock tracking to include opening and closing quantities.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-100">
-          <table className="w-full min-w-[1120px] text-left text-sm">
+          <table className="w-full min-w-[1200px] text-left text-sm">
             <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
-                <th className="px-4 py-3 font-bold">Morning count</th>
+                <th className="px-4 py-3 text-right font-bold">Opening</th>
+                <th className="px-4 py-3 text-right font-bold">Received</th>
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                {!hideBalance && <th className="px-4 py-3 text-right font-bold">Balance</th>}
+                <th className="px-4 py-3 text-right font-bold">Count variance</th>
+                <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
+                <th className="px-4 py-3 text-right font-bold">Closing</th>
+                <th className="px-4 py-3 font-bold">Morning count</th>
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
               </tr>
             </thead>
@@ -247,34 +154,21 @@ function DailyClosingSummary({
               {rows.map((row) => (
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
+                  <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.opening)}</td>
+                  <td className="px-4 py-3 text-right text-green-700">{formatProductQuantities(row.product, row.receipts)}</td>
+                  <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.buyerSold, date)}</td>
+                  <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.retailSold, date)}</td>
+                  <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
+                  <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.countVariance)}</td>
+                  <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
+                  <td className={`px-4 py-3 text-right font-bold ${row.closing < 0 ? 'text-red-700' : ''}`}>
+                    {formatProductQuantities(row.product, row.closing)}
+                  </td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
-                    {row.countRecorded ? formatStockCountForDate(row.product, row.countedQuantity, date) : 'Count not recorded'}
+                    {row.countRecorded ? formatProductQuantities(row.product, row.countedQuantity) : 'Count not recorded'}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-700">
-                    <div>{formatUnitQuantities(row.buyerSold)}</div>
-                    <div className="mt-1 text-xs text-ink-500">{currencyINR(row.buyerRevenue)} sales</div>
-                  </td>
-                  <td className="px-4 py-3 text-right text-red-700">
-                    <div>{formatUnitQuantities(row.retailSold)}</div>
-                    <div className="mt-1 text-xs text-ink-500">{currencyINR(row.retailRevenue)} sales</div>
-                  </td>
-                  <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantityForDate(row.product, row.damaged, date)}</td>
-                  {!hideBalance && (
-                    <td className="px-4 py-3 text-right font-bold">{formatProductQuantityForDate(row.product, row.balance, date)}</td>
-                  )}
-                  <td className="px-4 py-3 text-right">
-                    {row.finalProfit == null ? (
-                      <span className="text-xs text-ink-500">Cost not recorded</span>
-                    ) : (
-                      <>
-                        <div className={`font-bold ${row.finalProfit < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                          {currencyINR(row.finalProfit)}
-                        </div>
-                        <div className="mt-1 whitespace-nowrap text-[11px] text-ink-500">
-                          {currencyINR(row.totalRevenue)} − {currencyINR(row.saleCost)} − {currencyINR(row.damageCost)}
-                        </div>
-                      </>
-                    )}
+                  <td className={`px-4 py-3 text-right font-bold ${row.finalProfit != null && row.finalProfit < 0 ? 'text-red-700' : 'text-green-700'}`}>
+                    {row.finalProfit == null ? 'Unavailable' : currencyINR(row.finalProfit)}
                   </td>
                 </tr>
               ))}
@@ -284,7 +178,12 @@ function DailyClosingSummary({
       )}
       {!offline && !inventoryError && rows.some((row) => !row.countRecorded) && (
         <p className="mt-3 text-xs text-amber-800">
-          Products without a physical count are clearly marked and should be checked before relying on their balance.
+          Closing quantities are ledger balances. Products without a physical count are clearly marked and should be checked before closing the day.
+        </p>
+      )}
+      {!offline && !inventoryError && rows.some((row) => row.closing < 0) && (
+        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">
+          Negative stock means sales exceed recorded stock. Reconcile the missing stock before relying on profit figures.
         </p>
       )}
     </section>
@@ -310,7 +209,7 @@ function ActivityEntry({ title, subtitle, amount, timestamp, emoji, note }) {
   );
 }
 
-function WeekDatePicker({ value, selectedDate, onChange }) {
+function WeekDatePicker({ value, onChange }) {
   const dates = getWeekDates(value);
   const today = realTodayIST();
   const firstDate = parseDateStr(dates[0]);
@@ -362,7 +261,7 @@ function WeekDatePicker({ value, selectedDate, onChange }) {
 
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {dates.map((day) => {
-          const selected = day === selectedDate;
+          const selected = day === value;
           const future = day > today;
           return (
             <button
@@ -401,10 +300,144 @@ function sumSales(sales) {
   return Math.round(total);
 }
 
-const TOP_BUYER_RANK_BADGES = [
-  'bg-amber-500 text-white',
-  'bg-slate-500 text-white',
-  'bg-amber-700 text-white',
+function BuyerRetailChart({ data }) {
+  if (!data || data.length === 0) return null;
+
+  const width = 720;
+  const height = 260;
+  const paddingTop = 20;
+  const paddingRight = 24;
+  const paddingBottom = 48;
+  const paddingLeft = 56;
+  const chartW = width - paddingLeft - paddingRight;
+  const chartH = height - paddingTop - paddingBottom;
+
+  const maxValue = Math.max(1, ...data.flatMap((d) => [d.buyers, d.retail, d.buyers + d.retail]));
+  const niceMax = (() => {
+    const step = 1500000;
+    const next = Math.ceil(maxValue / step) * step;
+    return Math.max(next, step);
+  })();
+  const gridLines = 4;
+
+  const groupCount = data.length || 1;
+  const groupWidth = chartW / groupCount;
+  const innerGap = 8;
+  const barWidth = Math.max(14, Math.min(36, (groupWidth - innerGap - 24) / 2));
+
+  const yTick = (i) => paddingTop + chartH - (i / gridLines) * chartH;
+  const yValue = (i) => Math.round((i / gridLines) * niceMax);
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+      {Array.from({ length: gridLines + 1 }).map((_, i) => {
+        const y = yTick(i);
+        const v = yValue(i);
+        return (
+          <g key={`grid-${i}`}>
+            <line
+              x1={paddingLeft}
+              y1={y}
+              x2={width - paddingRight}
+              y2={y}
+              stroke="#e5e7eb"
+              strokeWidth="1"
+              strokeDasharray="3 3"
+            />
+            <text
+              x={paddingLeft - 10}
+              y={y + 4}
+              textAnchor="end"
+              className="fill-ink-400"
+              style={{ fontSize: '11px' }}
+            >
+              {v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+            </text>
+          </g>
+        );
+      })}
+
+      {data.map((d, gi) => {
+        const groupCenterX = paddingLeft + gi * groupWidth + groupWidth / 2;
+        const buyerH = d.buyers > 0 ? (d.buyers / niceMax) * chartH : 0;
+        const retailH = d.retail > 0 ? (d.retail / niceMax) * chartH : 0;
+        const buyerY = paddingTop + chartH - buyerH;
+        const retailY = paddingTop + chartH - retailH;
+        const buyerX = groupCenterX - barWidth - innerGap / 2;
+        const retailX = groupCenterX + innerGap / 2;
+
+        return (
+          <g key={`bar-${gi}`}>
+            {d.buyers > 0 && (
+              <rect
+                x={buyerX}
+                y={buyerY}
+                width={barWidth}
+                height={buyerH}
+                rx="4"
+                fill="#10a964"
+              />
+            )}
+            {d.retail > 0 && (
+              <rect
+                x={retailX}
+                y={retailY}
+                width={barWidth}
+                height={Math.max(retailH, 2)}
+                rx="4"
+                fill="#8200da"
+              />
+            )}
+            <text
+              x={groupCenterX}
+              y={height - paddingBottom + 22}
+              textAnchor="middle"
+              className="fill-ink-500 font-medium"
+              style={{ fontSize: '12px' }}
+            >
+              {d.label}
+            </text>
+          </g>
+        );
+      })}
+
+      <line
+        x1={paddingLeft}
+        y1={paddingTop + chartH}
+        x2={width - paddingRight}
+        y2={paddingTop + chartH}
+        stroke="#c4cad4"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
+const TOP_BUYER_CARDS = [
+  {
+    rank: 1,
+    badgeBg: 'bg-amber-500 text-white',
+    cardBg: 'bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100/60',
+    cardBorder: 'border-amber-200',
+    pendingColor: 'text-amber-800',
+    textMain: 'text-ink-900',
+  },
+  {
+    rank: 2,
+    badgeBg: 'bg-slate-500 text-white',
+    cardBg: 'bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100/60',
+    cardBorder: 'border-slate-200',
+    pendingColor: 'text-slate-700',
+    textMain: 'text-ink-900',
+  },
+  {
+    rank: 3,
+    badgeBg: 'bg-amber-700 text-white',
+    cardBg: 'bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100/60',
+    cardBorder: 'border-orange-200',
+    pendingColor: 'text-orange-800',
+    textMain: 'text-ink-900',
+  },
 ];
 
 function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
@@ -412,13 +445,13 @@ function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
   for (const s of buyerSalesInPeriod || []) {
     const id = s.buyer_id;
     if (!id) continue;
-    if (!byBuyer.has(id)) byBuyer.set(id, { buyer_id: id, total_revenue: 0, quantities_by_unit: {} });
+    if (!byBuyer.has(id)) byBuyer.set(id, { buyer_id: id, total_revenue: 0, total_quantities: {} });
     const row = byBuyer.get(id);
     const q = s.mootais ?? s.mootais_sold ?? 0;
     const r = s.price_per_mootai ?? 0;
     row.total_revenue += Number(q || 0) * Number(r || 0);
-    for (const [unit, displayQuantity] of Object.entries(saleQuantitiesForDisplay(s, products))) {
-      row.quantities_by_unit[unit] = (row.quantities_by_unit[unit] || 0) + displayQuantity;
+    for (const [unit, quantity] of Object.entries(saleQuantitiesByUnit(s, products))) {
+      row.total_quantities[unit] = (row.total_quantities[unit] || 0) + quantity;
     }
   }
   const balancesById = new Map();
@@ -438,7 +471,6 @@ function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
 
 export default function Reports() {
   const [period, setPeriod] = useState('week');
-  const [reportScope, setReportScope] = useState('day');
   const [selectedDate, setSelectedDate] = useState(realTodayIST);
   const [buyerFilter, setBuyerFilter] = useState('');
   const [productFilter, setProductFilter] = useState('');
@@ -538,13 +570,16 @@ export default function Reports() {
     () => dailyPayments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0),
     [dailyPayments]
   );
-  const dailyBuyerSalesForStock = useMemo(
-    () => (buyerSales || []).filter((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate),
-    [buyerSales, selectedDate]
-  );
-  const dailyRetailSalesForStock = useMemo(
-    () => (retailSales || []).filter((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate),
-    [retailSales, selectedDate]
+  const dailyProductProfits = useMemo(
+    () => computeDailyProductProfits(
+      inventorySettings,
+      inventoryMovements,
+      products,
+      buyerSales,
+      retailSales,
+      selectedDate,
+    ),
+    [inventorySettings, inventoryMovements, products, buyerSales, retailSales, selectedDate]
   );
   const dailyStockClosingRows = useMemo(
     () => buildDailyStockClosingRows(
@@ -553,12 +588,18 @@ export default function Reports() {
       inventoryCounts,
       products,
       selectedDate,
-      dailyBuyerSalesForStock,
-      dailyRetailSalesForStock,
-    )
+    ).map((row) => ({
+      ...row,
+      finalProfit: dailyProductProfits.get(row.productId)?.finalProfit ?? null,
+      stockShortage: dailyProductProfits.get(row.productId)?.stockShortage ?? false,
+    }))
       .filter((row) => !productFilter || products.find((product) => product.id === row.productId)?.name === productFilter),
-    [inventorySettings, inventoryMovements, inventoryCounts, products, selectedDate, dailyBuyerSalesForStock, dailyRetailSalesForStock, productFilter]
+    [inventorySettings, inventoryMovements, inventoryCounts, products, selectedDate, productFilter, dailyProductProfits]
   );
+  const dailyFinalProfit = dailyStockClosingRows.length > 0
+    && dailyStockClosingRows.every((row) => row.finalProfit != null)
+    ? dailyStockClosingRows.reduce((sum, row) => sum + row.finalProfit, 0)
+    : null;
   const dailyReceiptCost = useMemo(
     () => inventoryMovements
       .filter((movement) => {
@@ -592,26 +633,38 @@ export default function Reports() {
     });
   };
 
-  const downloadDailyStockCsv = () => {
-    const hideBalance = shouldHideHistoricalBalance(selectedDate);
+  const downloadDailyClosingCsv = () => {
     const rows = dailyStockClosingRows.map((row) => ({
       date: selectedDate,
       product: row.productName,
-      sales_unit: row.salesUnit,
-      morning_count_sales_unit: row.countedQuantity ?? '',
+      quantity_unit: row.unit,
+      opening_stock: row.opening,
+      opening_stock_display: formatProductQuantities(row.product, row.opening),
+      stock_received: row.receipts,
+      stock_received_display: formatProductQuantities(row.product, row.receipts),
+      buyer_sales: row.buyerSold,
+      buyer_sales_display: formatSalesQuantityForDate(row.product, row.buyerSold, selectedDate),
+      retail_sales: row.retailSold,
+      retail_sales_display: formatSalesQuantityForDate(row.product, row.retailSold, selectedDate),
+      total_sales: row.sold,
+      total_sales_display: formatSalesQuantityForDate(row.product, row.sold, selectedDate),
+      damaged_stock: row.damaged,
+      damaged_stock_display: formatProductQuantities(row.product, row.damaged),
+      stock_count_variance: row.countVariance,
+      stock_count_variance_display: formatProductQuantities(row.product, row.countVariance),
+      stock_corrections: row.corrections,
+      stock_corrections_display: formatProductQuantities(row.product, row.corrections),
+      closing_stock: row.closing,
+      closing_stock_display: formatProductQuantities(row.product, row.closing),
+      morning_count: row.countedQuantity ?? '',
+      morning_count_display: row.countRecorded
+        ? formatProductQuantities(row.product, row.countedQuantity)
+        : '',
       morning_count_recorded: row.countRecorded,
-      buyer_sales_quantities_by_unit: formatUnitQuantities(row.buyerSold),
-      buyer_sales_value: row.buyerRevenue,
-      retail_sales_quantities_by_unit: formatUnitQuantities(row.retailSold),
-      retail_sales_value: row.retailRevenue,
-      total_sales_quantities_by_unit: formatUnitQuantities(row.sold),
-      damaged_quantity_sales_unit: row.damaged,
-      balance_quantity_sales_unit: hideBalance ? '' : row.balance,
-      recorded_sold_stock_cost: row.saleCost,
-      damaged_stock_cost: row.damageCost,
       final_profit: row.finalProfit ?? '',
+      final_profit_available: row.finalProfit != null,
     }));
-    downloadCsv(`daily-stock-${selectedDate}.csv`, rows);
+    downloadCsv(`daily-closing-${selectedDate}.csv`, rows);
   };
 
   const totalBuyer = useMemo(() => sumSales(filteredBuyerSales), [filteredBuyerSales]);
@@ -647,10 +700,23 @@ export default function Reports() {
     () => buildProductPerformance(filteredBuyerSales, filteredRetailSales, filteredMovements, products),
     [filteredBuyerSales, filteredRetailSales, filteredMovements, products]
   );
+
+  const chartData = useMemo(() => {
+    const buckets = buildMonthlyBuckets(filteredBuyerSales, filteredRetailSales, period, 'reports');
+    if (buckets && buckets.length > 0) return buckets;
+    const label =
+      period === 'week' ? 'This Week' :
+      period === 'month' ? 'This Month' :
+      period === '3months' ? 'Last 3 Mo' : 'All Time';
+    return [{ label, buyers: totalBuyer, retail: totalRetail, total: combined }];
+  }, [filteredBuyerSales, filteredRetailSales, period, totalBuyer, totalRetail, combined]);
+
   const topBuyers = useMemo(
-    () => topBuyersForPeriod(reportScope === 'day' ? dailyBuyerSales : filteredBuyerSales, balances, products),
-    [reportScope, dailyBuyerSales, filteredBuyerSales, balances, products]
+    () => topBuyersForPeriod(filteredBuyerSales, balances, products),
+    [filteredBuyerSales, balances, products]
   );
+  const topBuyerCards = topBuyers.slice(0, 3);
+  const topBuyerList = topBuyers.slice(3, 10);
 
   return (
     <div className="space-y-6">
@@ -686,22 +752,9 @@ export default function Reports() {
         </div>
       </div>
 
-      <WeekDatePicker
-        value={selectedDate}
-        selectedDate={reportScope === 'day' ? selectedDate : null}
-        onChange={(date) => {
-          setSelectedDate(date);
-          setReportScope('day');
-        }}
-      />
+      <WeekDatePicker value={selectedDate} onChange={setSelectedDate} />
 
-      <PeriodPills
-        value={reportScope === 'period' ? period : null}
-        onChange={(value) => {
-          setPeriod(value);
-          setReportScope('period');
-        }}
-      />
+      <PeriodPills value={period} onChange={setPeriod} />
 
       <section className="grid grid-cols-1 gap-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-sm md:grid-cols-3">
         <label className="relative min-w-0">
@@ -735,7 +788,7 @@ export default function Reports() {
         </p>
       </section>
 
-      {reportScope === 'day' && <div>
+      <div>
         <h2 className="mb-3 text-lg font-bold text-ink-900">
           Entries for {formatReportDate(selectedDate, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </h2>
@@ -803,105 +856,239 @@ export default function Reports() {
             ))}
           </DailyActivitySection>
         </div>
-      </div>}
+      </div>
 
-      {reportScope === 'day' && <DailyClosingSummary
+      <DailyClosingSummary
         date={selectedDate}
         buyerSalesTotal={dailyBuyerTotal}
         retailSalesTotal={dailyRetailTotal}
         paymentsTotal={dailyPaymentsTotal}
         receiptCost={dailyReceiptCost}
+        finalProfit={dailyFinalProfit}
         rows={dailyStockClosingRows}
         offline={offline}
         inventoryError={inventoryError}
-        onRequestDownload={() => requestDownload(`the ${selectedDate} daily stock CSV`, downloadDailyStockCsv)}
-      />}
+        onRequestDownload={() => requestDownload(`the ${selectedDate} daily closing CSV`, downloadDailyClosingCsv)}
+      />
 
-      {reportScope === 'day' && <section>
+      <section>
         <h2 className="mb-3 text-lg font-bold text-ink-900">
           Selected day totals · {formatReportDate(selectedDate, { day: 'numeric', month: 'long', year: 'numeric' })}
         </h2>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-          <div className="rounded-2xl border border-brand-green/20 bg-white p-3 shadow-sm sm:p-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-green-dark">TOTAL</div>
-            <div className="mt-1 text-2xl font-black tracking-tight text-brand-green-dark sm:text-3xl">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL</div>
+            <div className="mt-2 text-4xl font-black tracking-tight text-brand-green-dark">
               {currencyINR(dailyBuyerTotal + dailyRetailTotal)}
             </div>
           </div>
-          <div className="rounded-2xl border border-sidebar-accent/20 bg-white p-3 shadow-sm sm:p-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-sidebar-accent">BUYERS</div>
-            <div className="mt-1 text-2xl font-black tracking-tight text-sidebar-accent sm:text-3xl">
+          <div className="rounded-3xl border border-sidebar-accent/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-sidebar-accent">BUYERS</div>
+            <div className="mt-2 text-4xl font-black tracking-tight text-sidebar-accent">
               {currencyINR(dailyBuyerTotal)}
             </div>
           </div>
-          <div className="rounded-2xl border border-brand-purple/20 bg-white p-3 shadow-sm sm:p-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-purple">RETAIL</div>
-            <div className="mt-1 text-2xl font-black tracking-tight text-brand-purple sm:text-3xl">
+          <div className="rounded-3xl border border-brand-purple/20 bg-white p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-brand-purple">RETAIL</div>
+            <div className="mt-2 text-4xl font-black tracking-tight text-brand-purple">
               {currencyINR(dailyRetailTotal)}
             </div>
           </div>
         </div>
-      </section>}
+      </section>
 
-      {reportScope === 'period' && <section>
+      <section>
         <h2 className="mb-3 text-lg font-bold text-ink-900">Period totals · {periodLabel}</h2>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          <div className="rounded-2xl border border-brand-green/20 bg-white p-3 shadow-sm sm:p-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-green-dark">TOTAL REVENUE</div>
-            <div className="mt-1 text-2xl font-black tracking-tight text-brand-green-dark sm:text-3xl">
-              {currencyINR(combined)}
-            </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-brand-green/20 bg-white p-5 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-widest text-brand-green-dark">TOTAL</div>
+          <div className="mt-2 text-4xl font-black text-brand-green-dark tracking-tight">
+            {currencyINR(combined)}
           </div>
-          <div className="rounded-2xl border border-sidebar-accent/20 bg-white p-3 shadow-sm sm:p-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-sidebar-accent">BUYER REVENUE</div>
-            <div className="mt-1 text-2xl font-black tracking-tight text-sidebar-accent sm:text-3xl">
-              {currencyINR(totalBuyer)}
-            </div>
+        </div>
+        <div className="rounded-3xl border border-sidebar-accent/20 bg-white p-5 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-widest text-sidebar-accent">BUYERS</div>
+          <div className="mt-2 text-4xl font-black text-sidebar-accent tracking-tight">
+            {currencyINR(totalBuyer)}
           </div>
-          <div className="rounded-2xl border border-brand-purple/20 bg-white p-3 shadow-sm sm:p-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-purple">RETAIL REVENUE</div>
-            <div className="mt-1 text-2xl font-black tracking-tight text-brand-purple sm:text-3xl">
-              {currencyINR(totalRetail)}
+        </div>
+        <div className="rounded-3xl border border-brand-purple/20 bg-white p-5 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-widest text-brand-purple">RETAIL</div>
+          <div className="mt-2 text-4xl font-black text-brand-purple tracking-tight">
+            {currencyINR(totalRetail)}
+          </div>
+        </div>
+        </div>
+      </section>
+
+      {!offline && (
+        <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
+            <div>
+              <h2 className="font-bold text-ink-900 text-xl">Stock & cost report</h2>
+              <p className="text-sm text-ink-500 mt-1">
+                Cost and profit include only sales with recorded inventory costs.
+              </p>
+            </div>
+            {inventoryReport.trackedSalesCount > 0 && (
+              <span className="pill bg-sky-100 text-sky-800">
+                {inventoryReport.trackedRevenueCoverage.toFixed(1)}% of sales revenue costed
+              </span>
+            )}
+          </div>
+          {inventoryLoading ? (
+            <p className="text-sm text-ink-500">Loading inventory movements…</p>
+          ) : inventoryError ? (
+            <p className="text-sm text-amber-800">
+              Inventory-aware reporting is unavailable until the v0.2 inventory migration is installed.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                <ReportCostCard label="Stock purchased" amount={inventoryReport.receiptCost} />
+                <ReportCostCard label="Damaged stock cost" amount={inventoryReport.spoilageCost} />
+                <ReportCostCard label="Tracked sales cost" amount={inventoryReport.trackedSaleCost} />
+                <ReportCostCard
+                  label="Profit after stock cost + wastage"
+                  amount={inventoryReport.trackedSalesCount ? inventoryReport.tradingProfit : null}
+                />
+              </div>
+              {inventoryReport.stockShortage && (
+                <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">
+                  Profit is hidden while a product has negative stock. Reconcile the missing stock first.
+                </p>
+              )}
+              {inventoryReport.trackedSalesCount > 0 && inventoryReport.trackedRevenueCoverage < 100 && (
+                <p className="text-xs text-ink-500 mt-3">
+                  Gross profit is partial because some sales have no recorded cost. Historical costs are not estimated.
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <div className="lg:col-span-3 rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
+          <h3 className="font-bold text-ink-900 text-xl mb-4">Buyer vs Retail Revenue</h3>
+          <BuyerRetailChart data={chartData} />
+          <div className="flex items-center justify-center gap-6 pt-3 text-sm font-semibold">
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-4 h-4 rounded-sm bg-[#10a964]" />
+              <span className="text-ink-700">Buyers</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-4 h-4 rounded-sm bg-brand-purple" />
+              <span className="text-ink-700">Retail</span>
             </div>
           </div>
         </div>
-      </section>}
 
-      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-        <h3 className="font-bold text-ink-900 text-xl mb-5">
-          Top Buyers · {reportScope === 'day'
-            ? formatReportDate(selectedDate, { day: 'numeric', month: 'long', year: 'numeric' })
-            : periodLabel}
-        </h3>
-
-        {topBuyers.length === 0 && (
-          <div className="text-center text-ink-500 text-sm py-10">No data for this selection</div>
-        )}
-
-        {topBuyers.length > 0 && (
-          <div className="max-h-[520px] divide-y divide-ink-100 overflow-y-auto">
-            {topBuyers.slice(0, 3).map((buyer, index) => {
-              const rankBadge = TOP_BUYER_RANK_BADGES[index] || 'bg-ink-100 text-ink-600';
+        <div className="lg:col-span-2 rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
+          <h3 className="font-bold text-ink-900 text-xl mb-4">Product income by sale type</h3>
+          <div className="divide-y divide-ink-100 max-h-[420px] overflow-y-auto">
+            {productPerformance.length === 0 && (
+              <div className="text-center text-ink-400 text-sm py-10">No sales in this period</div>
+            )}
+            {productPerformance.map((row) => {
+              const emoji = getProductEmoji(row.product, products);
               return (
                 <div
-                  key={buyer.buyer_id}
-                  className="grid grid-cols-12 items-center gap-3 px-2 py-3 sm:px-3"
+                  key={row.product}
+                  className="flex flex-col gap-2 px-2 py-4"
                 >
-                  <div className="col-span-1">
-                    <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-black ${rankBadge}`}>
-                      {index + 1}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl shrink-0">{emoji}</span>
+                      <div className="font-bold text-ink-900 truncate">{row.product}</div>
+                    </div>
+                    <div className="text-sm font-bold text-ink-700 shrink-0">
+                      Total {currencyINR(row.wholesale_revenue + row.retail_revenue)}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-xl bg-green-50 px-3 py-2">
+                      <div className="font-semibold text-green-800">Wholesale</div>
+                      <div className="text-ink-600">{formatQuantityByUnit(row.wholesale_quantities)} · {currencyINR(row.wholesale_revenue)}</div>
+                    </div>
+                    <div className="rounded-xl bg-purple-50 px-3 py-2">
+                      <div className="font-semibold text-purple-800">Retail</div>
+                      <div className="text-ink-600">{formatQuantityByUnit(row.retail_quantities)} · {currencyINR(row.retail_revenue)}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-3 text-xs text-ink-500">
+                    <span>Wastage cost: {currencyINR(row.spoilage_cost)}</span>
+                    <span>
+                      Profit on tracked sales: {row.stock_shortage
+                        ? 'Unavailable — stock shortage'
+                        : row.trading_profit == null
+                          ? 'Not tracked'
+                          : currencyINR(row.trading_profit)}
                     </span>
                   </div>
-                  <div className="col-span-5 min-w-0">
-                    <div className="truncate text-base font-bold text-ink-900">{buyer.name}</div>
-                    <div className="mt-0.5 text-xs font-semibold text-ink-500">{formatUnitQuantities(buyer.quantities_by_unit)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
+        <h3 className="font-bold text-ink-900 text-xl mb-5">Top Buyers</h3>
+
+        {topBuyers.length === 0 && (
+          <div className="text-center text-ink-500 text-sm py-10">No data for this period</div>
+        )}
+
+        {topBuyerCards.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {topBuyerCards.map((b, i) => {
+              const style = TOP_BUYER_CARDS[i] || TOP_BUYER_CARDS[2];
+              return (
+                <div
+                  key={b.buyer_id}
+                  className={`rounded-3xl border-2 ${style.cardBorder} ${style.cardBg} p-6 text-center shadow-sm`}
+                >
+                  <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center font-black text-lg ${style.badgeBg}`}>
+                    {style.rank}
                   </div>
-                  <div className="col-span-3 text-sm font-extrabold tracking-tight text-ink-900 sm:text-lg">
-                    {currencyINR(buyer.total_revenue)}
+                  <div className={`mt-3 text-xl font-black ${style.textMain}`}>{b.name}</div>
+                  <div className={`mt-1 text-3xl font-black ${style.textMain} tracking-tight`}>
+                    {currencyINR(b.total_revenue)}
                   </div>
-                  <div className="col-span-3 text-right text-xs font-bold text-amber-800 sm:text-sm">
-                    <IndianRupee className="inline h-3.5 w-3.5 -mt-0.5" />
-                    {currencyINR(buyer.pending).replace(/^₹/, '')} pending
+                  <div className="text-sm text-ink-500 mt-1 font-semibold">
+                    {formatQuantityByUnit(b.total_quantities)}
+                  </div>
+                  <div className={`mt-2 text-sm font-bold ${style.pendingColor}`}>
+                    <IndianRupee className="inline w-3.5 h-3.5 -mt-0.5" />
+                    {currencyINR(b.pending).replace(/^₹/, '')} pending
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {topBuyerList.length > 0 && (
+          <div className="divide-y divide-ink-100 max-h-[520px] overflow-y-auto">
+            {topBuyerList.map((b, i) => {
+              const rank = i + 4;
+              return (
+                <div
+                  key={b.buyer_id}
+                  className="grid grid-cols-12 items-center gap-3 px-3 py-4"
+                >
+                  <div className="col-span-2 text-sm font-bold text-ink-500">#{rank}</div>
+                  <div className="col-span-4 min-w-0">
+                    <div className="text-lg font-black text-ink-900 truncate">{b.name}</div>
+                    <div className="text-sm text-ink-500 mt-0.5 font-semibold">{formatQuantityByUnit(b.total_quantities)}</div>
+                  </div>
+                  <div className="col-span-3 text-xl font-black text-ink-900 tracking-tight">
+                    {currencyINR(b.total_revenue)}
+                  </div>
+                  <div className="col-span-3 text-right text-sm font-bold text-amber-800">
+                    <IndianRupee className="inline w-3.5 h-3.5 -mt-0.5" />
+                    {currencyINR(b.pending).replace(/^₹/, '')} pending
                   </div>
                 </div>
               );

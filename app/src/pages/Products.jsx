@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useAppData } from '../hooks/useAppData.jsx';
-import { getProductEmoji } from '../lib/business.js';
+import {
+  getProductEmoji,
+  productSalesUnit,
+  productStockToSalesFactor,
+  productStockUnit,
+} from '../lib/business.js';
 import { ChevronDown, ChevronUp, CheckCircle2, Save, Info, Package, Leaf, Plus, Pencil, Trash2 } from 'lucide-react';
 
 const PRODUCT_EMOJIS = ['🌼', '🍃', '🌿', '🧄', '🌱', '🌸', '🌺', '🪴', '🥬', '🧅', '🥕', '🍀', '🍋', '🍅', '🥔', '🌾'];
@@ -61,10 +66,12 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
     emoji: product.emoji || getProductEmoji(product.name, []),
     sort_order: product.sort_order ?? 0,
     active: product.active !== false,
+    sales_unit: productSalesUnit(product),
+    stock_entry_unit: productStockUnit(product),
+    stock_to_sales_factor: productStockToSalesFactor(product),
   });
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
 
   const isPrimary = (form.sort_order ?? 0) <= 2;
   const displayEmoji = form.emoji || getProductEmoji(form.name || product.name, []);
@@ -79,12 +86,17 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
       emoji: product.emoji || getProductEmoji(product.name, []),
       sort_order: product.sort_order ?? 0,
       active: product.active !== false,
+      sales_unit: productSalesUnit(product),
+      stock_entry_unit: productStockUnit(product),
+      stock_to_sales_factor: productStockToSalesFactor(product),
     });
     setSavedOk(false);
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.emoji || !isValidSortOrder(form.sort_order)) return;
+    if (!form.name.trim() || !form.emoji || !isValidSortOrder(form.sort_order)
+      || !form.sales_unit.trim() || !form.stock_entry_unit.trim()
+      || !Number.isFinite(Number(form.stock_to_sales_factor)) || Number(form.stock_to_sales_factor) <= 0) return;
     setSaving(true);
     setSavedOk(false);
     const patch = {
@@ -92,6 +104,9 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
       emoji: form.emoji,
       sort_order: Number(form.sort_order) || 0,
       active: form.active,
+      sales_unit: form.sales_unit.trim(),
+      stock_entry_unit: form.stock_entry_unit.trim(),
+      stock_to_sales_factor: Number(form.stock_to_sales_factor),
     };
     const res = await onSave(product.id, patch);
     setSaving(false);
@@ -102,6 +117,9 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
         emoji: updated.emoji ?? patch.emoji ?? '',
         sort_order: updated.sort_order ?? patch.sort_order,
         active: updated.active ?? patch.active,
+        sales_unit: updated.sales_unit ?? patch.sales_unit,
+        stock_entry_unit: updated.stock_entry_unit ?? patch.stock_entry_unit,
+        stock_to_sales_factor: updated.stock_to_sales_factor ?? patch.stock_to_sales_factor,
       });
       setSavedOk(true);
       setTimeout(() => setSavedOk(false), 1500);
@@ -110,16 +128,10 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
   };
 
   const handleDelete = async () => {
-    if (isOffline || saving || !window.confirm(`Delete ${product.name}? If it has stock history, it will be archived to preserve the ledger.`)) return;
+    if (isOffline || saving || !window.confirm(`Delete ${product.name}? Products used by stock records cannot be deleted.`)) return;
     setSaving(true);
-    setDeleteError('');
-    const result = await onDelete(product.id);
+    await onDelete(product.id);
     setSaving(false);
-    if (result?.error) {
-      setDeleteError(result.error.message || 'The product could not be deleted.');
-    } else if (result?.data === 'archived') {
-      setForm((current) => ({ ...current, active: false }));
-    }
   };
 
   return (
@@ -142,6 +154,10 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
           </div>
           <div className="text-xs text-ink-500 mt-0.5">
             Sort order: {form.sort_order ?? 0}
+          </div>
+          <div className="text-xs text-ink-500 mt-0.5">
+            Sales: {form.sales_unit || 'Mootai'} · Stock entry: {form.stock_entry_unit || form.sales_unit || 'Mootai'}
+            {Number(form.stock_to_sales_factor || 1) !== 1 ? ` × ${form.stock_to_sales_factor}` : ''}
           </div>
         </div>
 
@@ -219,6 +235,48 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
               />
             </div>
             <div>
+              <label className="label" htmlFor={`product-sales-unit-${product.id}`}>Sales unit</label>
+              <input
+                id={`product-sales-unit-${product.id}`}
+                type="text"
+                className="input"
+                value={form.sales_unit}
+                onChange={(e) => setForm((f) => ({ ...f, sales_unit: e.target.value }))}
+                maxLength={32}
+                required
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor={`product-stock-unit-${product.id}`}>Stock entry unit</label>
+              <input
+                id={`product-stock-unit-${product.id}`}
+                type="text"
+                className="input"
+                value={form.stock_entry_unit}
+                onChange={(e) => setForm((f) => ({ ...f, stock_entry_unit: e.target.value }))}
+                maxLength={32}
+                required
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor={`product-conversion-${product.id}`}>
+                Sales units per one stock-entry unit
+              </label>
+              <input
+                id={`product-conversion-${product.id}`}
+                type="number"
+                min="0.000001"
+                step="any"
+                className="input"
+                value={form.stock_to_sales_factor}
+                onChange={(e) => setForm((f) => ({ ...f, stock_to_sales_factor: e.target.value }))}
+                required
+              />
+              <p className="mt-1 text-xs text-ink-500">
+                Example: 1 Mootai = 200 Kattu means enter 200. Configure before recording transactions; saved unit history is protected.
+              </p>
+            </div>
+            <div>
               <label className="label">Active</label>
               <div className="flex items-center gap-3 h-[42px] px-3 rounded-xl border border-ink-200 bg-white">
                 <ActiveToggle
@@ -275,11 +333,6 @@ function ProductCard({ product, onSave, onDelete, isOffline }) {
           </div>
         </div>
       )}
-      {deleteError && (
-        <p className="border-t border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-          {deleteError}
-        </p>
-      )}
     </div>
   );
 }
@@ -290,14 +343,26 @@ function AddProductForm({ onSave, onCancel, isOffline, defaultSortOrder }) {
     emoji: PRODUCT_EMOJIS[0],
     sort_order: defaultSortOrder,
     active: true,
+    sales_unit: 'Mootai',
+    stock_entry_unit: 'Mootai',
+    stock_to_sales_factor: 1,
   });
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!form.name.trim() || !form.emoji || !isValidSortOrder(form.sort_order)) return;
+    if (!form.name.trim() || !form.emoji || !isValidSortOrder(form.sort_order)
+      || !form.sales_unit.trim() || !form.stock_entry_unit.trim()
+      || !Number.isFinite(Number(form.stock_to_sales_factor)) || Number(form.stock_to_sales_factor) <= 0) return;
     setSaving(true);
-    const result = await onSave({ ...form, name: form.name.trim(), sort_order: Number(form.sort_order) });
+    const result = await onSave({
+      ...form,
+      name: form.name.trim(),
+      sort_order: Number(form.sort_order),
+      sales_unit: form.sales_unit.trim(),
+      stock_entry_unit: form.stock_entry_unit.trim(),
+      stock_to_sales_factor: Number(form.stock_to_sales_factor),
+    });
     setSaving(false);
     if (!result?.error) onCancel();
   };
@@ -335,6 +400,43 @@ function AddProductForm({ onSave, onCancel, isOffline, defaultSortOrder }) {
             required
           />
         </div>
+        <div>
+          <label className="label" htmlFor="new-product-sales-unit">Sales unit</label>
+          <input
+            id="new-product-sales-unit"
+            type="text"
+            className="input"
+            value={form.sales_unit}
+            onChange={(event) => setForm((current) => ({ ...current, sales_unit: event.target.value }))}
+            maxLength={32}
+            required
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="new-product-stock-unit">Stock entry unit</label>
+          <input
+            id="new-product-stock-unit"
+            type="text"
+            className="input"
+            value={form.stock_entry_unit}
+            onChange={(event) => setForm((current) => ({ ...current, stock_entry_unit: event.target.value }))}
+            maxLength={32}
+            required
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="new-product-conversion">Sales units per one stock-entry unit</label>
+          <input
+            id="new-product-conversion"
+            type="number"
+            min="0.000001"
+            step="any"
+            className="input"
+            value={form.stock_to_sales_factor}
+            onChange={(event) => setForm((current) => ({ ...current, stock_to_sales_factor: event.target.value }))}
+            required
+          />
+        </div>
         <div className="sm:col-span-2">
           <span className="label">Product Icon</span>
           <EmojiPicker value={form.emoji} onChange={(emoji) => setForm((current) => ({ ...current, emoji }))} />
@@ -350,7 +452,13 @@ function AddProductForm({ onSave, onCancel, isOffline, defaultSortOrder }) {
         </div>
       </div>
       <div className="flex justify-end">
-        <button type="submit" className="btn-green min-h-[44px]" disabled={saving || isOffline || !form.name.trim() || !form.emoji || !isValidSortOrder(form.sort_order)}>
+        <button
+          type="submit"
+          className="btn-green min-h-[44px]"
+          disabled={saving || isOffline || !form.name.trim() || !form.emoji || !isValidSortOrder(form.sort_order)
+            || !form.sales_unit.trim() || !form.stock_entry_unit.trim()
+            || !Number.isFinite(Number(form.stock_to_sales_factor)) || Number(form.stock_to_sales_factor) <= 0}
+        >
           {saving ? 'Adding…' : <><Plus className="w-4 h-4" /> Add Product</>}
         </button>
       </div>

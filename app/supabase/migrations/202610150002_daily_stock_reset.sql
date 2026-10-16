@@ -253,20 +253,14 @@ begin
   if v_product_matches > 1 then
     raise exception 'Product name matches multiple catalog entries; resolve duplicate names before recording a sale.';
   end if;
-  select * into v_product from public.products where name = new.product for update;
-  if not found then
-    raise exception 'Product not found in the catalog.';
-  end if;
-  if not v_product.active then
-    raise exception 'This product is inactive. Activate it before recording a sale.';
-  end if;
+  select * into v_product from public.products where name = new.product;
   new.quantity_unit := v_product.sales_unit;
   v_product_id := v_product.id;
 
   perform 1 from public.inventory_product_settings
     where product_id = v_product_id for update;
   if not found then
-    raise exception 'Stock tracking has not started. Enter opening stock before recording a sale.';
+    return new;
   end if;
 
   if not exists (

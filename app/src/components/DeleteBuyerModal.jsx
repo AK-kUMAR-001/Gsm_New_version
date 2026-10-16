@@ -4,7 +4,7 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import Modal from './Modal.jsx';
 
 export default function DeleteBuyerModal({ open, onClose, buyer, onDeleted }) {
-  const { deleteBuyer } = useAppData();
+  const { purgeBuyer } = useAppData();
   const [confirmation, setConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -19,14 +19,14 @@ export default function DeleteBuyerModal({ open, onClose, buyer, onDeleted }) {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (confirmation.trim().toLowerCase() !== 'yes' || !buyer?.id) return;
+    if (confirmation.trim().toLowerCase() !== 'purge' || !buyer?.id) return;
 
     setBusy(true);
     setErrorMessage('');
-    const result = await deleteBuyer(buyer.id);
+    const result = await purgeBuyer(buyer.id);
     setBusy(false);
     if (result.error) {
-      setErrorMessage(result.error.message || 'Could not delete this buyer.');
+      setErrorMessage(result.error.message || 'Could not permanently purge this buyer.');
       return;
     }
 
@@ -34,26 +34,26 @@ export default function DeleteBuyerModal({ open, onClose, buyer, onDeleted }) {
     onDeleted();
   };
 
-  const setupMissing = errorMessage.includes('delete_buyer_and_all_data')
+  const setupMissing = errorMessage.includes('purge_archived_buyer')
     || errorMessage.includes('schema cache');
 
   return (
-    <Modal open={open} onClose={onClose} title="Delete buyer">
+    <Modal open={open} onClose={onClose} title="Permanently purge buyer">
       <form onSubmit={submit} className="space-y-4">
         <div className="flex gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="text-sm">
-            <p className="font-semibold">This permanently deletes {buyer?.name || 'this buyer'} and all their sales and payments.</p>
+            <p className="font-semibold">This permanently removes {buyer?.name || 'this buyer'} and all their sales, payments, and linked stock-sale movements from live app data.</p>
             <p className="mt-2">
-              The buyer’s sales will disappear from reports. Their stock deductions will also be erased, so the stock balance may increase.
+              A complete backup is placed in the inaccessible database recycle bin before removal. The buyer’s transactions and stock deductions will disappear from live reports and inventory balances.
             </p>
-            <p className="mt-2 font-semibold">This cannot be undone.</p>
+            <p className="mt-2 font-semibold">This cannot be undone from the app. Cancel to keep this archived customer’s live history.</p>
           </div>
         </div>
 
         <div>
           <label className="label" htmlFor="delete-buyer-confirmation">
-            Type <span className="font-bold normal-case">yes</span> to confirm
+            Type <span className="font-bold normal-case">purge</span> to confirm
           </label>
           <input
             id="delete-buyer-confirmation"
@@ -68,7 +68,7 @@ export default function DeleteBuyerModal({ open, onClose, buyer, onDeleted }) {
         {errorMessage && (
           <p className="text-sm text-red-700" role="alert">
             {setupMissing
-              ? 'The delete function is not installed in the database yet. No buyer data was deleted. Apply the required database migrations before trying again.'
+              ? 'The permanent-purge function is not installed in the database yet. No buyer data was purged. Apply the required database migrations before trying again.'
               : errorMessage}
           </p>
         )}
@@ -79,11 +79,11 @@ export default function DeleteBuyerModal({ open, onClose, buyer, onDeleted }) {
           </button>
           <button
             type="submit"
-            disabled={busy || confirmation.trim().toLowerCase() !== 'yes'}
+            disabled={busy || confirmation.trim().toLowerCase() !== 'purge'}
             className="btn-outline flex-1 justify-center border-red-300 text-red-700 hover:bg-red-50"
           >
             <Trash2 className="h-4 w-4" />
-            {busy ? 'Deleting…' : 'Delete everything'}
+            {busy ? 'Purging…' : 'Permanently purge'}
           </button>
         </div>
       </form>

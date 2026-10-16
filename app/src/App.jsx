@@ -5,6 +5,7 @@ import { useAppData } from './hooks/useAppData.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Buyers from './pages/Buyers.jsx';
+import DeletedCustomers from './pages/DeletedCustomers.jsx';
 import BuyerDetail from './pages/BuyerDetail.jsx';
 import Retail from './pages/Retail.jsx';
 import Reports from './pages/Reports.jsx';
@@ -89,6 +90,7 @@ export default function App() {
         <Route path="/" element={<Protected><AppLayout><OfflineBanner /><Dashboard /><PageLoading /><Toast /></AppLayout></Protected>} />
         <Route path="/dashboard" element={<Protected><AppLayout><OfflineBanner /><Dashboard /><PageLoading /><Toast /></AppLayout></Protected>} />
         <Route path="/buyers" element={<Protected><AppLayout><OfflineBanner /><Buyers /><PageLoading /><Toast /></AppLayout></Protected>} />
+        <Route path="/buyers/deleted" element={<Protected><AppLayout><OfflineBanner /><DeletedCustomers /><PageLoading /><Toast /></AppLayout></Protected>} />
         <Route path="/buyers/:id" element={<Protected><AppLayout><OfflineBanner /><BuyerDetail /><PageLoading /><Toast /></AppLayout></Protected>} />
         <Route path="/retail" element={<Protected><AppLayout><OfflineBanner /><Retail /><PageLoading /><Toast /></AppLayout></Protected>} />
         <Route path="/reports" element={<Protected><AppLayout><OfflineBanner /><Reports /><PageLoading /><Toast /></AppLayout></Protected>} />

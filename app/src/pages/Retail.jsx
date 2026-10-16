@@ -5,9 +5,9 @@ import {
   formatDateCompact,
   formatSaleQuantities,
   formatSaleRates,
-  formatUnitQuantities,
+  formatQuantityByUnit,
   getProductEmoji,
-  saleQuantitiesForDisplay,
+  saleQuantitiesByUnit,
 } from '../lib/business.js';
 import PeriodPills, { RETAIL_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
@@ -22,27 +22,23 @@ export default function Retail() {
   const cardRefs = useRef({});
 
   const filtered = useMemo(() => {
-    return filterByPeriod(retailSales || [], period, 'sale_date').sort((a, b) => {
-      const dateOrder = String(b.sale_date || '').localeCompare(String(a.sale_date || ''));
-      if (dateOrder) return dateOrder;
-      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
-    });
+    return filterByPeriod(retailSales || [], period, 'sale_date').sort((a, b) => (b.sale_date || '').localeCompare(a.sale_date || ''));
   }, [retailSales, period, filterByPeriod]);
 
   const stats = useMemo(() => {
     let revenue = 0;
-    const quantitiesByUnit = {};
+    const quantities = {};
     for (const s of filtered) {
       const q = s.mootais_sold ?? s.mootais ?? 0;
       const r = s.price_per_mootai ?? 0;
       revenue += q * r;
-      for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(s, products))) {
-        quantitiesByUnit[unit] = (quantitiesByUnit[unit] || 0) + quantity;
+      for (const [unit, value] of Object.entries(saleQuantitiesByUnit(s, products))) {
+        quantities[unit] = (quantities[unit] || 0) + value;
       }
     }
     return {
       revenue,
-      quantitiesByUnit,
+      quantities,
       count: filtered.length,
     };
   }, [filtered, products]);
@@ -58,7 +54,7 @@ export default function Retail() {
         map.set(dateKey, {
           date: dateKey,
           sales: [],
-          quantitiesByUnit: {},
+          quantities: {},
           totalRevenue: 0,
         });
       }
@@ -69,8 +65,8 @@ export default function Retail() {
 
       const entry = map.get(dateKey);
       entry.sales.push({ ...sale, qty, rate, total });
-      for (const [unit, quantity] of Object.entries(saleQuantitiesForDisplay(sale, products))) {
-        entry.quantitiesByUnit[unit] = (entry.quantitiesByUnit[unit] || 0) + quantity;
+      for (const [unit, value] of Object.entries(saleQuantitiesByUnit(sale, products))) {
+        entry.quantities[unit] = (entry.quantities[unit] || 0) + value;
       }
       entry.totalRevenue += total;
     }
@@ -130,10 +126,8 @@ export default function Retail() {
               <Package className="w-6 h-6" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total quantities</div>
-              <div className="mt-1 text-2xl font-extrabold text-ink-900">
-                {formatUnitQuantities(stats.quantitiesByUnit)}
-              </div>
+              <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total quantity sold</div>
+              <div className="text-2xl font-extrabold text-ink-900 mt-1">{formatQuantityByUnit(stats.quantities) || '0'}</div>
             </div>
           </div>
         </div>
@@ -193,7 +187,7 @@ export default function Retail() {
                   <div className="col-span-2 row-start-2 justify-self-center flex items-center gap-1.5 whitespace-nowrap text-base md:text-lg text-ink-700 sm:col-auto sm:row-auto">
                     <span>{group.sales.length} sales</span>
                     <span className="text-ink-400">·</span>
-                    <span>{formatUnitQuantities(group.quantitiesByUnit)}</span>
+                    <span>{formatQuantityByUnit(group.quantities)}</span>
                   </div>
 
                   <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 min-w-0 sm:col-auto sm:row-auto">
@@ -219,11 +213,8 @@ export default function Retail() {
                               <div className="text-lg sm:text-xl font-bold text-ink-900 truncate">
                                 {sale.product || '(Unknown)'}
                               </div>
-                              <div className="text-sm font-bold text-ink-800">
-                                {formatSaleQuantities(sale, products)}
-                              </div>
-                              <div className="text-xs text-ink-500">
-                                {formatSaleRates(sale, products)}
+                              <div className="text-sm sm:text-base text-ink-500">
+                                {formatSaleQuantities(sale, products)} · {formatSaleRates(sale, products)}
                               </div>
                             </div>
                           </div>
