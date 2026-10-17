@@ -130,6 +130,7 @@ export default function RecentActivityModal({
   };
 
   const selectedProduct = products.find((product) => product.name === form?.product);
+  const editableSaleUnits = saleInputUnits(selectedProduct || {}).filter((unit) => unit !== 'Kg');
   const availableBuyers = buyers.some((buyer) => buyer.id === form?.buyer_id)
     ? buyers
     : [...buyers, selected?.buyer].filter(Boolean);
@@ -190,8 +191,8 @@ export default function RecentActivityModal({
                 <label className="label">
                   Quantity unit
                   <select name="quantity_unit" required value={form.quantity_unit || selectedProduct?.sales_unit || ''} onChange={updateField} className="input mt-1">
-                    {[...saleInputUnits(selectedProduct || {}), form.quantity_unit]
-                      .filter((unit, index, all) => unit && all.indexOf(unit) === index)
+                    {[...editableSaleUnits, form.quantity_unit]
+                      .filter((unit, index, all) => unit && unit !== 'Kg' && all.indexOf(unit) === index)
                       .map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                   </select>
                 </label>

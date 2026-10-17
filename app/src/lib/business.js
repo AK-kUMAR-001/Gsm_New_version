@@ -71,9 +71,11 @@ function saleQuantityInSalesUnit(sale, product) {
 export function saleInputUnits(product) {
   const salesUnit = productSalesUnit(product);
   const stockUnit = productStockUnit(product);
-  return salesUnit === stockUnit || productStockToSalesFactor(product) === 1
+  const units = salesUnit === stockUnit || productStockToSalesFactor(product) === 1
     ? [salesUnit]
     : [stockUnit, salesUnit];
+  if (String(product?.name || '').trim().toLocaleLowerCase() === 'malli') units.push('Kg');
+  return units;
 }
 
 export function stockQuantityInputUnits(product) {
@@ -119,26 +121,30 @@ export function normalizeSaleInput(product, quantity, rate, inputUnit) {
   const unitRate = Number(rate);
   const salesUnit = productSalesUnit(product);
   const stockUnit = productStockUnit(product);
-  if (inputUnit !== salesUnit && inputUnit !== stockUnit) {
+  let salesUnitFactor;
+  if (inputUnit === salesUnit) salesUnitFactor = 1;
+  else if (inputUnit === stockUnit) salesUnitFactor = productStockToSalesFactor(product);
+  else if (inputUnit === 'Kg' && String(product?.name || '').trim().toLocaleLowerCase() === 'malli') {
+    salesUnitFactor = 50 / 35;
+  } else {
     throw new Error('Choose a valid sale unit for this product.');
   }
-  const factor = inputUnit === stockUnit ? productStockToSalesFactor(product) : 1;
   return {
-    quantity: value * factor,
-    rate: unitRate / factor,
+    quantity: value * salesUnitFactor,
+    rate: unitRate / salesUnitFactor,
   };
 }
 
 export function saleQuantityInUnit(product, quantity, inputUnit, targetUnit) {
   const salesQuantity = normalizeSaleInput(product, quantity, 0, inputUnit).quantity;
-  const factor = productStockToSalesFactor(product);
-  return targetUnit === productStockUnit(product) ? salesQuantity / factor : salesQuantity;
+  const targetFactor = normalizeSaleInput(product, 1, 0, targetUnit).quantity;
+  return salesQuantity / targetFactor;
 }
 
 export function saleRateInUnit(product, rate, inputUnit, targetUnit) {
   const salesRate = normalizeSaleInput(product, 0, rate, inputUnit).rate;
-  const factor = productStockToSalesFactor(product);
-  return targetUnit === productStockUnit(product) ? salesRate * factor : salesRate;
+  const targetFactor = normalizeSaleInput(product, 1, 0, targetUnit).quantity;
+  return salesRate * targetFactor;
 }
 
 export function malliKgEquivalent(product, quantity, unit) {

@@ -184,8 +184,8 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
                 )}
               </>
             )}
-            {otherUnit && formatMalliKgEquivalent(selectedProduct, Number(mootais), inputUnit) ? ' · ' : ''}
-            {formatMalliKgEquivalent(selectedProduct, Number(mootais), inputUnit)}
+            {otherUnit && inputUnit !== 'Kg' && formatMalliKgEquivalent(selectedProduct, Number(mootais), inputUnit) ? ' · ' : ''}
+            {inputUnit !== 'Kg' && formatMalliKgEquivalent(selectedProduct, Number(mootais), inputUnit)}
           </p>
         )}
 

@@ -204,8 +204,8 @@ export default function RecordRetailSaleModal({ open, onClose }) {
                           )}
                         </>
                       )}
-                      {otherUnit && formatMalliKgEquivalent(product, quantity, inputUnit) ? ' · ' : ''}
-                      {formatMalliKgEquivalent(product, quantity, inputUnit)}
+                      {otherUnit && inputUnit !== 'Kg' && formatMalliKgEquivalent(product, quantity, inputUnit) ? ' · ' : ''}
+                      {inputUnit !== 'Kg' && formatMalliKgEquivalent(product, quantity, inputUnit)}
                     </p>
                   )}
                 </div>
