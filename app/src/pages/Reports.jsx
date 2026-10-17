@@ -95,6 +95,7 @@ function DailyClosingSummary({
   offline,
   inventoryError,
   onRequestDownload,
+  hideStockInAndBalance,
 }) {
   return (
     <section className="rounded-3xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5">
@@ -105,6 +106,11 @@ function DailyClosingSummary({
           <p className="mt-1 text-xs text-ink-500">
             Balance count is the remaining stock after this date's recorded sales and stock changes. Previous-day stock is not carried forward.
           </p>
+          {hideStockInAndBalance && (
+            <p className="mt-1 text-xs text-ink-500">
+              Stock-in and balance count are not displayed for this date. Buyer sales remain unchanged.
+            </p>
+          )}
         </div>
         <button type="button" onClick={onRequestDownload} className="btn-outline min-h-10 !px-3 !py-2">
           <Download className="h-4 w-4" /> Download balance count CSV
@@ -115,7 +121,11 @@ function DailyClosingSummary({
         <ReportCostCard label="Buyer sales" amount={buyerSalesTotal} />
         <ReportCostCard label="Retail sales" amount={retailSalesTotal} />
         <ReportCostCard label="Payments received" amount={paymentsTotal} />
-        <ReportCostCard label="Stock purchase cost" amount={offline || inventoryError ? null : receiptCost} />
+        <ReportCostCard
+          label="Stock purchase cost"
+          amount={offline || inventoryError || hideStockInAndBalance ? null : receiptCost}
+          empty={hideStockInAndBalance}
+        />
         <ReportCostCard label="Final profit" amount={offline || inventoryError ? null : finalProfit} />
       </div>
       {!offline && !inventoryError && finalProfit == null && rows.length > 0 && (
@@ -161,7 +171,7 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
                   <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
                   <td className={`px-4 py-3 text-right font-bold ${row.closing < 0 ? 'text-red-700' : ''}`}>
-                    {formatProductQuantities(row.product, row.closing)}
+                    {hideStockInAndBalance ? '' : formatProductQuantities(row.product, row.closing)}
                   </td>
                   <td className={`px-4 py-3 text-right font-bold ${row.finalProfit != null && row.finalProfit < 0 ? 'text-red-700' : 'text-green-700'}`}>
                     {row.finalProfit == null ? 'Unavailable' : currencyINR(row.finalProfit)}
@@ -719,8 +729,8 @@ export default function Reports() {
       damaged_stock_display: formatProductQuantities(row.product, row.damaged),
       stock_corrections: row.corrections,
       stock_corrections_display: formatProductQuantities(row.product, row.corrections),
-      balance_count: row.closing,
-      balance_count_display: formatProductQuantities(row.product, row.closing),
+      balance_count: selectedDate === '2026-10-15' ? '' : row.closing,
+      balance_count_display: selectedDate === '2026-10-15' ? '' : formatProductQuantities(row.product, row.closing),
       final_profit: row.finalProfit ?? '',
       final_profit_available: row.finalProfit != null,
     }));
@@ -942,6 +952,7 @@ export default function Reports() {
         rows={dailyStockClosingRows}
         offline={offline}
         inventoryError={inventoryError}
+        hideStockInAndBalance={selectedDate === '2026-10-15'}
         onRequestDownload={() => requestDownload(`the ${selectedDate} balance count CSV`, downloadDailyClosingCsv)}
       />
 
@@ -1180,12 +1191,12 @@ export default function Reports() {
   );
 }
 
-function ReportCostCard({ label, amount }) {
+function ReportCostCard({ label, amount, empty = false }) {
   return (
     <div className="rounded-2xl bg-ink-50 p-4">
       <div className="text-xs font-bold uppercase tracking-wide text-ink-500">{label}</div>
       <div className="mt-2 text-xl font-extrabold text-ink-900">
-        {amount == null ? '—' : currencyINR(amount)}
+        {empty ? '' : amount == null ? '—' : currencyINR(amount)}
       </div>
     </div>
   );
