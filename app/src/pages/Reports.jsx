@@ -226,7 +226,7 @@ function ActivityEntry({ title, subtitle, amount, timestamp, emoji, note, onEdit
   );
 }
 
-function WeekDatePicker({ value, onChange }) {
+function WeekDatePicker({ value, onChange, active }) {
   const dates = getWeekDates(value);
   const today = realTodayIST();
   const firstDate = parseDateStr(dates[0]);
@@ -278,7 +278,7 @@ function WeekDatePicker({ value, onChange }) {
 
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {dates.map((day) => {
-          const selected = day === value;
+          const selected = active && day === value;
           const future = day > today;
           return (
             <button
@@ -488,6 +488,7 @@ function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
 
 export default function Reports() {
   const [period, setPeriod] = useState('week');
+  const [viewMode, setViewMode] = useState('period');
   const [selectedDate, setSelectedDate] = useState(realTodayIST);
   const [buyerFilter, setBuyerFilter] = useState('');
   const [productFilter, setProductFilter] = useState('');
@@ -499,7 +500,7 @@ export default function Reports() {
   const {
     buyerSales, retailSales, payments, buyers, products, balances,
     inventorySettings, inventoryCounts, inventoryMovements,
-    inventoryLoading, inventoryError, loadInventory, offline,
+    inventoryError, loadInventory, offline,
     showToast,
     updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
@@ -822,9 +823,31 @@ export default function Reports() {
         </div>
       </div>
 
-      <WeekDatePicker value={selectedDate} onChange={setSelectedDate} />
-
-      <PeriodPills value={period} onChange={setPeriod} />
+      <section className="space-y-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-bold text-ink-900">Choose one report view</h2>
+          <span className="rounded-full bg-ink-100 px-3 py-1 text-xs font-semibold text-ink-700" role="status">
+            {viewMode === 'day'
+              ? `Single day · ${formatReportDate(selectedDate, { day: 'numeric', month: 'short', year: 'numeric' })}`
+              : `Date range · ${periodLabel}`}
+          </span>
+        </div>
+        <WeekDatePicker
+          value={selectedDate}
+          active={viewMode === 'day'}
+          onChange={(date) => {
+            setSelectedDate(date);
+            setViewMode('day');
+          }}
+        />
+        <PeriodPills
+          value={viewMode === 'period' ? period : ''}
+          onChange={(nextPeriod) => {
+            setPeriod(nextPeriod);
+            setViewMode('period');
+          }}
+        />
+      </section>
 
       <section className="grid grid-cols-1 gap-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-sm md:grid-cols-3">
         <label className="relative min-w-0">
@@ -854,10 +877,12 @@ export default function Reports() {
           </select>
         </label>
         <p className="md:col-span-3 text-xs text-ink-500">
-          Buyer filters apply to buyer sales and payments; product filters apply to sales, stock, and product reports. Choose a date above to see that day’s entries.
+          Buyer filters apply to buyer sales and payments; product filters apply to sales and product reports. Choose either a day or a time range above.
         </p>
       </section>
 
+      {viewMode === 'day' && (
+      <>
       <div>
         <h2 className="mb-3 text-lg font-bold text-ink-900">
           Entries for {formatReportDate(selectedDate, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -981,7 +1006,11 @@ export default function Reports() {
           </div>
         </div>
       </section>
+      </>
+      )}
 
+      {viewMode === 'period' && (
+      <>
       <section>
         <h2 className="mb-3 text-lg font-bold text-ink-900">Period totals · {periodLabel}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1005,53 +1034,6 @@ export default function Reports() {
         </div>
         </div>
       </section>
-
-      {!offline && (
-        <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
-            <div>
-              <h2 className="font-bold text-ink-900 text-xl">Stock & cost report</h2>
-              <p className="text-sm text-ink-500 mt-1">
-                Cost and profit include only sales with recorded inventory costs.
-              </p>
-            </div>
-            {inventoryReport.trackedSalesCount > 0 && (
-              <span className="pill bg-sky-100 text-sky-800">
-                {inventoryReport.trackedRevenueCoverage.toFixed(1)}% of sales revenue costed
-              </span>
-            )}
-          </div>
-          {inventoryLoading ? (
-            <p className="text-sm text-ink-500">Loading inventory movements…</p>
-          ) : inventoryError ? (
-            <p className="text-sm text-amber-800">
-              Inventory-aware reporting is unavailable until the v0.2 inventory migration is installed.
-            </p>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                <ReportCostCard label="Stock purchased" amount={inventoryReport.receiptCost} />
-                <ReportCostCard label="Damaged stock cost" amount={inventoryReport.spoilageCost} />
-                <ReportCostCard label="Tracked sales cost" amount={inventoryReport.trackedSaleCost} />
-                <ReportCostCard
-                  label="Profit after stock cost + wastage"
-                  amount={inventoryReport.trackedSalesCount ? inventoryReport.tradingProfit : null}
-                />
-              </div>
-              {inventoryReport.stockShortage && (
-                <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">
-                  Profit is hidden while a product has negative stock. Reconcile the missing stock first.
-                </p>
-              )}
-              {inventoryReport.trackedSalesCount > 0 && inventoryReport.trackedRevenueCoverage < 100 && (
-                <p className="text-xs text-ink-500 mt-3">
-                  Gross profit is partial because some sales have no recorded cost. Historical costs are not estimated.
-                </p>
-              )}
-            </>
-          )}
-        </section>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         <div className="lg:col-span-3 rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
@@ -1181,6 +1163,8 @@ export default function Reports() {
           </div>
         )}
       </div>
+      </>
+      )}
       <ConfirmDownloadModal
         open={!!confirmDownload}
         fileLabel={confirmDownload?.fileLabel || ''}
