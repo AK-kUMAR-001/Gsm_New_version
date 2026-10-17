@@ -12,6 +12,8 @@ import {
   productSalesUnit,
   productStockToSalesFactor,
   productStockUnit,
+  normalizeStockCountInput,
+  stockCountInputUnits,
   todayIST,
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
@@ -147,6 +149,7 @@ export default function Inventory() {
     setForm({
       quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
+      quantityUnit: requestedAction === 'count' ? productSalesUnit(target) : '',
     });
     searchParams.delete('stockProductName');
     searchParams.delete('stockAction');
@@ -166,6 +169,7 @@ export default function Inventory() {
     setForm({
       quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
+      quantityUnit: nextAction === 'count' ? productSalesUnit(product) : '',
     });
   };
   const closeAction = () => {
@@ -201,7 +205,13 @@ export default function Inventory() {
         damageRequestId.current,
       );
     } else if (action === 'count') {
-      result = await recordMorningCount(productId, quantity, recordedUnitCost);
+      const countInput = normalizeStockCountInput(
+        productsById.get(productId),
+        quantity,
+        form.quantityUnit || productSalesUnit(productsById.get(productId)),
+        form.unitCost,
+      );
+      result = await recordMorningCount(productId, countInput.quantity, countInput.unitCost);
     } else if (action === 'receipt') {
       result = await recordStockReceipt(
         productId, form.supplierId, recordedQuantity, Number(recordedUnitCost),
@@ -522,23 +532,58 @@ export default function Inventory() {
                 <div>
                   <label className="label">
                     {action === 'count'
-                      ? `Physical quantity counted (${productSalesUnit(product)})`
+                      ? 'Physical quantity counted'
                       : action === 'correction'
                         ? `Correct total available stock (${productSalesUnit(product)})`
                         : `Damaged quantity (${productSalesUnit(product)})`}
                     <span className="text-red-500"> *</span>
                   </label>
-                  <input
-                    required
-                    type="number"
-                    step="0.001"
-                    min={action === 'damaged' ? '0.001' : '0'}
-                    value={form.quantity || ''}
-                    onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
-                    className="input"
-                    autoFocus
-                  />
-                  {formatMalliKgEquivalent(product, quantityInput, productSalesUnit(product)) && (
+                  <div className={action === 'count' ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3' : ''}>
+                    {action === 'count' && (
+                      <div>
+                        <label className="label" htmlFor="morning-count-unit">Count unit</label>
+                        <select
+                          id="morning-count-unit"
+                          value={form.quantityUnit || productSalesUnit(product)}
+                          onChange={(event) => setForm((current) => ({ ...current, quantityUnit: event.target.value }))}
+                          className="input"
+                        >
+                          {stockCountInputUnits(product).map((unit) => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className="label" htmlFor="stock-quantity">
+                        {action === 'count' ? `${form.quantityUnit || productSalesUnit(product)} quantity` : 'Quantity'}
+                      </label>
+                      <input
+                        id="stock-quantity"
+                        required
+                        type="number"
+                        step="0.001"
+                        min={action === 'damaged' ? '0.001' : '0'}
+                        value={form.quantity || ''}
+                        onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
+                        className="input"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  {action === 'count' && quantityInput > 0 && (
+                    <p className="mt-1 text-xs text-ink-500">
+                      Equivalent: {formatProductQuantities(
+                        product,
+                        normalizeStockCountInput(
+                          product,
+                          quantityInput,
+                          form.quantityUnit || productSalesUnit(product),
+                        ).quantity,
+                      )}
+                    </p>
+                  )}
+                  {action !== 'count' && formatMalliKgEquivalent(product, quantityInput, productSalesUnit(product)) && (
                     <p className="mt-1 text-xs text-ink-500">
                       Equivalent: {formatMalliKgEquivalent(product, quantityInput, productSalesUnit(product))}
                     </p>
@@ -547,7 +592,7 @@ export default function Inventory() {
                 {(action === 'count' || (action === 'correction' && Number(form.quantity) > 0)) && (
                   <div>
                     <label className="label">
-                      Estimated cost per {productSalesUnit(product)}
+                      Estimated cost per {action === 'count' ? (form.quantityUnit || productSalesUnit(product)) : productSalesUnit(product)}
                       {action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0 && (
                         <span className="text-red-500"> *</span>
                       )}

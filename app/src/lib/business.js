@@ -76,6 +76,44 @@ export function saleInputUnits(product) {
     : [stockUnit, salesUnit];
 }
 
+export function stockCountInputUnits(product) {
+  const units = [...new Set([productSalesUnit(product), productStockUnit(product)])];
+  if (String(product?.name || '').trim().toLocaleLowerCase() === 'malli') units.push('Kg');
+  return units;
+}
+
+export function normalizeStockCountInput(product, quantity, unit, unitCost) {
+  const value = Number(quantity);
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error('Enter a valid non-negative stock count.');
+  }
+
+  const salesUnit = productSalesUnit(product);
+  const stockUnit = productStockUnit(product);
+  const factor = productStockToSalesFactor(product);
+  let salesUnitFactor;
+  if (unit === salesUnit) salesUnitFactor = 1;
+  else if (unit === stockUnit) salesUnitFactor = factor;
+  else if (unit === 'Kg' && String(product?.name || '').trim().toLocaleLowerCase() === 'malli') {
+    salesUnitFactor = 50 / 35;
+  } else {
+    throw new Error('Choose a valid unit for the physical stock count.');
+  }
+
+  const cost = unitCost == null || unitCost === '' ? null : Number(unitCost);
+  if (cost != null && (!Number.isFinite(cost) || cost < 0)) {
+    throw new Error('Enter a valid non-negative estimated unit cost.');
+  }
+  return {
+    quantity: value * salesUnitFactor,
+    unitCost: cost == null
+      ? null
+      : unit === 'Kg' && String(product?.name || '').trim().toLocaleLowerCase() === 'malli'
+        ? cost * (35 / 50)
+        : cost / salesUnitFactor,
+  };
+}
+
 export function normalizeSaleInput(product, quantity, rate, inputUnit) {
   const value = Number(quantity);
   const unitRate = Number(rate);
