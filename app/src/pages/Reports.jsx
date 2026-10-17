@@ -6,6 +6,7 @@ import {
   buildMonthlyBuckets,
   buildDailyStockClosingRows,
   buildProductPerformance,
+  buildRecentActivity,
   computeDailyProductProfits,
   computeInventoryCostReport,
   formatProductQuantities,
@@ -20,7 +21,8 @@ import {
 } from '../lib/business.js';
 import PeriodPills from '../components/PeriodPills.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, FileDown, FileJson, IndianRupee, Search } from 'lucide-react';
+import RecentActivityModal from '../components/RecentActivityModal.jsx';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, FileDown, FileJson, IndianRupee, Pencil, Search } from 'lucide-react';
 import { downloadCsv, downloadJson, exportDateStamp } from '../lib/dataExport.js';
 
 function dateKey(date) {
@@ -184,7 +186,7 @@ function DailyClosingSummary({
   );
 }
 
-function ActivityEntry({ title, subtitle, amount, timestamp, emoji, note }) {
+function ActivityEntry({ title, subtitle, amount, timestamp, emoji, note, onEdit }) {
   return (
     <article className="flex min-w-0 items-start gap-3 py-3.5">
       {emoji && (
@@ -199,6 +201,17 @@ function ActivityEntry({ title, subtitle, amount, timestamp, emoji, note }) {
         {timestamp && <div className="mt-1 text-xs text-ink-400">{timestamp}</div>}
       </div>
       <div className="shrink-0 text-right text-sm font-bold text-ink-900">{currencyINR(amount)}</div>
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Edit ${title}`}
+          title="Edit entry"
+          className="btn-ghost !p-2"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+      )}
     </article>
   );
 }
@@ -470,12 +483,16 @@ export default function Reports() {
   const [productFilter, setProductFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDownload, setConfirmDownload] = useState(null);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityEditTarget, setActivityEditTarget] = useState(null);
   const app = useAppData();
   const {
     buyerSales, retailSales, payments, buyers, products, balances,
     inventorySettings, inventoryCounts, inventoryMovements,
     inventoryLoading, inventoryError, loadInventory, offline,
     showToast,
+    updateBuyerSale, updateRetailSale, updateBuyerPayment,
+    deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
   } = app;
   const buyersById = useMemo(
     () => new Map((buyers || []).map((buyer) => [buyer.id, buyer])),
@@ -558,6 +575,61 @@ export default function Reports() {
     () => sortEntriesByCreatedAt((payments || []).filter((payment) => String(payment.paid_at || '').slice(0, 10) === selectedDate && matchesPayment(payment))),
     [payments, selectedDate, buyerFilter, normalizedSearch, buyersById]
   );
+  const dailyActivities = useMemo(
+    () => buildRecentActivity(
+      dailyBuyerSales,
+      dailyPayments,
+      Object.fromEntries(buyersById),
+      Number.MAX_SAFE_INTEGER,
+      dailyRetailSales,
+    ),
+    [dailyBuyerSales, dailyPayments, buyersById, dailyRetailSales]
+  );
+  const dailyActivitiesById = useMemo(
+    () => new Map(dailyActivities.map((activity) => [`${activity.type}:${activity.id}`, activity])),
+    [dailyActivities]
+  );
+  const canEditDailyEntries = selectedDate >= '2026-10-16';
+  const editDailyActivity = (type, id) => {
+    const activity = dailyActivitiesById.get(`${type}:${id}`);
+    if (!activity) return;
+    setActivityEditTarget(activity);
+    setActivityOpen(true);
+  };
+  const saveActivity = async (activity, fields) => {
+    if (activity.type === 'PAYMENT') {
+      return updateBuyerPayment(activity.id, {
+        buyer_id: fields.buyer_id,
+        amount_paid: Number(fields.amount_paid),
+        paid_at: fields.date,
+        notes: fields.notes.trim() || null,
+      });
+    }
+    if (activity.type === 'RETAIL') {
+      return updateRetailSale(activity.id, {
+        product: fields.product,
+        mootais_sold: Number(fields.quantity),
+        quantity_unit: fields.quantity_unit,
+        price_per_mootai: Number(fields.price),
+        sale_date: fields.date,
+        notes: fields.notes.trim() || null,
+      });
+    }
+    return updateBuyerSale(activity.id, {
+      buyer_id: fields.buyer_id,
+      product: fields.product,
+      mootais: Number(fields.quantity),
+      quantity_unit: fields.quantity_unit,
+      price_per_mootai: Number(fields.price),
+      sale_date: fields.date,
+      notes: fields.notes.trim() || null,
+    });
+  };
+  const removeActivity = (activity) => {
+    if (activity.type === 'PAYMENT') return deleteBuyerPayment(activity.id);
+    if (activity.type === 'RETAIL') return deleteRetailSale(activity.id);
+    return deleteBuyerSale(activity.id);
+  };
   const dailyBuyerTotal = useMemo(() => sumSales(dailyBuyerSales), [dailyBuyerSales]);
   const dailyRetailTotal = useMemo(() => sumSales(dailyRetailSales), [dailyRetailSales]);
   const dailyPaymentsTotal = useMemo(
@@ -800,6 +872,7 @@ export default function Reports() {
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
                   note={sale.notes}
+                  onEdit={canEditDailyEntries ? () => editDailyActivity('SALE', sale.id) : null}
                 />
               );
             })}
@@ -822,6 +895,7 @@ export default function Reports() {
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
                   note={sale.notes}
+                  onEdit={canEditDailyEntries ? () => editDailyActivity('RETAIL', sale.id) : null}
                 />
               );
             })}
@@ -840,11 +914,23 @@ export default function Reports() {
                 amount={Number(payment.amount_paid || 0)}
                 timestamp={entryTime(payment)}
                 note={payment.notes}
+                onEdit={canEditDailyEntries ? () => editDailyActivity('PAYMENT', payment.id) : null}
               />
             ))}
           </DailyActivitySection>
         </div>
       </div>
+
+      <RecentActivityModal
+        open={activityOpen}
+        onClose={() => { setActivityOpen(false); setActivityEditTarget(null); }}
+        activities={dailyActivities}
+        buyers={buyers}
+        products={products}
+        onSave={saveActivity}
+        onDelete={removeActivity}
+        initialActivity={activityEditTarget}
+      />
 
       <DailyClosingSummary
         date={selectedDate}

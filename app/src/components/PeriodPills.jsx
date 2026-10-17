@@ -16,13 +16,18 @@ export const RETAIL_PERIOD_OPTIONS = [
 
 export default function PeriodPills({ value, onChange, options = PERIOD_OPTIONS, className = '' }) {
   return (
-    <div className={`inline-flex flex-wrap items-center gap-2 ${className}`}>
+    <div
+      role="group"
+      aria-label="Choose reporting period"
+      className={`grid grid-cols-2 gap-2 sm:inline-flex sm:flex-wrap sm:items-center ${className}`}
+    >
       {options.map((o) => (
         <button
           key={o.key}
           type="button"
+          aria-pressed={value === o.key}
           onClick={() => onChange(o.key)}
-          className={`period-pill ${value === o.key ? 'active' : ''}`}
+          className={`period-pill min-h-11 ${value === o.key ? 'active' : ''}`}
         >
           {o.label}
         </button>
