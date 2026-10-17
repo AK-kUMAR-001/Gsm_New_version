@@ -12,8 +12,8 @@ import {
   productSalesUnit,
   productStockToSalesFactor,
   productStockUnit,
-  normalizeStockCountInput,
-  stockCountInputUnits,
+  normalizeStockQuantityInput,
+  stockQuantityInputUnits,
   todayIST,
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
@@ -149,7 +149,7 @@ export default function Inventory() {
     setForm({
       quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
-      quantityUnit: requestedAction === 'count' ? productSalesUnit(target) : '',
+      quantityUnit: ['count', 'correction'].includes(requestedAction) ? productSalesUnit(target) : '',
     });
     searchParams.delete('stockProductName');
     searchParams.delete('stockAction');
@@ -169,7 +169,7 @@ export default function Inventory() {
     setForm({
       quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
-      quantityUnit: nextAction === 'count' ? productSalesUnit(product) : '',
+      quantityUnit: ['count', 'correction'].includes(nextAction) ? productSalesUnit(product) : '',
     });
   };
   const closeAction = () => {
@@ -205,7 +205,7 @@ export default function Inventory() {
         damageRequestId.current,
       );
     } else if (action === 'count') {
-      const countInput = normalizeStockCountInput(
+      const countInput = normalizeStockQuantityInput(
         productsById.get(productId),
         quantity,
         form.quantityUnit || productSalesUnit(productsById.get(productId)),
@@ -221,11 +221,17 @@ export default function Inventory() {
     } else if (action === 'damaged') {
       result = await recordStockAdjustment(productId, 'spoilage', -quantity, form.reason.trim(), null, requestId.current);
     } else {
+      const stockInput = normalizeStockQuantityInput(
+        productsById.get(productId),
+        quantity,
+        form.quantityUnit || productSalesUnit(productsById.get(productId)),
+        form.unitCost,
+      );
       result = await setStockQuantity(
         productId,
-        quantity,
+        stockInput.quantity,
         'Stock balance corrected from Daily Stock In',
-        form.unitCost ? Number(form.unitCost) : null,
+        stockInput.unitCost,
         requestId.current,
       );
     }
@@ -538,17 +544,19 @@ export default function Inventory() {
                         : `Damaged quantity (${productSalesUnit(product)})`}
                     <span className="text-red-500"> *</span>
                   </label>
-                  <div className={action === 'count' ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3' : ''}>
-                    {action === 'count' && (
+                  <div className={['count', 'correction'].includes(action) ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3' : ''}>
+                    {['count', 'correction'].includes(action) && (
                       <div>
-                        <label className="label" htmlFor="morning-count-unit">Count unit</label>
+                        <label className="label" htmlFor="stock-quantity-unit">
+                          {action === 'count' ? 'Count unit' : 'Balance unit'}
+                        </label>
                         <select
-                          id="morning-count-unit"
+                          id="stock-quantity-unit"
                           value={form.quantityUnit || productSalesUnit(product)}
                           onChange={(event) => setForm((current) => ({ ...current, quantityUnit: event.target.value }))}
                           className="input"
                         >
-                          {stockCountInputUnits(product).map((unit) => (
+                          {stockQuantityInputUnits(product).map((unit) => (
                             <option key={unit} value={unit}>{unit}</option>
                           ))}
                         </select>
@@ -556,7 +564,9 @@ export default function Inventory() {
                     )}
                     <div>
                       <label className="label" htmlFor="stock-quantity">
-                        {action === 'count' ? `${form.quantityUnit || productSalesUnit(product)} quantity` : 'Quantity'}
+                        {['count', 'correction'].includes(action)
+                          ? `${form.quantityUnit || productSalesUnit(product)} quantity`
+                          : 'Quantity'}
                       </label>
                       <input
                         id="stock-quantity"
@@ -571,11 +581,11 @@ export default function Inventory() {
                       />
                     </div>
                   </div>
-                  {action === 'count' && quantityInput > 0 && (
+                  {['count', 'correction'].includes(action) && quantityInput > 0 && (
                     <p className="mt-1 text-xs text-ink-500">
                       Equivalent: {formatProductQuantities(
                         product,
-                        normalizeStockCountInput(
+                        normalizeStockQuantityInput(
                           product,
                           quantityInput,
                           form.quantityUnit || productSalesUnit(product),
@@ -583,7 +593,7 @@ export default function Inventory() {
                       )}
                     </p>
                   )}
-                  {action !== 'count' && formatMalliKgEquivalent(product, quantityInput, productSalesUnit(product)) && (
+                  {!['count', 'correction'].includes(action) && formatMalliKgEquivalent(product, quantityInput, productSalesUnit(product)) && (
                     <p className="mt-1 text-xs text-ink-500">
                       Equivalent: {formatMalliKgEquivalent(product, quantityInput, productSalesUnit(product))}
                     </p>
@@ -592,7 +602,9 @@ export default function Inventory() {
                 {(action === 'count' || (action === 'correction' && Number(form.quantity) > 0)) && (
                   <div>
                     <label className="label">
-                      Estimated cost per {action === 'count' ? (form.quantityUnit || productSalesUnit(product)) : productSalesUnit(product)}
+                      Estimated cost per {['count', 'correction'].includes(action)
+                        ? (form.quantityUnit || productSalesUnit(product))
+                        : productSalesUnit(product)}
                       {action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0 && (
                         <span className="text-red-500"> *</span>
                       )}

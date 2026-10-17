@@ -76,13 +76,13 @@ export function saleInputUnits(product) {
     : [stockUnit, salesUnit];
 }
 
-export function stockCountInputUnits(product) {
+export function stockQuantityInputUnits(product) {
   const units = [...new Set([productSalesUnit(product), productStockUnit(product)])];
   if (String(product?.name || '').trim().toLocaleLowerCase() === 'malli') units.push('Kg');
   return units;
 }
 
-export function normalizeStockCountInput(product, quantity, unit, unitCost) {
+export function normalizeStockQuantityInput(product, quantity, unit, unitCost) {
   const value = Number(quantity);
   if (!Number.isFinite(value) || value < 0) {
     throw new Error('Enter a valid non-negative stock count.');
