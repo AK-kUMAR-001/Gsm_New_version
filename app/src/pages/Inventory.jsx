@@ -214,7 +214,7 @@ export default function Inventory() {
       result = await recordMorningCount(productId, countInput.quantity, countInput.unitCost);
     } else if (action === 'receipt') {
       result = await recordStockReceipt(
-        productId, form.supplierId, recordedQuantity, Number(recordedUnitCost),
+        productId, form.supplierId || null, recordedQuantity, Number(recordedUnitCost),
         form.notes.trim() || null, requestId.current,
         recordedDamage, form.damageReason.trim() || null, damageRequestId.current,
       );
@@ -669,14 +669,13 @@ export default function Inventory() {
             )}
             {action === 'receipt' && (
               <div>
-                <label className="label">Supplier <span className="text-red-500">*</span></label>
+                <label className="label">Supplier (optional)</label>
                 <select
-                  required
                   value={form.supplierId}
                   onChange={(event) => setForm((current) => ({ ...current, supplierId: event.target.value }))}
                   className="input"
                 >
-                  <option value="">Select supplier</option>
+                  <option value="">No supplier</option>
                   {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
                 </select>
               </div>
