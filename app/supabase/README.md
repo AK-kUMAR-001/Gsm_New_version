@@ -93,6 +93,10 @@ order:
     database functions to keep the inventory ledger consistent. If you applied
     an earlier copy before the final hardening updates, rerun the current file
     in the Supabase SQL Editor before using transaction corrections.
+14. `202610170004_historical_entries_and_stock_corrections.sql` to allow
+    owner-authorized sales dated in the past when the tracked product has a
+    physical count and enough stock recorded for that date, and to enable
+    dated closing-stock corrections from Reports.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
@@ -103,7 +107,13 @@ The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 of the product's sales units; set it
 to 0 to turn off the warning for a product. The app displays warnings on the
 dashboard and Daily Stock In page and refreshes the balance after a successful
-sale.
+sale. Warnings are shown only after a positive opening, receipt, count surplus,
+or stock correction has been recorded for the product.
+
+Historical sale entry requires the selected date's physical count and enough
+recorded stock for the sale. Closing-stock corrections are recorded against
+that date in the ledger and do not carry forward to other dates, matching the
+daily closing report's existing day-by-day balance behavior.
 
 The product-unit migration sets product-specific sales and stock-entry units.
 Its initial configuration is Pudina: 200 Kattu per Mootai; Malli: 50 Kattu per

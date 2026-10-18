@@ -4,15 +4,21 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import { formatProductQuantities } from '../lib/business.js';
 
 export default function LowStockAlerts() {
-  const { products, inventorySettings, inventorySummary, inventoryError, offline } = useAppData();
+  const { products, inventorySettings, inventorySummary, inventoryMovements, inventoryError, offline } = useAppData();
   if (offline || inventoryError) return null;
 
   const productsById = new Map(products.map((product) => [product.id, product]));
   const summaryById = new Map(inventorySummary.map((row) => [row.product_id, row]));
+  const stockedProductIds = new Set(
+    inventoryMovements
+      .filter((movement) => ['opening', 'receipt', 'count_adjustment', 'correction'].includes(movement.movement_type)
+        && Number(movement.quantity_delta || 0) > 0)
+      .map((movement) => movement.product_id)
+  );
   const lowStockProducts = inventorySettings.flatMap((setting) => {
     const product = productsById.get(setting.product_id);
     const stock = summaryById.get(setting.product_id);
-    if (!product || product.active === false || !stock) return [];
+    if (!product || product.active === false || !stock || !stockedProductIds.has(setting.product_id)) return [];
     const threshold = Number(setting.low_stock_threshold ?? 5);
     const available = Number(stock.quantity_on_hand || 0);
     return threshold > 0 && available <= threshold ? [{ product, available, threshold }] : [];

@@ -20,7 +20,7 @@ function newRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
 }
 
-export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) {
+export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, initialDate = null }) {
   const {
     activeBuyers, balancesById, activeProducts, insertBuyerSale, insertPayment, showToast,
   } = useAppData();
@@ -46,7 +46,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
     setSelectedBuyerId(buyerId || '');
     setChoosingBuyer(!buyerId);
     setQuery('');
-    setSaleDate(todayIST());
+    setSaleDate(initialDate || todayIST());
     setRows(Object.fromEntries(activeProducts.map((product) => [product.name, emptyRow(product)])));
     setPayment('');
     setNotes('');
@@ -55,7 +55,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
     requestIds.current = newRequestIds(activeProducts);
     savedProducts.current = new Set();
     failedPayment.current = false;
-  }, [open, activeProducts, buyerId]);
+  }, [open, activeProducts, buyerId, initialDate]);
 
   const filteredBuyers = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -227,8 +227,8 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null }) 
               id="quick-sale-date"
               type="date"
               required
+              min={initialDate ? undefined : todayIST()}
               disabled={hasSavedSales}
-              min={todayIST()}
               max={todayIST()}
               value={saleDate}
               onChange={(event) => {

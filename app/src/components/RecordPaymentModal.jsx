@@ -4,28 +4,30 @@ import { todayIST, currencyINR } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
 import { HandCoins, IndianRupee } from 'lucide-react';
 
-export default function RecordPaymentModal({ open, onClose, buyerId }) {
-  const { insertPayment } = useAppData();
+export default function RecordPaymentModal({ open, onClose, buyerId = null, initialDate = null }) {
+  const { activeBuyers, insertPayment } = useAppData();
   const [amount_paid, setAmountPaid] = useState('');
   const [paid_at, setPaidAt] = useState(todayIST());
+  const [selectedBuyerId, setSelectedBuyerId] = useState(buyerId || '');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
       setAmountPaid('');
-      setPaidAt(todayIST());
+      setPaidAt(initialDate || todayIST());
+      setSelectedBuyerId(buyerId || '');
       setNotes('');
       setBusy(false);
     }
-  }, [open]);
+  }, [open, initialDate, buyerId]);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!amount_paid || !buyerId) return;
+    if (!amount_paid || !selectedBuyerId) return;
     setBusy(true);
     const { error } = await insertPayment({
-      buyer_id: buyerId,
+      buyer_id: selectedBuyerId,
       amount_paid: Number(amount_paid),
       paid_at,
       notes: notes.trim() || null,
@@ -37,6 +39,22 @@ export default function RecordPaymentModal({ open, onClose, buyerId }) {
   return (
     <Modal open={open} onClose={onClose} title="Record Payment">
       <form onSubmit={submit} className="space-y-5">
+        {!buyerId && (
+          <div>
+            <label className="label">Buyer <span className="text-red-500">*</span></label>
+            <select
+              required
+              value={selectedBuyerId}
+              onChange={(event) => setSelectedBuyerId(event.target.value)}
+              className="input"
+            >
+              <option value="">Choose a buyer</option>
+              {activeBuyers.map((buyer) => (
+                <option key={buyer.id} value={buyer.id}>{buyer.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="label">Amount Paid (INR) <span className="text-red-500">*</span></label>
           <div className="relative">

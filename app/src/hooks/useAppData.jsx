@@ -661,6 +661,16 @@ export function AppDataProvider({ children }) {
       p_request_id: requestId,
     }, 'Stock balance updated');
 
+  const setStockQuantityForDate = (productId, date, quantity, reason, unitCost, requestId) =>
+    recordInventoryAction('inventory_set_stock_quantity_for_date', {
+      p_product_id: productId,
+      p_stock_date: date,
+      p_target_quantity: quantity,
+      p_reason: reason,
+      p_unit_cost: unitCost,
+      p_request_id: requestId,
+    }, 'Historical stock balance updated');
+
   const filterByPeriod = useCallback((rows, period, dateField) => {
     if (period === 'all' || !period) return rows;
     return (rows || []).filter((r) => inPeriod(r[dateField], period, 'dashboard'));
@@ -676,6 +686,7 @@ export function AppDataProvider({ children }) {
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
     startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    setStockQuantityForDate,
     filterByPeriod,
   };
 

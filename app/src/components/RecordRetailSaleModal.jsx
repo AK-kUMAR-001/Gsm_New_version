@@ -20,7 +20,7 @@ function makeRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
 }
 
-export default function RecordRetailSaleModal({ open, onClose }) {
+export default function RecordRetailSaleModal({ open, onClose, initialDate = null }) {
   const { activeProducts, insertRetailSale, showToast } = useAppData();
   const navigate = useNavigate();
   const [saleDate, setSaleDate] = useState(todayIST());
@@ -33,14 +33,14 @@ export default function RecordRetailSaleModal({ open, onClose }) {
 
   useEffect(() => {
     if (!open) return;
-    setSaleDate(todayIST());
+    setSaleDate(initialDate || todayIST());
     setRows(Object.fromEntries(activeProducts.map((product) => [product.name, emptyRow(product)])));
     setNotes('');
     setBusy(false);
     setSaveError('');
     requestIds.current = makeRequestIds(activeProducts);
     savedProducts.current = new Set();
-  }, [open, activeProducts]);
+  }, [open, activeProducts, initialDate]);
 
   const entries = activeProducts
     .map((product) => ({
@@ -119,7 +119,7 @@ export default function RecordRetailSaleModal({ open, onClose }) {
             id="retail-sale-date"
             type="date"
             required
-            min={todayIST()}
+            min={initialDate ? undefined : todayIST()}
             max={todayIST()}
             disabled={hasSavedSales}
             value={saleDate}

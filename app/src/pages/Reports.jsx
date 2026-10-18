@@ -22,7 +22,11 @@ import {
 import PeriodPills from '../components/PeriodPills.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
 import RecentActivityModal from '../components/RecentActivityModal.jsx';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, FileDown, FileJson, IndianRupee, Pencil, Search } from 'lucide-react';
+import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
+import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
+import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
+import Modal from '../components/Modal.jsx';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Download, FileDown, FileJson, IndianRupee, Pencil, Search } from 'lucide-react';
 import { downloadCsv, downloadJson, exportDateStamp } from '../lib/dataExport.js';
 
 function dateKey(date) {
@@ -63,7 +67,7 @@ function sortEntriesByCreatedAt(entries) {
   ));
 }
 
-function DailyActivitySection({ title, count, total, emptyText, children }) {
+function DailyActivitySection({ title, count, total, emptyText, enterLabel, onEnter, children }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-3 border-b border-ink-100 px-4 py-4 sm:px-5">
@@ -74,7 +78,18 @@ function DailyActivitySection({ title, count, total, emptyText, children }) {
         <div className="shrink-0 text-right text-sm font-extrabold text-ink-900">{currencyINR(total)}</div>
       </div>
       {count === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-ink-400 sm:px-5">{emptyText}</p>
+        <div className="px-4 py-6 text-center sm:px-5">
+          <p className="text-sm text-ink-400">{emptyText}</p>
+          {onEnter && (
+            <button
+              type="button"
+              onClick={onEnter}
+              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100"
+            >
+              {enterLabel}
+            </button>
+          )}
+        </div>
       ) : (
         <div className="max-h-[420px] divide-y divide-ink-100 overflow-y-auto px-4 sm:px-5">
           {children}
@@ -95,6 +110,7 @@ function DailyClosingSummary({
   offline,
   inventoryError,
   onRequestDownload,
+  onEditStock,
   hideStockInAndBalance,
 }) {
   return (
@@ -171,7 +187,20 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
                   <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
                   <td className={`px-4 py-3 text-right font-bold ${row.closing < 0 ? 'text-red-700' : ''}`}>
-                    {hideStockInAndBalance ? '' : formatProductQuantities(row.product, row.closing)}
+                    {hideStockInAndBalance ? '' : (
+                      <div className="flex items-center justify-end gap-2">
+                        <span>{formatProductQuantities(row.product, row.closing)}</span>
+                        <button
+                          type="button"
+                          onClick={() => onEditStock(row)}
+                          aria-label={`Edit ${row.productName} closing stock`}
+                          title="Edit closing stock"
+                          className="btn-ghost !p-2"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className={`px-4 py-3 text-right font-bold ${row.finalProfit != null && row.finalProfit < 0 ? 'text-red-700' : 'text-green-700'}`}>
                     {row.finalProfit == null ? 'Unavailable' : currencyINR(row.finalProfit)}
@@ -193,6 +222,99 @@ function DailyClosingSummary({
         </p>
       )}
     </section>
+  );
+}
+
+function EditDailyStockModal({ target, onClose, onSave }) {
+  const [quantity, setQuantity] = useState('');
+  const [reason, setReason] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setQuantity(target ? String(target.row.closing) : '');
+    setReason('');
+    setUnitCost('');
+    setBusy(false);
+    setError('');
+  }, [target]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!target || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await onSave({
+        productId: target.row.productId,
+        date: target.date,
+        quantity: Number(quantity),
+        reason: reason.trim(),
+        unitCost: unitCost ? Number(unitCost) : null,
+      });
+      if (result?.error) setError(result.error.message || 'Could not update this stock balance.');
+      else onClose();
+    } catch (saveError) {
+      setError(`Could not update this stock balance: ${saveError.message || 'Unexpected error.'}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open={!!target} onClose={busy ? () => {} : onClose} title="Edit daily closing stock">
+      {target && (
+        <form onSubmit={submit} className="space-y-4">
+          <p className="text-sm text-ink-600">
+            {target.row.productName} · {formatReportDate(target.date, { day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+          <div>
+            <label className="label">Correct balance ({target.row.unit})</label>
+            <input
+              required
+              type="number"
+              min="0"
+              step="0.001"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="label">Reason for correction <span className="text-red-500">*</span></label>
+            <textarea
+              required
+              rows={2}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className="input resize-none"
+            />
+          </div>
+          <div>
+            <label className="label">Estimated cost per {target.row.unit} (optional)</label>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={unitCost}
+              onChange={(event) => setUnitCost(event.target.value)}
+              className="input"
+            />
+            <p className="mt-1 text-xs text-ink-500">
+              Required only when adding stock to a date with no remaining stock value.
+            </p>
+          </div>
+          {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" disabled={busy} onClick={onClose} className="btn-outline flex-1">Cancel</button>
+            <button type="submit" disabled={busy || !quantity || !reason.trim()} className="btn-green flex-1">
+              <Check className="h-4 w-4" /> {busy ? 'Saving…' : 'Save stock balance'}
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }
 
@@ -496,6 +618,8 @@ export default function Reports() {
   const [confirmDownload, setConfirmDownload] = useState(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityEditTarget, setActivityEditTarget] = useState(null);
+  const [entryModal, setEntryModal] = useState(null);
+  const [stockEditTarget, setStockEditTarget] = useState(null);
   const app = useAppData();
   const {
     buyerSales, retailSales, payments, buyers, products, balances,
@@ -504,6 +628,7 @@ export default function Reports() {
     showToast,
     updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
+    setStockQuantityForDate,
   } = app;
   const buyersById = useMemo(
     () => new Map((buyers || []).map((buyer) => [buyer.id, buyer])),
@@ -586,6 +711,9 @@ export default function Reports() {
     () => sortEntriesByCreatedAt((payments || []).filter((payment) => String(payment.paid_at || '').slice(0, 10) === selectedDate && matchesPayment(payment))),
     [payments, selectedDate, buyerFilter, normalizedSearch, buyersById]
   );
+  const hasBuyerSalesOnDate = (buyerSales || []).some((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate);
+  const hasRetailSalesOnDate = (retailSales || []).some((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate);
+  const hasPaymentsOnDate = (payments || []).some((payment) => String(payment.paid_at || '').slice(0, 10) === selectedDate);
   const dailyActivities = useMemo(
     () => buildRecentActivity(
       dailyBuyerSales,
@@ -893,6 +1021,8 @@ export default function Reports() {
             count={dailyBuyerSales.length}
             total={dailyBuyerTotal}
             emptyText="No buyer sales recorded on this date."
+            enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
+            onEnter={!hasBuyerSalesOnDate ? () => setEntryModal('buyer') : null}
           >
             {dailyBuyerSales.map((sale) => {
               const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
@@ -917,6 +1047,8 @@ export default function Reports() {
             count={dailyRetailSales.length}
             total={dailyRetailTotal}
             emptyText="No retail sales recorded on this date."
+            enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
+            onEnter={!hasRetailSalesOnDate ? () => setEntryModal('retail') : null}
           >
             {dailyRetailSales.map((sale) => {
               const quantity = Number(sale.mootais_sold ?? sale.mootais ?? 0);
@@ -940,6 +1072,8 @@ export default function Reports() {
             count={dailyPayments.length}
             total={dailyPaymentsTotal}
             emptyText="No payments recorded on this date."
+            enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
+            onEnter={!hasPaymentsOnDate ? () => setEntryModal('payment') : null}
           >
             {dailyPayments.map((payment) => (
               <ActivityEntry
@@ -967,6 +1101,34 @@ export default function Reports() {
         initialActivity={activityEditTarget}
       />
 
+      <QuickBuyerEntryModal
+        open={entryModal === 'buyer'}
+        onClose={() => setEntryModal(null)}
+        initialDate={selectedDate}
+      />
+      <RecordRetailSaleModal
+        open={entryModal === 'retail'}
+        onClose={() => setEntryModal(null)}
+        initialDate={selectedDate}
+      />
+      <RecordPaymentModal
+        open={entryModal === 'payment'}
+        onClose={() => setEntryModal(null)}
+        initialDate={selectedDate}
+      />
+      <EditDailyStockModal
+        target={stockEditTarget}
+        onClose={() => setStockEditTarget(null)}
+        onSave={({ productId, date, quantity, reason, unitCost }) => setStockQuantityForDate(
+          productId,
+          date,
+          quantity,
+          reason,
+          unitCost,
+          window.crypto.randomUUID(),
+        )}
+      />
+
       <DailyClosingSummary
         date={selectedDate}
         buyerSalesTotal={dailyBuyerTotal}
@@ -978,6 +1140,7 @@ export default function Reports() {
         offline={offline}
         inventoryError={inventoryError}
         hideStockInAndBalance={selectedDate === '2026-10-15'}
+        onEditStock={(row) => setStockEditTarget({ date: selectedDate, row })}
         onRequestDownload={() => requestDownload(`the ${selectedDate} balance count CSV`, downloadDailyClosingCsv)}
       />
 
