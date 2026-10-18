@@ -903,7 +903,7 @@ export function buildMonthlyBuckets(buyerSales, retailSales, period, scope = 'da
       if (!d) continue;
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
-      const labelShort = d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+      const labelShort = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
       const b = ensure(`${y}-${m}||${labelShort}`);
       const amt = ((s.mootais ?? s.mootais_sold ?? 0) * (s.price_per_mootai ?? 0)) || 0;
       b[prop] += amt;
