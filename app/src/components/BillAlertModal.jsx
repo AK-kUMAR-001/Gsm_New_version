@@ -22,6 +22,18 @@ function supportsPdfFileShare(file) {
   }
 }
 
+function downloadBillFile(file) {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function createBillMessage({ buyer, sales, payments, balance, kind }) {
   const monthKey = realTodayIST().slice(0, 7);
   const monthName = new Date(`${monthKey}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -136,18 +148,25 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
         kind,
       });
       if (!supportsPdfFileShare(file)) {
-        throw new Error('This browser cannot share PDF files. Use the existing Download PDF button to download the statement, or open Send Bill on WhatsApp on a phone with file sharing support.');
+        downloadBillFile(file);
+        setNotice('This browser cannot share PDF files directly. The bill was downloaded; attach it in WhatsApp.');
+        return;
       }
-      await navigator.share({
-        files: [file],
-        title: `${selectedRow.buyer.name} - ${label}`,
-        text: message,
-      });
-      onClose();
+
+      try {
+        await navigator.share({
+          files: [file],
+          title: `${selectedRow.buyer.name} - ${label}`,
+          text: message,
+        });
+        onClose();
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return;
+        downloadBillFile(file);
+        setNotice(`PDF sharing failed${shareError?.message ? `: ${shareError.message}` : '.'} The bill was downloaded; attach it in WhatsApp.`);
+      }
     } catch (shareError) {
-      if (shareError?.name !== 'AbortError') {
-        setError(`Could not prepare or share the bill: ${shareError.message || 'Unexpected error.'}`);
-      }
+      setError(`Could not prepare or download the bill: ${shareError.message || 'Unexpected error.'}`);
     } finally {
       setWorkingKind('');
     }
