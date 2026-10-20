@@ -120,7 +120,7 @@ function DailyClosingSummary({
           <h2 className="text-lg font-bold text-ink-900">Daily closing report</h2>
           <p className="mt-1 text-sm text-ink-500">{formatReportDate(date, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <p className="mt-1 text-xs text-ink-500">
-            Balance count is the remaining stock after this date's recorded sales and stock changes. Previous-day stock is not carried forward.
+            Balance count is calculated from this date's physical count, sales, and stock changes only. It stays blank if no physical count was recorded; previous-day stock is never carried forward.
           </p>
           {hideStockInAndBalance && (
             <p className="mt-1 text-xs text-ink-500">
@@ -187,7 +187,7 @@ function DailyClosingSummary({
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
                   <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
                   <td className={`px-4 py-3 text-right font-bold ${row.closing < 0 ? 'text-red-700' : ''}`}>
-                    {hideStockInAndBalance ? '' : (
+                    {hideStockInAndBalance || !row.countRecorded ? '' : (
                       <div className="flex items-center justify-end gap-2">
                         <span>{formatProductQuantities(row.product, row.closing)}</span>
                         <button
@@ -213,7 +213,7 @@ function DailyClosingSummary({
       )}
       {!offline && !inventoryError && rows.some((row) => !row.countRecorded) && (
         <p className="mt-3 text-xs text-amber-800">
-          Balance counts are ledger balances. Products without a physical morning count are clearly marked and should be checked before closing the day.
+          Balance count is not shown for a product until that date's physical morning count is recorded.
         </p>
       )}
       {!offline && !inventoryError && rows.some((row) => row.closing < 0) && (
@@ -858,8 +858,10 @@ export default function Reports() {
       damaged_stock_display: formatProductQuantities(row.product, row.damaged),
       stock_corrections: row.corrections,
       stock_corrections_display: formatProductQuantities(row.product, row.corrections),
-      balance_count: selectedDate === '2026-10-15' ? '' : row.closing,
-      balance_count_display: selectedDate === '2026-10-15' ? '' : formatProductQuantities(row.product, row.closing),
+      balance_count: selectedDate === '2026-10-15' || !row.countRecorded ? '' : row.closing,
+      balance_count_display: selectedDate === '2026-10-15' || !row.countRecorded
+        ? ''
+        : formatProductQuantities(row.product, row.closing),
       final_profit: row.finalProfit ?? '',
       final_profit_available: row.finalProfit != null,
     }));
