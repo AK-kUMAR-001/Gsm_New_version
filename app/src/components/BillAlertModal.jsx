@@ -233,10 +233,19 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
           </button>
           <div className="rounded-2xl bg-ink-50 p-4">
             <p className="font-bold text-ink-900">{selectedRow.buyer.name}</p>
-            <p className="mt-1 text-xs text-ink-500">
-              Choose a bill to open your device’s share menu with its PDF and greeting message. Pick WhatsApp, email, or another available app.
+            <p className="mt-1 text-xs text-ink-500">{selectedRow.buyer.phone}</p>
+            <p className="mt-2 text-xs text-ink-500">
+              Open this customer’s WhatsApp chat directly, or share the PDF separately. WhatsApp requires you to attach the downloaded PDF manually if you open the chat first.
             </p>
           </div>
+          <a
+            href={selectedRow.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-green flex w-full justify-center"
+          >
+            <MessageCircle className="h-4 w-4" /> Send WhatsApp Message
+          </a>
           <button
             type="button"
             onClick={() => createAndShareBill('full')}
@@ -245,7 +254,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
           >
             <FileText className="h-6 w-6 shrink-0 text-sidebar-accent" />
             <span className="min-w-0 flex-1">
-              <span className="block font-bold text-ink-900">Share complete detailed bill (PDF)</span>
+              <span className="block font-bold text-ink-900">Share complete PDF bill</span>
               <span className="block text-xs text-ink-500">All sales and payments with product, quantity, rate, date, notes, and greeting.</span>
             </span>
             {workingKind === 'full' && <span className="text-xs text-ink-500">Preparing…</span>}
@@ -259,7 +268,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
           >
             <Share2 className="h-6 w-6 shrink-0 text-brand-green-dark" />
             <span className="min-w-0 flex-1">
-              <span className="block font-bold text-ink-900">Share monthly bill (PDF)</span>
+              <span className="block font-bold text-ink-900">Share monthly PDF bill</span>
               <span className="block text-xs text-ink-500">This month’s product quantities by unit, billed amount, payments, and greeting.</span>
             </span>
             {workingKind === 'monthly' && <span className="text-xs text-ink-500">Preparing…</span>}
