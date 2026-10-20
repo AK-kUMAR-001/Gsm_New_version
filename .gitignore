@@ -1,0 +1,11 @@
+# Installed dependencies and build caches
+app/node_modules/
+
+# Local exports and financial backups
+/data/
+/backup_before_merge/
+
+# Environment files
+.env
+.env.*
+!.env.example
