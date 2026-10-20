@@ -3,36 +3,13 @@ import {
   buildWhatsAppBillUrl,
   currencyINR,
   formatQuantityByUnit,
+  normalizeWhatsAppPhone,
   realTodayIST,
   saleQuantitiesByUnit,
 } from '../lib/business.js';
 import Modal from './Modal.jsx';
-import { ArrowLeft, FileText, MessageCircle, Share2 } from 'lucide-react';
-
-function supportsPdfFileShare(file) {
-  if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function' || typeof File !== 'function') {
-    return false;
-  }
-  try {
-    return navigator.canShare({
-      files: [file || new File([''], 'bill.pdf', { type: 'application/pdf' })],
-    });
-  } catch {
-    return false;
-  }
-}
-
-function downloadBillFile(file) {
-  const url = URL.createObjectURL(file);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = file.name;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { SUPABASE_ANON_KEY, SUPABASE_CONFIGURED, SUPABASE_URL, supabase } from '../lib/supabase.js';
 
 function createBillMessage({ buyer, sales, payments, balance, kind }) {
   const monthKey = realTodayIST().slice(0, 7);
@@ -54,18 +31,17 @@ function createBillMessage({ buyer, sales, payments, balance, kind }) {
     0,
   );
   const paid = paymentsForMessage.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0);
-  const label = kind === 'monthly' ? `monthly bill for ${monthName}` : 'complete bill';
   const message = [
     `Hi ${buyer.name},`,
     'Greetings from GSM Traders.',
-    `Please find your ${label} attached.`,
+    `Please find your ${kind === 'monthly' ? `monthly bill for ${monthName}` : 'complete bill'} attached.`,
     `Total quantity: ${formatQuantityByUnit(quantities)}`,
     `Total bill: ${currencyINR(billed)}`,
     `${kind === 'monthly' ? 'Received this month' : 'Total received'}: ${currencyINR(paid)}`,
     `Amount pending: ${currencyINR(balance.balance_due)}`,
     'Please let us know if you have any questions. Thank you.',
   ].join('\n');
-  return { label, message };
+  return message;
 }
 
 export default function BillAlertModal({ open, onClose, buyers, balances, buyerSales, payments }) {
@@ -126,47 +102,63 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
   const selectedBuyerSales = (buyerSales || []).filter((sale) => sale.buyer_id === selectedBuyerId);
   const selectedBuyerPayments = (payments || []).filter((payment) => payment.buyer_id === selectedBuyerId);
 
-  const createAndShareBill = async (kind) => {
+  const createBillFile = (kind) => createBuyerBillFile({
+    buyer: selectedRow.buyer,
+    sales: selectedBuyerSales,
+    payments: selectedBuyerPayments,
+    balance: selectedRow.balance,
+    kind,
+  });
+
+  const createAndSendBill = async (kind) => {
     if (!selectedRow?.url || !createBuyerBillFile || workingKind) return;
     setWorkingKind(kind);
     setError('');
     setNotice('');
 
     try {
-      const file = createBuyerBillFile({
-        buyer: selectedRow.buyer,
-        sales: selectedBuyerSales,
-        payments: selectedBuyerPayments,
-        balance: selectedRow.balance,
-        kind,
-      });
-      const { label, message } = createBillMessage({
-        buyer: selectedRow.buyer,
-        sales: selectedBuyerSales,
-        payments: selectedBuyerPayments,
-        balance: selectedRow.balance,
-        kind,
-      });
-      if (!supportsPdfFileShare(file)) {
-        downloadBillFile(file);
-        setNotice('This browser cannot share PDF files directly. The bill was downloaded; attach it in WhatsApp.');
-        return;
+      if (!SUPABASE_CONFIGURED || !supabase) {
+        throw new Error('WhatsApp bill sending is not configured. Connect the app to its Supabase project first.');
+      }
+      const recipient = normalizeWhatsAppPhone(selectedRow.buyer.phone);
+      if (!recipient) {
+        throw new Error('This customer’s phone number is invalid. Update it before sending the bill.');
       }
 
-      try {
-        await navigator.share({
-          files: [file],
-          title: `${selectedRow.buyer.name} - ${label}`,
-          text: message,
-        });
-        onClose();
-      } catch (shareError) {
-        if (shareError?.name === 'AbortError') return;
-        downloadBillFile(file);
-        setNotice(`PDF sharing failed${shareError?.message ? `: ${shareError.message}` : '.'} The bill was downloaded; attach it in WhatsApp.`);
+      const file = createBillFile(kind);
+      const message = createBillMessage({
+        buyer: selectedRow.buyer,
+        sales: selectedBuyerSales,
+        payments: selectedBuyerPayments,
+        balance: selectedRow.balance,
+        kind,
+      });
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) {
+        throw new Error('Your session has expired. Sign in again before sending a bill.');
       }
-    } catch (shareError) {
-      setError(`Could not prepare or download the bill: ${shareError.message || 'Unexpected error.'}`);
+
+      const form = new FormData();
+      form.append('file', file, file.name);
+      form.append('to', recipient);
+      form.append('caption', message);
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/send-whatsapp-bill`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: form,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || `WhatsApp send failed (${response.status}).`);
+      }
+
+      setNotice(`WhatsApp accepted the ${kind === 'monthly' ? 'monthly' : 'complete'} bill for ${selectedRow.buyer.name} (${selectedRow.buyer.phone}).`);
+    } catch (sendError) {
+      setError(`Could not send the bill: ${sendError.message || 'Unexpected error.'}`);
     } finally {
       setWorkingKind('');
     }
@@ -235,46 +227,44 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
             <p className="font-bold text-ink-900">{selectedRow.buyer.name}</p>
             <p className="mt-1 text-xs text-ink-500">{selectedRow.buyer.phone}</p>
             <p className="mt-2 text-xs text-ink-500">
-              Open this customer’s WhatsApp chat directly, or share the PDF separately. WhatsApp requires you to attach the downloaded PDF manually if you open the chat first.
+              The PDF will be sent directly to this saved number from your connected WhatsApp Business account. No download or contact selection is needed.
             </p>
           </div>
-          <a
-            href={selectedRow.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-green flex w-full justify-center"
-          >
-            <MessageCircle className="h-4 w-4" /> Send WhatsApp Message
-          </a>
-          <button
-            type="button"
-            onClick={() => createAndShareBill('full')}
-            disabled={!!workingKind || !createBuyerBillFile}
-            className="flex w-full items-center gap-3 rounded-2xl border border-ink-200 p-4 text-left transition hover:border-sidebar-accent hover:bg-ink-50 disabled:opacity-60"
-          >
-            <FileText className="h-6 w-6 shrink-0 text-sidebar-accent" />
-            <span className="min-w-0 flex-1">
-              <span className="block font-bold text-ink-900">Share complete PDF bill</span>
-              <span className="block text-xs text-ink-500">All sales and payments with product, quantity, rate, date, notes, and greeting.</span>
-            </span>
-            {workingKind === 'full' && <span className="text-xs text-ink-500">Preparing…</span>}
-            {!createBuyerBillFile && <span className="text-xs text-ink-500">Preparing…</span>}
-          </button>
-          <button
-            type="button"
-            onClick={() => createAndShareBill('monthly')}
-            disabled={!!workingKind || !createBuyerBillFile}
-            className="flex w-full items-center gap-3 rounded-2xl border border-ink-200 p-4 text-left transition hover:border-sidebar-accent hover:bg-ink-50 disabled:opacity-60"
-          >
-            <Share2 className="h-6 w-6 shrink-0 text-brand-green-dark" />
-            <span className="min-w-0 flex-1">
-              <span className="block font-bold text-ink-900">Share monthly PDF bill</span>
-              <span className="block text-xs text-ink-500">This month’s product quantities by unit, billed amount, payments, and greeting.</span>
-            </span>
-            {workingKind === 'monthly' && <span className="text-xs text-ink-500">Preparing…</span>}
-            {!createBuyerBillFile && <span className="text-xs text-ink-500">Preparing…</span>}
-          </button>
-          {notice && <p className="text-sm text-amber-800" role="status">{notice}</p>}
+          <div className="space-y-3 rounded-2xl border border-ink-200 p-4">
+            <div>
+              <p className="font-bold text-ink-900">Complete detailed bill</p>
+              <p className="text-xs text-ink-500">All sales and payments with product, quantity, rate, date, and notes.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => createAndSendBill('full')}
+                disabled={!!workingKind || !createBuyerBillFile}
+                className="btn-green disabled:opacity-60"
+              >
+                <MessageCircle className="h-4 w-4" />
+                {workingKind === 'full' ? 'Sending…' : 'Send complete PDF on WhatsApp'}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-3 rounded-2xl border border-ink-200 p-4">
+            <div>
+              <p className="font-bold text-ink-900">Monthly bill</p>
+              <p className="text-xs text-ink-500">This month’s product quantities by unit, billed amount, and payments.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => createAndSendBill('monthly')}
+                disabled={!!workingKind || !createBuyerBillFile}
+                className="btn-green disabled:opacity-60"
+              >
+                <MessageCircle className="h-4 w-4" />
+                {workingKind === 'monthly' ? 'Sending…' : 'Send monthly PDF on WhatsApp'}
+              </button>
+            </div>
+          </div>
+          {notice && <p className="text-sm text-green-800" role="status">{notice}</p>}
           {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
         </div>
       )}

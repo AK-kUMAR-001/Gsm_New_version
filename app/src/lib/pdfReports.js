@@ -92,17 +92,46 @@ function addMetricCards(doc, values, top = 40) {
   values.forEach((metric, index) => {
     const x = startX + index * (width + gap);
     doc.setFillColor(...COLORS.pale);
-    doc.roundedRect(x, top, width, 20, 2, 2, 'F');
+    doc.roundedRect(x, top, width, 24, 2, 2, 'F');
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.muted);
-    doc.text(metric.label.toUpperCase(), x + 4, top + 7);
+    doc.text(metric.label.toUpperCase(), x + 4, top + 6);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
+    doc.setFontSize(9);
     doc.setTextColor(...COLORS.ink);
-    doc.text(metric.value, x + 4, top + 15);
+    const valueLines = doc.splitTextToSize(String(metric.value), width - 8);
+    doc.text(valueLines, x + 4, top + 12, { lineHeightFactor: 1.15 });
   });
 }
+
+function pdfSaleQuantity(sale) {
+  return formatSaleQuantities(sale).replace(/ \/ /g, '\n');
+}
+
+function pdfSaleRate(sale) {
+  return formatSaleRates(sale)
+    .replace(/₹/g, 'INR ')
+    .replace(/ \/ /g, '\n');
+}
+
+const CUSTOMER_TRANSACTION_COLUMN_STYLES = {
+  0: { cellWidth: 23, halign: 'left' },
+  1: { cellWidth: 16, halign: 'left' },
+  2: { cellWidth: 39, halign: 'left' },
+  3: { cellWidth: 35, halign: 'left' },
+  4: { cellWidth: 46, halign: 'left' },
+  5: { cellWidth: 31, halign: 'right' },
+  6: { halign: 'left' },
+};
+
+const CUSTOMER_TRANSACTION_STYLES = {
+  font: 'helvetica',
+  fontSize: 7.5,
+  cellPadding: 1.5,
+  overflow: 'linebreak',
+  textColor: COLORS.ink,
+};
 
 function table(doc, options) {
   autoTable(doc, {
@@ -252,8 +281,8 @@ export function downloadCustomerStatementsPdf({
           date: sale.sale_date,
           kind: 'Bill',
           details: sale.product || 'Sale',
-          quantity: formatSaleQuantities(sale),
-          rate: formatSaleRates(sale),
+          quantity: pdfSaleQuantity(sale),
+          rate: pdfSaleRate(sale),
           amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
           notes: sale.notes || '',
         })),
@@ -278,15 +307,8 @@ export function downloadCustomerStatementsPdf({
           formatDateCompact(row.date), row.kind, row.details, row.quantity, row.rate, row.amount, row.notes,
         ])
         : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 58 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 29 },
-        5: { cellWidth: 31 },
-        6: { cellWidth: 76 },
-      },
+      columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
+      styles: CUSTOMER_TRANSACTION_STYLES,
     });
     cursorY = (doc.lastAutoTable?.finalY || cursorY + 12) + 12;
   }
@@ -312,8 +334,8 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
       date: sale.sale_date,
       kind: 'Bill',
       details: sale.product || 'Sale',
-      quantity: formatSaleQuantities(sale),
-      rate: formatSaleRates(sale),
+      quantity: pdfSaleQuantity(sale),
+      rate: pdfSaleRate(sale),
       amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
       notes: sale.notes || '',
     })),
@@ -336,15 +358,8 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
         formatDateCompact(row.date), row.kind, row.details, row.quantity, row.rate, row.amount, row.notes,
       ])
       : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
-    columnStyles: {
-      0: { cellWidth: 25 },
-      1: { cellWidth: 20 },
-      2: { cellWidth: 58 },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 29 },
-      5: { cellWidth: 31 },
-      6: { cellWidth: 76 },
-    },
+    columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
+    styles: CUSTOMER_TRANSACTION_STYLES,
   });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -416,7 +431,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
           MONEY(row.billed),
         ])
         : [['—', '—', '—', 'No sales recorded this month']],
-      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 52 }, 2: { cellWidth: 52 }, 3: { cellWidth: 55 } },
+      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 52 }, 2: { cellWidth: 52 } },
     });
     const paymentY = (doc.lastAutoTable?.finalY || 88) + 8;
     doc.setFont('helvetica', 'bold');
@@ -429,8 +444,8 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
         date: sale.sale_date,
         kind: 'Bill',
         product: sale.product || 'Sale',
-        quantity: formatSaleQuantities(sale),
-        rate: formatSaleRates(sale),
+        quantity: pdfSaleQuantity(sale),
+        rate: pdfSaleRate(sale),
         amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
         notes: sale.notes || '',
       })),
@@ -452,15 +467,8 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
           formatDateCompact(row.date), row.kind, row.product, row.quantity, row.rate, row.amount, row.notes,
         ])
         : [['—', '—', 'No bills or payments recorded', '—', '—', '—', '']],
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 58 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 29 },
-        5: { cellWidth: 31 },
-        6: { cellWidth: 76 },
-      },
+      columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
+      styles: CUSTOMER_TRANSACTION_STYLES,
     });
   }
 

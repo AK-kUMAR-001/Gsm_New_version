@@ -598,12 +598,18 @@ export function buildProductPerformance(buyerSales, retailSales, movements, prod
     .sort((a, b) => (b.wholesale_revenue + b.retail_revenue) - (a.wholesale_revenue + a.retail_revenue));
 }
 
-export function buildWhatsAppBillUrl(buyer, balance, buyerSales, buyerPayments) {
-  if (!buyer?.phone) return null;
-  let phone = String(buyer.phone).replace(/\D/g, '');
+export function normalizeWhatsAppPhone(phoneNumber) {
+  if (!phoneNumber) return null;
+  let phone = String(phoneNumber).replace(/\D/g, '');
   if (phone.startsWith('0') && phone.length === 11) phone = phone.slice(1);
   if (phone.length === 10) phone = `91${phone}`;
-  if (phone.length < 11 || phone.length > 15) return null;
+  return phone.length >= 11 && phone.length <= 15 ? phone : null;
+}
+
+export function buildWhatsAppBillUrl(buyer, balance, buyerSales, buyerPayments) {
+  if (!buyer?.phone) return null;
+  const phone = normalizeWhatsAppPhone(buyer.phone);
+  if (!phone) return null;
 
   const monthly = new Map();
   for (const sale of buyerSales || []) {
