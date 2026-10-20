@@ -16,8 +16,10 @@ import {
   formatQuantityByUnit,
   inPeriod,
   parseDateStr,
+  normalizeStockQuantityInput,
   realTodayIST,
   saleQuantitiesByUnit,
+  stockQuantityInputUnits,
 } from '../lib/business.js';
 import PeriodPills from '../components/PeriodPills.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
@@ -227,6 +229,7 @@ function DailyClosingSummary({
 
 function EditDailyStockModal({ target, onClose, onSave }) {
   const [quantity, setQuantity] = useState('');
+  const [quantityUnit, setQuantityUnit] = useState('');
   const [reason, setReason] = useState('');
   const [unitCost, setUnitCost] = useState('');
   const [busy, setBusy] = useState(false);
@@ -234,6 +237,7 @@ function EditDailyStockModal({ target, onClose, onSave }) {
 
   useEffect(() => {
     setQuantity(target ? String(target.row.closing) : '');
+    setQuantityUnit(target ? target.row.unit : '');
     setReason('');
     setUnitCost('');
     setBusy(false);
@@ -246,12 +250,18 @@ function EditDailyStockModal({ target, onClose, onSave }) {
     setBusy(true);
     setError('');
     try {
+      const stockInput = normalizeStockQuantityInput(
+        target.row.product,
+        Number(quantity),
+        quantityUnit || target.row.unit,
+        unitCost,
+      );
       const result = await onSave({
         productId: target.row.productId,
         date: target.date,
-        quantity: Number(quantity),
+        quantity: stockInput.quantity,
         reason: reason.trim(),
-        unitCost: unitCost ? Number(unitCost) : null,
+        unitCost: stockInput.unitCost,
       });
       if (result?.error) setError(result.error.message || 'Could not update this stock balance.');
       else onClose();
@@ -269,18 +279,48 @@ function EditDailyStockModal({ target, onClose, onSave }) {
           <p className="text-sm text-ink-600">
             {target.row.productName} · {formatReportDate(target.date, { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
-          <div>
-            <label className="label">Correct balance ({target.row.unit})</label>
-            <input
-              required
-              type="number"
-              min="0"
-              step="0.001"
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-              className="input"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label" htmlFor="daily-stock-unit">Balance unit</label>
+              <select
+                id="daily-stock-unit"
+                value={quantityUnit || target.row.unit}
+                onChange={(event) => setQuantityUnit(event.target.value)}
+                className="input"
+              >
+                {stockQuantityInputUnits(target.row.product).map((unit) => (
+                  <option key={unit} value={unit}>{unit}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="daily-stock-quantity">
+                Correct balance ({quantityUnit || target.row.unit})
+              </label>
+              <input
+                id="daily-stock-quantity"
+                required
+                type="number"
+                min="0"
+                step="0.001"
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+                className="input"
+              />
+            </div>
           </div>
+          {Number(quantity) > 0 && (
+            <p className="text-xs text-ink-500">
+              Equivalent: {formatProductQuantities(
+                target.row.product,
+                normalizeStockQuantityInput(
+                  target.row.product,
+                  Number(quantity),
+                  quantityUnit || target.row.unit,
+                ).quantity,
+              )}
+            </p>
+          )}
           <div>
             <label className="label">Reason for correction <span className="text-red-500">*</span></label>
             <textarea
@@ -292,7 +332,7 @@ function EditDailyStockModal({ target, onClose, onSave }) {
             />
           </div>
           <div>
-            <label className="label">Estimated cost per {target.row.unit} (optional)</label>
+            <label className="label">Estimated cost per {quantityUnit || target.row.unit} (optional)</label>
             <input
               type="number"
               min="0.01"
