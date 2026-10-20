@@ -7,6 +7,11 @@ export const PERIOD_OPTIONS = [
   { key: 'all',     label: 'All Time' },
 ];
 
+export const BUYER_PERIOD_OPTIONS = [
+  { key: 'today',   label: 'Today' },
+  ...PERIOD_OPTIONS,
+];
+
 export const RETAIL_PERIOD_OPTIONS = [
   { key: 'today',   label: 'Today' },
   { key: 'week',    label: 'This Week' },

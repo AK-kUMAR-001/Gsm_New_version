@@ -10,7 +10,7 @@ import {
   inPeriod,
 } from '../lib/business.js';
 import Avatar from '../components/Avatar.jsx';
-import PeriodPills from '../components/PeriodPills.jsx';
+import PeriodPills, { BUYER_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import DeleteBuyerModal from '../components/DeleteBuyerModal.jsx';
@@ -208,7 +208,7 @@ export default function BuyerDetail() {
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PeriodPills value={period} onChange={setPeriod} />
+        <PeriodPills value={period} onChange={setPeriod} options={BUYER_PERIOD_OPTIONS} />
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
