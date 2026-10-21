@@ -11,6 +11,7 @@ import {
   setRefToday,
   realTodayIST,
   isRemovedProductName,
+  todayIST,
 } from '../lib/business.js';
 
 const AppDataContext = createContext(null);
@@ -629,8 +630,12 @@ export function AppDataProvider({ children }) {
 
   const recordStockReceipt = (
     productId, supplierId, quantity, unitCost, notes, requestId, damagedQuantity, damageReason, damageRequestId,
-  ) =>
-    recordInventoryAction('inventory_record_receipt_with_damage', {
+    movementDate = todayIST(),
+  ) => {
+    const historicalDate = movementDate !== todayIST();
+    return recordInventoryAction(historicalDate
+      ? 'inventory_record_historical_receipt_with_damage'
+      : 'inventory_record_receipt_with_damage', {
       p_product_id: productId,
       p_supplier_id: supplierId,
       p_quantity: quantity,
@@ -640,7 +645,9 @@ export function AppDataProvider({ children }) {
       p_damaged_quantity: damagedQuantity,
       p_damage_reason: damageReason,
       p_damage_request_id: damageRequestId,
+      ...(historicalDate ? { p_movement_date: movementDate } : {}),
     }, damagedQuantity > 0 ? 'Stock receipt and arrival damage recorded' : 'Extra stock receipt recorded');
+  };
 
   const recordStockAdjustment = (productId, movementType, quantityDelta, reason, unitCost, requestId) =>
     recordInventoryAction('inventory_record_adjustment', {

@@ -86,6 +86,7 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
+  const [movementDate, setMovementDate] = useState(todayIST());
   const requestId = useRef(null);
   const damageRequestId = useRef(null);
   const handledRedirectKey = useRef('');
@@ -139,9 +140,16 @@ export default function Inventory() {
     handledRedirectKey.current = location.key;
     const isTracked = settingsById.has(target.id);
     const requestedAction = location.state?.stockAction || searchParams.get('stockAction');
+    const requestedDate = location.state?.stockDate || searchParams.get('stockDate') || todayIST();
+    const selectedMovementDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+      && !Number.isNaN(Date.parse(requestedDate))
+      && requestedDate <= todayIST()
+      ? requestedDate
+      : todayIST();
     setAction(['opening', 'count', 'receipt', 'damaged', 'correction'].includes(requestedAction)
       ? requestedAction
       : isTracked ? (countedIds.has(target.id) ? 'receipt' : 'count') : 'opening');
+    setMovementDate(selectedMovementDate);
     setRedirectNotice(location.state?.stockRedirectNotice || '');
     setProductId(target.id);
     requestId.current = window.crypto.randomUUID();
@@ -149,10 +157,12 @@ export default function Inventory() {
     setForm({
       quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
+      movementDate: selectedMovementDate,
       quantityUnit: ['count', 'correction'].includes(requestedAction) ? productSalesUnit(target) : '',
     });
     searchParams.delete('stockProductName');
     searchParams.delete('stockAction');
+    searchParams.delete('stockDate');
     const remainingQuery = searchParams.toString();
     navigate({
       pathname: location.pathname,
@@ -169,8 +179,10 @@ export default function Inventory() {
     setForm({
       quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
+      movementDate: todayIST(),
       quantityUnit: ['count', 'correction'].includes(nextAction) ? productSalesUnit(product) : '',
     });
+    setMovementDate(todayIST());
   };
   const closeAction = () => {
     setAction(null);
@@ -217,6 +229,7 @@ export default function Inventory() {
         productId, form.supplierId || null, recordedQuantity, Number(recordedUnitCost),
         form.notes.trim() || null, requestId.current,
         recordedDamage, form.damageReason.trim() || null, damageRequestId.current,
+        form.movementDate,
       );
     } else if (action === 'damaged') {
       result = await recordStockAdjustment(productId, 'spoilage', -quantity, form.reason.trim(), null, requestId.current);
@@ -247,7 +260,7 @@ export default function Inventory() {
   const stockUnitCost = Number(form.unitCost || 0);
   const salesUnitCost = stockUnitCost > 0 ? stockUnitCost / stockFactor : 0;
   const movements = inventoryMovements
-    .filter((movement) => activeProductIds.has(movement.product_id) && movement.movement_date === todayIST())
+    .filter((movement) => activeProductIds.has(movement.product_id) && movement.movement_date === movementDate)
     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
 
   return (
@@ -390,7 +403,7 @@ export default function Inventory() {
 
       <section className="metric-card !p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-ink-100">
-          <h2 className="font-bold text-ink-900">Today's stock movements</h2>
+          <h2 className="font-bold text-ink-900">Stock movements · {formatDateCompact(movementDate)}</h2>
           <p className="text-xs text-ink-500 mt-1">The stock balance includes all saved movements.</p>
         </div>
         {movements.length ? (
@@ -446,7 +459,7 @@ export default function Inventory() {
           </div>
         ) : (
           <p className="px-5 py-8 text-center text-sm text-ink-500">
-            {inventoryLoading ? 'Loading stock movements…' : 'No stock movements recorded today.'}
+            {inventoryLoading ? 'Loading stock movements…' : `No stock movements recorded on ${formatDateCompact(movementDate)}.`}
           </p>
         )}
       </section>
@@ -475,6 +488,23 @@ export default function Inventory() {
               <p className="text-xs text-ink-500">
                 Add more stock to the current balance. Sales can resume once usable stock is available.
               </p>
+            )}
+            {action === 'receipt' && (
+              <div>
+                <label className="label">Stock-in date <span className="text-red-500">*</span></label>
+                <input
+                  required
+                  type="date"
+                  max={todayIST()}
+                  value={form.movementDate || todayIST()}
+                  onChange={(event) => {
+                    const nextDate = event.target.value;
+                    setForm((current) => ({ ...current, movementDate: nextDate }));
+                    setMovementDate(nextDate);
+                  }}
+                  className="input"
+                />
+              </div>
             )}
             {action === 'opening' || action === 'receipt' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

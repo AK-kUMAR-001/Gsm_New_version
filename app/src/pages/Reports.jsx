@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
@@ -164,17 +165,19 @@ function DailyClosingSummary({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-100">
-          <table className="w-full min-w-[1050px] text-left text-sm">
+          <table className="w-full min-w-[1270px] text-left text-sm">
             <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
                 <th className="px-4 py-3 font-bold">Morning count</th>
+                <th className="px-4 py-3 text-right font-bold">Stock received</th>
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
                 <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
                 <th className="px-4 py-3 text-right font-bold">Balance count</th>
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
+                <th className="px-4 py-3 text-right font-bold">Stock-in</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
@@ -184,6 +187,7 @@ function DailyClosingSummary({
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
                     {row.countRecorded ? formatProductQuantities(row.product, row.countedQuantity) : 'Count not recorded'}
                   </td>
+                  <td className="px-4 py-3 text-right text-green-700">{formatProductQuantities(row.product, row.receipts)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.buyerSold, date)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.retailSold, date)}</td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
@@ -206,6 +210,16 @@ function DailyClosingSummary({
                   </td>
                   <td className={`px-4 py-3 text-right font-bold ${row.finalProfit != null && row.finalProfit < 0 ? 'text-red-700' : 'text-green-700'}`}>
                     {row.finalProfit == null ? 'Unavailable' : currencyINR(row.finalProfit)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {!hideStockInAndBalance && (
+                      <Link
+                        to={`/inventory?stockAction=receipt&stockProductName=${encodeURIComponent(row.productName)}&stockDate=${date}`}
+                        className="btn-outline inline-flex min-h-9 !px-3 !py-1.5 whitespace-nowrap"
+                      >
+                        Add stock-in
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -888,6 +902,8 @@ export default function Reports() {
         ? formatProductQuantities(row.product, row.countedQuantity)
         : '',
       morning_count_recorded: row.countRecorded,
+      stock_received: row.receipts,
+      stock_received_display: formatProductQuantities(row.product, row.receipts),
       buyer_sales: row.buyerSold,
       buyer_sales_display: formatSalesQuantityForDate(row.product, row.buyerSold, selectedDate),
       retail_sales: row.retailSold,
