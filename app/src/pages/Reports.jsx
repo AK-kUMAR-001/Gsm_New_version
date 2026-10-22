@@ -537,14 +537,53 @@ function WeekDatePicker({ value, onChange, active }) {
   );
 }
 
-function sumSales(sales) {
-  let total = 0;
-  for (const s of sales || []) {
-    const q = s.mootais ?? s.mootais_sold ?? 0;
-    const r = s.price_per_mootai ?? 0;
-    total += Number(q || 0) * Number(r || 0);
-  }
-  return Math.round(total);
+function ProductIncomePanel({ rows, products, emptyText }) {
+  return (
+    <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
+      <h3 className="mb-4 text-xl font-bold text-ink-900">Product income by sale type</h3>
+      <div className="divide-y divide-ink-100">
+        {rows.length === 0 && (
+          <div className="py-10 text-center text-sm text-ink-400">{emptyText}</div>
+        )}
+        {rows.map((row) => (
+          <div
+            key={row.product}
+            className="grid grid-cols-1 gap-3 px-2 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.3fr)] md:items-center"
+          >
+            <div className="flex items-center justify-between gap-3 md:block">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="shrink-0 text-2xl">{getProductEmoji(row.product, products)}</span>
+                <div className="truncate font-bold text-ink-900">{row.product}</div>
+              </div>
+              <div className="shrink-0 text-sm font-bold text-ink-700 md:mt-1 md:pl-11">
+                Total {currencyINR(row.wholesale_revenue + row.retail_revenue)}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl bg-green-50 px-3 py-2">
+                <div className="font-semibold text-green-800">Wholesale</div>
+                <div className="text-ink-600">{formatQuantityByUnit(row.wholesale_quantities)} · {currencyINR(row.wholesale_revenue)}</div>
+              </div>
+              <div className="rounded-xl bg-purple-50 px-3 py-2">
+                <div className="font-semibold text-purple-800">Retail</div>
+                <div className="text-ink-600">{formatQuantityByUnit(row.retail_quantities)} · {currencyINR(row.retail_revenue)}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-ink-500 md:flex-col md:justify-center">
+              <span>Wastage cost: {currencyINR(row.spoilage_cost)}</span>
+              <span className="md:mt-1">
+                Profit on tracked sales: {row.stock_shortage
+                  ? 'Unavailable — stock shortage'
+                  : row.trading_profit == null
+                    ? 'Not tracked'
+                    : currencyINR(row.trading_profit)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const TOP_BUYER_CARDS = [
@@ -893,6 +932,13 @@ export default function Reports() {
     () => buildProductPerformance(filteredBuyerSales, filteredRetailSales, filteredMovements, products),
     [filteredBuyerSales, filteredRetailSales, filteredMovements, products]
   );
+  const dailyProductPerformance = useMemo(() => {
+    const dailyMovements = (inventoryMovements || []).filter((movement) => (
+      String(movement.movement_date || '').slice(0, 10) === selectedDate
+      && (!productFilter || products.find((product) => product.id === movement.product_id)?.name === productFilter)
+    ));
+    return buildProductPerformance(dailyBuyerSales, dailyRetailSales, dailyMovements, products);
+  }, [inventoryMovements, selectedDate, productFilter, products, dailyBuyerSales, dailyRetailSales]);
 
   const topBuyers = useMemo(
     () => topBuyersForPeriod(filteredBuyerSales, balances, products),
@@ -1190,54 +1236,6 @@ export default function Reports() {
       </section>
 
       <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-        <h3 className="font-bold text-ink-900 text-xl mb-4">Product income by sale type</h3>
-        <div className="divide-y divide-ink-100">
-          {productPerformance.length === 0 && (
-            <div className="text-center text-ink-400 text-sm py-10">No sales in this period</div>
-          )}
-          {productPerformance.map((row) => {
-            const emoji = getProductEmoji(row.product, products);
-            return (
-              <div
-                key={row.product}
-                className="grid grid-cols-1 gap-3 px-2 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.3fr)] md:items-center"
-              >
-                <div className="flex items-center justify-between gap-3 md:block">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-2xl shrink-0">{emoji}</span>
-                    <div className="font-bold text-ink-900 truncate">{row.product}</div>
-                  </div>
-                  <div className="text-sm font-bold text-ink-700 shrink-0 md:mt-1 md:pl-11">
-                    Total {currencyINR(row.wholesale_revenue + row.retail_revenue)}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl bg-green-50 px-3 py-2">
-                    <div className="font-semibold text-green-800">Wholesale</div>
-                    <div className="text-ink-600">{formatQuantityByUnit(row.wholesale_quantities)} · {currencyINR(row.wholesale_revenue)}</div>
-                  </div>
-                  <div className="rounded-xl bg-purple-50 px-3 py-2">
-                    <div className="font-semibold text-purple-800">Retail</div>
-                    <div className="text-ink-600">{formatQuantityByUnit(row.retail_quantities)} · {currencyINR(row.retail_revenue)}</div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-ink-500 md:flex-col md:justify-center">
-                  <span>Wastage cost: {currencyINR(row.spoilage_cost)}</span>
-                  <span className="md:mt-1">
-                    Profit on tracked sales: {row.stock_shortage
-                      ? 'Unavailable — stock shortage'
-                      : row.trading_profit == null
-                        ? 'Not tracked'
-                        : currencyINR(row.trading_profit)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
         <h3 className="font-bold text-ink-900 text-xl mb-5">Top Buyers</h3>
 
         {topBuyers.length === 0 && (
@@ -1302,6 +1300,11 @@ export default function Reports() {
       </div>
       </>
       )}
+      <ProductIncomePanel
+        rows={viewMode === 'day' ? dailyProductPerformance : productPerformance}
+        products={products}
+        emptyText={viewMode === 'day' ? 'No sales on this date' : 'No sales in this period'}
+      />
       <ConfirmDownloadModal
         open={!!confirmDownload}
         fileLabel={confirmDownload?.fileLabel || ''}
