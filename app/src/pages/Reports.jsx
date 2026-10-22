@@ -75,7 +75,18 @@ function DailyActivitySection({ title, count, total, emptyText, enterLabel, onEn
     <section className="min-w-0 overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-3 border-b border-ink-100 px-4 py-4 sm:px-5">
         <div className="min-w-0">
-          <h3 className="font-bold text-ink-900">{title}</h3>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 className="font-bold text-ink-900">{title}</h3>
+            {onEnter && (
+              <button
+                type="button"
+                onClick={onEnter}
+                className="text-sm font-bold text-red-700 hover:text-red-800"
+              >
+                {enterLabel}
+              </button>
+            )}
+          </div>
           <p className="mt-1 text-xs text-ink-500">{count} {count === 1 ? 'entry' : 'entries'}</p>
         </div>
         <div className="shrink-0 text-right text-sm font-extrabold text-ink-900">{currencyINR(total)}</div>
@@ -83,15 +94,6 @@ function DailyActivitySection({ title, count, total, emptyText, enterLabel, onEn
       {count === 0 ? (
         <div className="px-4 py-6 text-center sm:px-5">
           <p className="text-sm text-ink-400">{emptyText}</p>
-          {onEnter && (
-            <button
-              type="button"
-              onClick={onEnter}
-              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100"
-            >
-              {enterLabel}
-            </button>
-          )}
         </div>
       ) : (
         <div className="max-h-[420px] divide-y divide-ink-100 overflow-y-auto px-4 sm:px-5">
@@ -765,9 +767,6 @@ export default function Reports() {
     () => sortEntriesByCreatedAt((payments || []).filter((payment) => String(payment.paid_at || '').slice(0, 10) === selectedDate && matchesPayment(payment))),
     [payments, selectedDate, buyerFilter, normalizedSearch, buyersById]
   );
-  const hasBuyerSalesOnDate = (buyerSales || []).some((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate);
-  const hasRetailSalesOnDate = (retailSales || []).some((sale) => String(sale.sale_date || '').slice(0, 10) === selectedDate);
-  const hasPaymentsOnDate = (payments || []).some((payment) => String(payment.paid_at || '').slice(0, 10) === selectedDate);
   const dailyActivities = useMemo(
     () => buildRecentActivity(
       dailyBuyerSales,
@@ -1080,7 +1079,7 @@ export default function Reports() {
             total={dailyBuyerTotal}
             emptyText="No buyer sales recorded on this date."
             enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
-            onEnter={!hasBuyerSalesOnDate ? () => setEntryModal('buyer') : null}
+            onEnter={() => setEntryModal('buyer')}
           >
             {dailyBuyerSales.map((sale) => {
               const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
@@ -1106,7 +1105,7 @@ export default function Reports() {
             total={dailyRetailTotal}
             emptyText="No retail sales recorded on this date."
             enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
-            onEnter={!hasRetailSalesOnDate ? () => setEntryModal('retail') : null}
+            onEnter={() => setEntryModal('retail')}
           >
             {dailyRetailSales.map((sale) => {
               const quantity = Number(sale.mootais_sold ?? sale.mootais ?? 0);
@@ -1131,7 +1130,7 @@ export default function Reports() {
             total={dailyPaymentsTotal}
             emptyText="No payments recorded on this date."
             enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
-            onEnter={!hasPaymentsOnDate ? () => setEntryModal('payment') : null}
+            onEnter={() => setEntryModal('payment')}
           >
             {dailyPayments.map((payment) => (
               <ActivityEntry
