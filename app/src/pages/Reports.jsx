@@ -18,6 +18,8 @@ import {
   inPeriod,
   parseDateStr,
   normalizeStockQuantityInput,
+  productStockToSalesFactor,
+  productStockUnit,
   realTodayIST,
   saleQuantitiesByUnit,
   stockQuantityInputUnits,
@@ -116,6 +118,7 @@ function DailyClosingSummary({
   inventoryError,
   onRequestDownload,
   onEditStock,
+  onCorrectMorningCount,
   hideStockInAndBalance,
 }) {
   return (
@@ -186,7 +189,22 @@ function DailyClosingSummary({
                 <tr key={row.productId}>
                   <td className="px-4 py-3 font-semibold text-ink-900">{row.productName}</td>
                   <td className={`px-4 py-3 ${row.countRecorded ? 'text-green-700' : 'text-amber-700'}`}>
-                    {row.countRecorded ? formatProductQuantities(row.product, row.countedQuantity) : 'Count not recorded'}
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {row.countRecorded ? formatProductQuantities(row.product, row.countedQuantity) : 'Count not recorded'}
+                      </span>
+                      {row.countRecorded && date < realTodayIST && (
+                        <button
+                          type="button"
+                          onClick={() => onCorrectMorningCount(row)}
+                          aria-label={`Correct ${row.productName} morning count`}
+                          title="Correct morning count and recalculate this day's sale costs"
+                          className="btn-ghost !p-2"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.buyerSold, date)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.retailSold, date)}</td>
@@ -241,7 +259,7 @@ function DailyClosingSummary({
   );
 }
 
-function EditDailyStockModal({ target, onClose, onSave }) {
+function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount }) {
   const [quantity, setQuantity] = useState('');
   const [quantityUnit, setQuantityUnit] = useState('');
   const [reason, setReason] = useState('');
@@ -250,8 +268,16 @@ function EditDailyStockModal({ target, onClose, onSave }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setQuantity(target ? String(target.row.closing) : '');
-    setQuantityUnit(target ? target.row.unit : '');
+    const isMorningCount = target?.mode === 'morning';
+    const countFactor = target
+      ? productStockToSalesFactor(target.row.product)
+      : 1;
+    setQuantity(target
+      ? String(isMorningCount ? target.row.countedQuantity / countFactor : target.row.closing)
+      : '');
+    setQuantityUnit(target
+      ? isMorningCount ? productStockUnit(target.row.product) : target.row.unit
+      : '');
     setReason('');
     setUnitCost('');
     setBusy(false);
@@ -270,32 +296,46 @@ function EditDailyStockModal({ target, onClose, onSave }) {
         quantityUnit || target.row.unit,
         unitCost,
       );
-      const result = await onSave({
+      const correction = {
         productId: target.row.productId,
         date: target.date,
         quantity: stockInput.quantity,
         reason: reason.trim(),
         unitCost: stockInput.unitCost,
-      });
-      if (result?.error) setError(result.error.message || 'Could not update this stock balance.');
+      };
+      const result = target.mode === 'morning'
+        ? await onCorrectMorningCount(correction)
+        : await onSave(correction);
+      if (result?.error) setError(result.error.message || 'Could not update this stock value.');
       else onClose();
     } catch (saveError) {
-      setError(`Could not update this stock balance: ${saveError.message || 'Unexpected error.'}`);
+      setError(`Could not update this stock value: ${saveError.message || 'Unexpected error.'}`);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Modal open={!!target} onClose={busy ? () => {} : onClose} title="Edit daily closing stock">
+    <Modal
+      open={!!target}
+      onClose={busy ? () => {} : onClose}
+      title={target?.mode === 'morning' ? 'Correct historical morning count' : 'Edit daily closing stock'}
+    >
       {target && (
         <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-ink-600">
             {target.row.productName} · {formatReportDate(target.date, { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
+          {target.mode === 'morning' && (
+            <p className="text-xs text-ink-500">
+              Saved sales quantities stay unchanged. The day’s sale costs and closing balance are recalculated from this count and purchase cost.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label" htmlFor="daily-stock-unit">Balance unit</label>
+              <label className="label" htmlFor="daily-stock-unit">
+                {target.mode === 'morning' ? 'Count unit' : 'Balance unit'}
+              </label>
               <select
                 id="daily-stock-unit"
                 value={quantityUnit || target.row.unit}
@@ -309,7 +349,9 @@ function EditDailyStockModal({ target, onClose, onSave }) {
             </div>
             <div>
               <label className="label" htmlFor="daily-stock-quantity">
-                Correct balance ({quantityUnit || target.row.unit})
+                {target.mode === 'morning'
+                  ? `Morning quantity (${quantityUnit || target.row.unit})`
+                  : `Correct balance (${quantityUnit || target.row.unit})`}
               </label>
               <input
                 id="daily-stock-quantity"
@@ -335,35 +377,48 @@ function EditDailyStockModal({ target, onClose, onSave }) {
               )}
             </p>
           )}
+          {target.mode !== 'morning' && (
+            <div>
+              <label className="label">Reason for correction <span className="text-red-500">*</span></label>
+              <textarea
+                required
+                rows={2}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                className="input resize-none"
+              />
+            </div>
+          )}
           <div>
-            <label className="label">Reason for correction <span className="text-red-500">*</span></label>
-            <textarea
-              required
-              rows={2}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              className="input resize-none"
-            />
-          </div>
-          <div>
-            <label className="label">Estimated cost per {quantityUnit || target.row.unit} (optional)</label>
+            <label className="label">
+              {target.mode === 'morning' ? 'Purchase cost' : 'Estimated cost'} per {quantityUnit || target.row.unit}
+              {target.mode === 'morning' && Number(quantity) > 0 && <span className="text-red-500"> *</span>}
+              {target.mode !== 'morning' && ' (optional)'}
+            </label>
             <input
               type="number"
-              min="0.01"
+              required={target.mode === 'morning' && Number(quantity) > 0}
+              min={target.mode === 'morning' && Number(quantity) > 0 ? '0.01' : '0'}
               step="0.01"
               value={unitCost}
               onChange={(event) => setUnitCost(event.target.value)}
               className="input"
             />
             <p className="mt-1 text-xs text-ink-500">
-              Required only when adding stock to a date with no remaining stock value.
+              {target.mode === 'morning'
+                ? 'Required for a non-zero morning count. This cost is used to recalculate sale costs for the day.'
+                : 'Required only when adding stock to a date with no remaining stock value.'}
             </p>
           </div>
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <div className="flex gap-3 pt-2">
             <button type="button" disabled={busy} onClick={onClose} className="btn-outline flex-1">Cancel</button>
-            <button type="submit" disabled={busy || !quantity || !reason.trim()} className="btn-green flex-1">
-              <Check className="h-4 w-4" /> {busy ? 'Saving…' : 'Save stock balance'}
+            <button
+              type="submit"
+              disabled={busy || !quantity || (target.mode !== 'morning' && !reason.trim())}
+              className="btn-green flex-1"
+            >
+              <Check className="h-4 w-4" /> {busy ? 'Saving…' : target.mode === 'morning' ? 'Save morning count' : 'Save stock balance'}
             </button>
           </div>
         </form>
@@ -682,7 +737,7 @@ export default function Reports() {
     showToast,
     updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
-    setStockQuantityForDate,
+    setStockQuantityForDate, correctHistoricalMorningCount,
   } = app;
   const buyersById = useMemo(
     () => new Map((buyers || []).map((buyer) => [buyer.id, buyer])),
@@ -1180,6 +1235,12 @@ export default function Reports() {
           unitCost,
           window.crypto.randomUUID(),
         )}
+        onCorrectMorningCount={({ productId, date, quantity, unitCost }) => correctHistoricalMorningCount(
+          productId,
+          date,
+          quantity,
+          unitCost,
+        )}
       />
 
       <DailyClosingSummary
@@ -1193,7 +1254,8 @@ export default function Reports() {
         offline={offline}
         inventoryError={inventoryError}
         hideStockInAndBalance={selectedDate === '2026-10-15'}
-        onEditStock={(row) => setStockEditTarget({ date: selectedDate, row })}
+        onEditStock={(row) => setStockEditTarget({ date: selectedDate, row, mode: 'closing' })}
+        onCorrectMorningCount={(row) => setStockEditTarget({ date: selectedDate, row, mode: 'morning' })}
         onRequestDownload={() => requestDownload(`the ${selectedDate} balance count CSV`, downloadDailyClosingCsv)}
       />
 

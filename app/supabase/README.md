@@ -109,6 +109,12 @@ order:
     It aborts without committing if any recorded sale is missing a matching
     movement or the verified count cannot cover the sales. The final query
     reports per-product revenue, sale cost, profit, and closing balance.
+17. `202610230002_correct_historical_morning_count_and_reprice_sales.sql` adds
+    owner-authorized correction of an existing past-date morning count from
+    Reports. It preserves sales and receipts, recalculates that day's outbound
+    movement costs from the corrected count cost, and audits each correction in
+    a private table. It aborts if the corrected count cannot cover the recorded
+    stock movements.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
