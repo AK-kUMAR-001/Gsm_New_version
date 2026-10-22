@@ -128,10 +128,8 @@ begin
   into v_base_quantity, v_base_value
   from public.inventory_stock_movements
   where product_id = p_product_id
-    and (
-      movement_date < p_stock_date
-      or (movement_date = p_stock_date and created_at <= v_count.created_at)
-    )
+    and movement_date = p_stock_date
+    and created_at <= v_count.created_at
     and id is distinct from v_count_adjustment_id
     and id is distinct from v_revaluation_id;
 
@@ -230,12 +228,6 @@ begin
       recorded_by = auth.uid()
   where product_id = p_product_id and stock_date = p_stock_date
   returning * into v_count;
-
-  select coalesce(sum(quantity_delta), 0), coalesce(sum(cost_delta), 0)
-  into v_balance_quantity, v_balance_value
-  from public.inventory_stock_movements
-  where product_id = p_product_id
-    and movement_date < p_stock_date;
 
   for v_movement in
     select *
