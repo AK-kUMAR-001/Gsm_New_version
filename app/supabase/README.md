@@ -97,6 +97,10 @@ order:
     owner-authorized sales dated in the past when the tracked product has a
     physical count and enough stock recorded for that date, and to enable
     dated closing-stock corrections from Reports.
+15. `202610220001_correct_morning_count_and_reprice_sales.sql` to correct
+    today's physical morning count after sales have been entered. It preserves
+    saved sales quantities, recalculates today's outbound stock costs using the
+    corrected purchase cost, and records corrections in a private audit table.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration

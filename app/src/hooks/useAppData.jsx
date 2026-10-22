@@ -628,6 +628,13 @@ export function AppDataProvider({ children }) {
       p_surplus_unit_cost: surplusUnitCost,
     }, 'Morning stock count recorded');
 
+  const correctMorningCount = (productId, quantity, unitCost) =>
+    recordInventoryAction('inventory_correct_morning_count', {
+      p_product_id: productId,
+      p_counted_quantity: quantity,
+      p_unit_cost: unitCost,
+    }, 'Morning stock count and today’s sale costs corrected');
+
   const recordStockReceipt = (
     productId, supplierId, quantity, unitCost, notes, requestId, damagedQuantity, damageReason, damageRequestId,
     movementDate = todayIST(),
@@ -692,7 +699,7 @@ export function AppDataProvider({ children }) {
     insertBuyer, updateBuyer, setBuyerArchived, purgeBuyer, updateProduct, insertProduct, deleteProduct,
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
-    startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    startInventoryTracking, recordMorningCount, correctMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     setStockQuantityForDate,
     filterByPeriod,
   };

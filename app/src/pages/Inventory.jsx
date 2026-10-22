@@ -128,6 +128,11 @@ export default function Inventory() {
   const countedIds = useMemo(() => new Set(
     inventoryCounts.filter((count) => count.stock_date === todayIST()).map((count) => count.product_id)
   ), [inventoryCounts]);
+  const countsByProductId = useMemo(() => new Map(
+    inventoryCounts
+      .filter((count) => count.stock_date === todayIST())
+      .map((count) => [count.product_id, count])
+  ), [inventoryCounts]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -154,11 +159,17 @@ export default function Inventory() {
     setProductId(target.id);
     requestId.current = window.crypto.randomUUID();
     damageRequestId.current = window.crypto.randomUUID();
+    const currentCount = requestedAction === 'count' ? countsByProductId.get(target.id) : null;
+    const countUnit = productStockUnit(target);
+    const countFactor = countUnit === productSalesUnit(target) ? 1 : productStockToSalesFactor(target);
     setForm({
-      quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
+      quantity: currentCount ? String(Number(currentCount.counted_quantity) / countFactor) : '',
+      unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
       movementDate: selectedMovementDate,
-      quantityUnit: ['count', 'correction'].includes(requestedAction) ? productSalesUnit(target) : '',
+      quantityUnit: ['count', 'correction'].includes(requestedAction)
+        ? requestedAction === 'count' ? countUnit : productSalesUnit(target)
+        : '',
     });
     searchParams.delete('stockProductName');
     searchParams.delete('stockAction');
@@ -168,7 +179,7 @@ export default function Inventory() {
       pathname: location.pathname,
       search: remainingQuery ? `?${remainingQuery}` : '',
     }, { replace: true, state: null });
-  }, [countedIds, inventoryError, inventoryReady, location.key, location.pathname, location.search, location.state, navigate, products, settingsById]);
+  }, [countedIds, countsByProductId, inventoryError, inventoryReady, location.key, location.pathname, location.search, location.state, navigate, products, settingsById]);
 
   const openAction = (nextAction, product) => {
     setAction(nextAction);
@@ -176,11 +187,17 @@ export default function Inventory() {
     setRedirectNotice('');
     requestId.current = window.crypto.randomUUID();
     damageRequestId.current = window.crypto.randomUUID();
+    const currentCount = nextAction === 'count' ? countsByProductId.get(product.id) : null;
+    const countUnit = productStockUnit(product);
+    const countFactor = countUnit === productSalesUnit(product) ? 1 : productStockToSalesFactor(product);
     setForm({
-      quantity: '', unitCost: '', supplierId: '', reason: '', notes: '',
+      quantity: currentCount ? String(Number(currentCount.counted_quantity) / countFactor) : '',
+      unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
       movementDate: todayIST(),
-      quantityUnit: ['count', 'correction'].includes(nextAction) ? productSalesUnit(product) : '',
+      quantityUnit: ['count', 'correction'].includes(nextAction)
+        ? nextAction === 'count' ? countUnit : productSalesUnit(product)
+        : '',
     });
     setMovementDate(todayIST());
   };
@@ -223,7 +240,9 @@ export default function Inventory() {
         form.quantityUnit || productSalesUnit(productsById.get(productId)),
         form.unitCost,
       );
-      result = await recordMorningCount(productId, countInput.quantity, countInput.unitCost);
+      result = countedIds.has(productId)
+        ? await correctMorningCount(productId, countInput.quantity, countInput.unitCost)
+        : await recordMorningCount(productId, countInput.quantity, countInput.unitCost);
     } else if (action === 'receipt') {
       result = await recordStockReceipt(
         productId, form.supplierId || null, recordedQuantity, Number(recordedUnitCost),
@@ -258,6 +277,12 @@ export default function Inventory() {
   const damagedQuantity = Number(form.damagedQuantity || 0);
   const stockFactor = productStockToSalesFactor(product);
   const stockUnitCost = Number(form.unitCost || 0);
+  const unitCostRequired = quantityInput > 0 && (
+    (action === 'count' && (
+      countedIds.has(productId) || Number(currentStock?.quantity_on_hand || 0) <= 0
+    ))
+    || (action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0)
+  );
   const salesUnitCost = stockUnitCost > 0 ? stockUnitCost / stockFactor : 0;
   const movements = inventoryMovements
     .filter((movement) => activeProductIds.has(movement.product_id) && movement.movement_date === movementDate)
@@ -368,11 +393,10 @@ export default function Inventory() {
                       disabled={offline}
                     />
                     <div className="flex flex-wrap gap-2">
-                      {!hasCount && (
-                        <button type="button" onClick={() => openAction('count', item)} className="btn-navy">
-                          <ClipboardCheck className="w-4 h-4" /> Morning count
-                        </button>
-                      )}
+                      <button type="button" onClick={() => openAction('count', item)} className="btn-navy">
+                        <ClipboardCheck className="w-4 h-4" />
+                        {hasCount ? 'Correct morning count' : 'Morning count'}
+                      </button>
                       <button type="button" onClick={() => openAction('receipt', item)} className="btn-outline">
                         <PackagePlus className="w-4 h-4" /> Add extra stock
                       </button>
@@ -464,7 +488,11 @@ export default function Inventory() {
         )}
       </section>
 
-      <Modal open={!!action} onClose={closeAction} title={action ? ACTION_LABELS[action] : ''}>
+      <Modal
+        open={!!action}
+        onClose={closeAction}
+        title={action === 'count' && countedIds.has(productId) ? 'Correct morning count' : action ? ACTION_LABELS[action] : ''}
+      >
         {product && action && (
           <form onSubmit={submitAction} className="space-y-4">
             <p className="text-sm text-ink-600">{getProductEmoji(product.name, products)} {product.name}</p>
@@ -477,6 +505,11 @@ export default function Inventory() {
               <p className="text-xs text-ink-500">
                 Enter the corrected total stock balance, including 0 if the product is out of stock.
                 The difference is recorded as a correction; past sales and stock entries are not rewritten.
+              </p>
+            )}
+            {action === 'count' && countedIds.has(productId) && (
+              <p className="text-xs text-ink-500">
+                Enter the actual morning stock and its purchase cost. Today’s saved sales are retained, their stock costs are recalculated, and the remaining balance updates automatically.
               </p>
             )}
             {action === 'opening' && (
@@ -632,17 +665,15 @@ export default function Inventory() {
                 {(action === 'count' || (action === 'correction' && Number(form.quantity) > 0)) && (
                   <div>
                     <label className="label">
-                      Estimated cost per {['count', 'correction'].includes(action)
+                      {action === 'count' && countedIds.has(productId) ? 'Purchase cost' : 'Estimated cost'} per {['count', 'correction'].includes(action)
                         ? (form.quantityUnit || productSalesUnit(product))
                         : productSalesUnit(product)}
-                      {action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0 && (
-                        <span className="text-red-500"> *</span>
-                      )}
+                      {unitCostRequired && <span className="text-red-500"> *</span>}
                     </label>
                     <input
-                      required={action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0 && quantityInput > 0}
+                      required={unitCostRequired}
                       type="number"
-                      min="0"
+                      min={unitCostRequired ? '0.01' : '0'}
                       step="0.01"
                       value={form.unitCost || ''}
                       onChange={(event) => setForm((current) => ({ ...current, unitCost: event.target.value }))}
