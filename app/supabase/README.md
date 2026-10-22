@@ -101,6 +101,14 @@ order:
     today's physical morning count after sales have been entered. It preserves
     saved sales quantities, recalculates today's outbound stock costs using the
     corrected purchase cost, and records corrections in a private audit table.
+16. `202610230001_rebuild_oct22_stock_from_verified_count.sql` is a one-time
+    repair for 22 Oct 2026. It archives that date's existing counts and stock
+    movements in a private audit table, preserves all buyer and retail sales,
+    replaces non-sale stock movements with the verified Malli, Pudina, and
+    Karuvepillai morning counts and costs, and recalculates linked sale costs.
+    It aborts without committing if any recorded sale is missing a matching
+    movement or the verified count cannot cover the sales. The final query
+    reports per-product revenue, sale cost, profit, and closing balance.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
