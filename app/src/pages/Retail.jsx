@@ -8,6 +8,7 @@ import {
   formatQuantityByUnit,
   getProductEmoji,
   saleQuantitiesByUnit,
+  todayIST,
 } from '../lib/business.js';
 import PeriodPills, { RETAIL_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
@@ -17,6 +18,7 @@ export default function Retail() {
   const { retailSales, products, filterByPeriod, load } = useAppData();
 
   const [period, setPeriod] = useState('week');
+  const [entryDate, setEntryDate] = useState(todayIST());
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedDate, setExpandedDate] = useState(null);
   const cardRefs = useRef({});
@@ -95,7 +97,23 @@ export default function Retail() {
             <ShoppingBag className="w-7 h-7 text-brand-purple" />
             Retail Sales
           </h1>
+          <p className="mt-1 text-sm font-semibold text-red-600">
+            Enter data for {formatDateCompact(entryDate)}
+          </p>
         </div>
+        <label className="flex items-center gap-2 text-sm font-semibold text-ink-700">
+          <span>Sale date</span>
+          <input
+            type="date"
+            required
+            max={todayIST()}
+            value={entryDate}
+            onChange={(event) => {
+              if (event.target.value) setEntryDate(event.target.value);
+            }}
+            className="input !w-auto"
+          />
+        </label>
         <button onClick={() => load()} className="btn-ghost" title="Refresh">
           <RefreshCw className="w-4 h-4" />
         </button>
@@ -234,7 +252,11 @@ export default function Retail() {
         )}
       </div>
 
-      <RecordRetailSaleModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <RecordRetailSaleModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        initialDate={entryDate}
+      />
     </div>
   );
 }

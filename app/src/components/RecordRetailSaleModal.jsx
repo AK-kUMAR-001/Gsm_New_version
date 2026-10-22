@@ -119,7 +119,6 @@ export default function RecordRetailSaleModal({ open, onClose, initialDate = nul
             id="retail-sale-date"
             type="date"
             required
-            min={initialDate ? undefined : todayIST()}
             max={todayIST()}
             disabled={hasSavedSales}
             value={saleDate}
@@ -130,6 +129,9 @@ export default function RecordRetailSaleModal({ open, onClose, initialDate = nul
             }}
             className="input"
           />
+          <p className="mt-1 text-xs text-ink-500">
+            Past dates are allowed when that date has a recorded stock count and enough stock available.
+          </p>
         </div>
 
         <div>

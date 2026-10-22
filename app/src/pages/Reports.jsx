@@ -4,7 +4,6 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
   getProductEmoji,
-  buildMonthlyBuckets,
   buildDailyStockClosingRows,
   buildProductPerformance,
   buildRecentActivity,
@@ -548,119 +547,6 @@ function sumSales(sales) {
   return Math.round(total);
 }
 
-function BuyerRetailChart({ data }) {
-  if (!data || data.length === 0) return null;
-
-  const width = 720;
-  const height = 260;
-  const paddingTop = 20;
-  const paddingRight = 24;
-  const paddingBottom = 48;
-  const paddingLeft = 56;
-  const chartW = width - paddingLeft - paddingRight;
-  const chartH = height - paddingTop - paddingBottom;
-
-  const maxValue = Math.max(1, ...data.flatMap((d) => [d.buyers, d.retail, d.buyers + d.retail]));
-  const niceMax = (() => {
-    const step = 1500000;
-    const next = Math.ceil(maxValue / step) * step;
-    return Math.max(next, step);
-  })();
-  const gridLines = 4;
-
-  const groupCount = data.length || 1;
-  const groupWidth = chartW / groupCount;
-  const innerGap = 8;
-  const barWidth = Math.max(14, Math.min(36, (groupWidth - innerGap - 24) / 2));
-
-  const yTick = (i) => paddingTop + chartH - (i / gridLines) * chartH;
-  const yValue = (i) => Math.round((i / gridLines) * niceMax);
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
-      {Array.from({ length: gridLines + 1 }).map((_, i) => {
-        const y = yTick(i);
-        const v = yValue(i);
-        return (
-          <g key={`grid-${i}`}>
-            <line
-              x1={paddingLeft}
-              y1={y}
-              x2={width - paddingRight}
-              y2={y}
-              stroke="#e5e7eb"
-              strokeWidth="1"
-              strokeDasharray="3 3"
-            />
-            <text
-              x={paddingLeft - 10}
-              y={y + 4}
-              textAnchor="end"
-              className="fill-ink-400"
-              style={{ fontSize: '11px' }}
-            >
-              {v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
-            </text>
-          </g>
-        );
-      })}
-
-      {data.map((d, gi) => {
-        const groupCenterX = paddingLeft + gi * groupWidth + groupWidth / 2;
-        const buyerH = d.buyers > 0 ? (d.buyers / niceMax) * chartH : 0;
-        const retailH = d.retail > 0 ? (d.retail / niceMax) * chartH : 0;
-        const buyerY = paddingTop + chartH - buyerH;
-        const retailY = paddingTop + chartH - retailH;
-        const buyerX = groupCenterX - barWidth - innerGap / 2;
-        const retailX = groupCenterX + innerGap / 2;
-
-        return (
-          <g key={`bar-${gi}`}>
-            {d.buyers > 0 && (
-              <rect
-                x={buyerX}
-                y={buyerY}
-                width={barWidth}
-                height={buyerH}
-                rx="4"
-                fill="#10a964"
-              />
-            )}
-            {d.retail > 0 && (
-              <rect
-                x={retailX}
-                y={retailY}
-                width={barWidth}
-                height={Math.max(retailH, 2)}
-                rx="4"
-                fill="#8200da"
-              />
-            )}
-            <text
-              x={groupCenterX}
-              y={height - paddingBottom + 22}
-              textAnchor="middle"
-              className="fill-ink-500 font-medium"
-              style={{ fontSize: '12px' }}
-            >
-              {d.label}
-            </text>
-          </g>
-        );
-      })}
-
-      <line
-        x1={paddingLeft}
-        y1={paddingTop + chartH}
-        x2={width - paddingRight}
-        y2={paddingTop + chartH}
-        stroke="#c4cad4"
-        strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-
 const TOP_BUYER_CARDS = [
   {
     rank: 1,
@@ -1008,16 +894,6 @@ export default function Reports() {
     [filteredBuyerSales, filteredRetailSales, filteredMovements, products]
   );
 
-  const chartData = useMemo(() => {
-    const buckets = buildMonthlyBuckets(filteredBuyerSales, filteredRetailSales, period, 'reports');
-    if (buckets && buckets.length > 0) return buckets;
-    const label =
-      period === 'week' ? 'This Week' :
-      period === 'month' ? 'This Month' :
-      period === '3months' ? 'Last 3 Mo' : 'All Time';
-    return [{ label, buyers: totalBuyer, retail: totalRetail, total: combined }];
-  }, [filteredBuyerSales, filteredRetailSales, period, totalBuyer, totalRetail, combined]);
-
   const topBuyers = useMemo(
     () => topBuyersForPeriod(filteredBuyerSales, balances, products),
     [filteredBuyerSales, balances, products]
@@ -1313,68 +1189,51 @@ export default function Reports() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3 rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-          <h3 className="font-bold text-ink-900 text-xl mb-4">Buyer vs Retail Revenue</h3>
-          <BuyerRetailChart data={chartData} />
-          <div className="flex items-center justify-center gap-6 pt-3 text-sm font-semibold">
-            <div className="flex items-center gap-2">
-              <span className="inline-block w-4 h-4 rounded-sm bg-[#10a964]" />
-              <span className="text-ink-700">Buyers</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-block w-4 h-4 rounded-sm bg-brand-purple" />
-              <span className="text-ink-700">Retail</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
-          <h3 className="font-bold text-ink-900 text-xl mb-4">Product income by sale type</h3>
-          <div className="divide-y divide-ink-100 max-h-[420px] overflow-y-auto">
-            {productPerformance.length === 0 && (
-              <div className="text-center text-ink-400 text-sm py-10">No sales in this period</div>
-            )}
-            {productPerformance.map((row) => {
-              const emoji = getProductEmoji(row.product, products);
-              return (
-                <div
-                  key={row.product}
-                  className="flex flex-col gap-2 px-2 py-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-2xl shrink-0">{emoji}</span>
-                      <div className="font-bold text-ink-900 truncate">{row.product}</div>
-                    </div>
-                    <div className="text-sm font-bold text-ink-700 shrink-0">
-                      Total {currencyINR(row.wholesale_revenue + row.retail_revenue)}
-                    </div>
+      <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
+        <h3 className="font-bold text-ink-900 text-xl mb-4">Product income by sale type</h3>
+        <div className="divide-y divide-ink-100">
+          {productPerformance.length === 0 && (
+            <div className="text-center text-ink-400 text-sm py-10">No sales in this period</div>
+          )}
+          {productPerformance.map((row) => {
+            const emoji = getProductEmoji(row.product, products);
+            return (
+              <div
+                key={row.product}
+                className="grid grid-cols-1 gap-3 px-2 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.3fr)] md:items-center"
+              >
+                <div className="flex items-center justify-between gap-3 md:block">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl shrink-0">{emoji}</span>
+                    <div className="font-bold text-ink-900 truncate">{row.product}</div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-xl bg-green-50 px-3 py-2">
-                      <div className="font-semibold text-green-800">Wholesale</div>
-                      <div className="text-ink-600">{formatQuantityByUnit(row.wholesale_quantities)} · {currencyINR(row.wholesale_revenue)}</div>
-                    </div>
-                    <div className="rounded-xl bg-purple-50 px-3 py-2">
-                      <div className="font-semibold text-purple-800">Retail</div>
-                      <div className="text-ink-600">{formatQuantityByUnit(row.retail_quantities)} · {currencyINR(row.retail_revenue)}</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-x-3 text-xs text-ink-500">
-                    <span>Wastage cost: {currencyINR(row.spoilage_cost)}</span>
-                    <span>
-                      Profit on tracked sales: {row.stock_shortage
-                        ? 'Unavailable — stock shortage'
-                        : row.trading_profit == null
-                          ? 'Not tracked'
-                          : currencyINR(row.trading_profit)}
-                    </span>
+                  <div className="text-sm font-bold text-ink-700 shrink-0 md:mt-1 md:pl-11">
+                    Total {currencyINR(row.wholesale_revenue + row.retail_revenue)}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-green-50 px-3 py-2">
+                    <div className="font-semibold text-green-800">Wholesale</div>
+                    <div className="text-ink-600">{formatQuantityByUnit(row.wholesale_quantities)} · {currencyINR(row.wholesale_revenue)}</div>
+                  </div>
+                  <div className="rounded-xl bg-purple-50 px-3 py-2">
+                    <div className="font-semibold text-purple-800">Retail</div>
+                    <div className="text-ink-600">{formatQuantityByUnit(row.retail_quantities)} · {currencyINR(row.retail_revenue)}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-ink-500 md:flex-col md:justify-center">
+                  <span>Wastage cost: {currencyINR(row.spoilage_cost)}</span>
+                  <span className="md:mt-1">
+                    Profit on tracked sales: {row.stock_shortage
+                      ? 'Unavailable — stock shortage'
+                      : row.trading_profit == null
+                        ? 'Not tracked'
+                        : currencyINR(row.trading_profit)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
