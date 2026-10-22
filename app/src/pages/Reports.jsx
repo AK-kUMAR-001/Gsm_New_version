@@ -537,6 +537,14 @@ function WeekDatePicker({ value, onChange, active }) {
   );
 }
 
+function sumSales(sales) {
+  return (sales || []).reduce((total, sale) => {
+    const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
+    const rate = Number(sale.price_per_mootai ?? 0);
+    return total + quantity * rate;
+  }, 0);
+}
+
 function ProductIncomePanel({ rows, products, emptyText }) {
   return (
     <div className="rounded-3xl border border-ink-100 bg-white p-5 shadow-sm">
