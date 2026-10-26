@@ -30,11 +30,6 @@ const quantitiesByUnit = (sales) => (sales || []).reduce((quantities, sale) => {
   }
   return quantities;
 }, {});
-const billQuantitiesByUnit = (sales) => (sales || []).reduce((quantities, sale) => {
-  const unit = saleQuantityUnit(sale);
-  quantities[unit] = (quantities[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
-  return quantities;
-}, {});
 const billSaleQuantity = (sale) => (
   `${Number(sale.mootais ?? sale.mootais_sold ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${saleQuantityUnit(sale)}`
 );
@@ -152,6 +147,26 @@ function table(doc, options) {
     alternateRowStyles: { fillColor: [247, 249, 251] },
     margin: { left: 14, right: 14, bottom: 14 },
     ...options,
+  });
+}
+
+function addBillTotals(doc, tableEndY, billed, paid, pending, rightX = 283) {
+  let y = tableEndY + 10;
+  if (y + 14 > 190) {
+    doc.addPage();
+    y = 24;
+  }
+
+  const rows = [
+    { label: 'BILL', value: MONEY(billed), color: [185, 28, 28] },
+    { label: 'PAID AMOUNT', value: MONEY(paid), color: COLORS.ink },
+    { label: 'PENDING CURRENT', value: MONEY(pending), color: COLORS.ink },
+  ];
+  rows.forEach((row, index) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...row.color);
+    doc.text(`${row.label}: ${row.value}`, rightX, y + index * 6, { align: 'right' });
   });
 }
 
@@ -430,13 +445,6 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
   doc.setTextColor(...COLORS.muted);
   doc.text(`Hi ${buyer.name}, please find your GSM Traders bill for ${period} below.`, 14, 45);
 
-  addMetricCards(doc, [
-    { label: 'Total quantity', value: formatQuantityByUnit(billQuantitiesByUnit(billSales)) || '0' },
-    { label: kind === 'full' ? 'Total billed' : 'Billed in period', value: MONEY(billed) },
-    { label: kind === 'full' ? 'Total paid' : 'Paid in period', value: MONEY(paid) },
-    { label: 'Amount pending', value: MONEY(balance?.balance_due) },
-  ], 52);
-
   if (kind === 'monthly') {
     const byProduct = new Map();
     for (const sale of billSales) {
@@ -451,7 +459,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
       byProduct.set(key, row);
     }
     table(doc, {
-      startY: 80,
+      startY: 52,
       head: [['Product', 'Quantity by unit', 'Average rate by unit', 'Total Bill']],
       body: byProduct.size
         ? Array.from(byProduct.entries()).map(([product, row]) => [
@@ -465,11 +473,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
         : [['—', '—', '—', 'No sales recorded for this period']],
       columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 52 }, 2: { cellWidth: 52 } },
     });
-    const paymentY = (doc.lastAutoTable?.finalY || 88) + 8;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...COLORS.ink);
-    doc.text(`Payments received this period: ${MONEY(paid)}`, 14, paymentY);
+    addBillTotals(doc, doc.lastAutoTable?.finalY || 60, billed, paid, balance?.balance_due, 204);
   } else {
     const transactions = [
       ...billSales.map((sale) => ({
@@ -492,7 +496,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
       })),
     ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
     table(doc, {
-      startY: 80,
+      startY: 52,
       head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
       body: transactions.length
         ? transactions.map((row) => [
@@ -502,6 +506,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
       columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
       styles: CUSTOMER_TRANSACTION_STYLES,
     });
+    addBillTotals(doc, doc.lastAutoTable?.finalY || 60, billed, paid, balance?.balance_due);
   }
 
   addPageNumbers(doc);
