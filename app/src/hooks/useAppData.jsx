@@ -72,7 +72,7 @@ export function AppDataProvider({ children }) {
   const [inventorySummary, setInventorySummary] = useState([]);
   const [inventoryCounts, setInventoryCounts] = useState([]);
   const [inventoryMovements, setInventoryMovements] = useState([]);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryLoading, setInventoryLoading] = useState(true);
   const [inventoryError, setInventoryError] = useState('');
   const [retailDaySession, setRetailDaySession] = useState(null);
   const [retailDayPrices, setRetailDayPrices] = useState([]);
