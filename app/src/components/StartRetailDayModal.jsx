@@ -17,12 +17,14 @@ export default function StartRetailDayModal({
     if (open) setRates(Object.fromEntries(products.map((product) => [product.id, ''])));
   }, [open, products]);
 
-  const totalAtCurrentBalance = useMemo(
-    () => products.reduce((sum, product) => (
-      sum + (stockByProduct.get(product.id) || 0) * Number(rates[product.id] || 0)
-    ), 0),
+  const productValues = useMemo(
+    () => products.map((product) => ({
+      product,
+      value: (stockByProduct.get(product.id) || 0) * Number(rates[product.id] || 0),
+    })),
     [products, rates, stockByProduct],
   );
+  const totalAtCurrentBalance = productValues.reduce((sum, item) => sum + item.value, 0);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -75,9 +77,18 @@ export default function StartRetailDayModal({
           })}
         </div>
 
-        <div className="rounded-xl bg-sidebar px-4 py-3 text-center text-white">
-          <span className="text-xs text-white/60">Value at current balance </span>
-          <span className="font-bold">{currencyINR(totalAtCurrentBalance)}</span>
+        <div className="rounded-xl bg-sidebar px-4 py-3 text-white">
+          <div className="text-center text-xs text-white/60">Value at current balance</div>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm">
+            {productValues.map(({ product, value }, index) => (
+              <React.Fragment key={product.id}>
+                {index > 0 && <span className="text-white/60">+</span>}
+                <span className="font-semibold">{product.name} {currencyINR(value)}</span>
+              </React.Fragment>
+            ))}
+            <span className="text-white/60">=</span>
+            <span className="font-extrabold">{currencyINR(totalAtCurrentBalance)}</span>
+          </div>
         </div>
 
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

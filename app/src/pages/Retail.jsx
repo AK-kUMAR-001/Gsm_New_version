@@ -374,8 +374,15 @@ export default function Retail() {
                         {balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}
                       </div>
                       {savedPrice && (
-                        <div className="text-xs text-ink-500">
-                          {currencyINR(savedPrice.price_per_unit)} / {unit}
+                        <div className="mt-1 text-xs text-ink-500">
+                          <div>{currencyINR(savedPrice.price_per_unit)} / {unit}</div>
+                          <div className="font-semibold text-violet-800">
+                            {balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}
+                            {' × '}
+                            {currencyINR(savedPrice.price_per_unit)}
+                            {' = '}
+                            {currencyINR(balance * Number(savedPrice.price_per_unit))}
+                          </div>
                         </div>
                       )}
                     </div>
