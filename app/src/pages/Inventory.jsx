@@ -17,7 +17,6 @@ import {
   todayIST,
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
-import LowStockAlerts from '../components/LowStockAlerts.jsx';
 import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
 const ACTION_LABELS = {
@@ -335,8 +334,6 @@ export default function Inventory() {
           </div>
         </div>
       )}
-
-      <LowStockAlerts />
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {stockProducts.map((item) => {
