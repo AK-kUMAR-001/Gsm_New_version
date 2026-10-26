@@ -9,63 +9,75 @@ import {
   buildRecentActivity,
   inPeriod,
   setRefToday,
-  dataRefDate,
+  realTodayIST,
+  isRemovedProductName,
+  todayIST,
 } from '../lib/business.js';
-
-import raw_buyers from '../data/raw_buyers.json';
-import raw_products from '../data/raw_products.json';
-import raw_buyer_sales from '../data/raw_buyer_sales.json';
-import raw_retail_sales from '../data/raw_retail_sales.json';
-import raw_payments_a from '../data/raw_buyer_payments.json';
-import raw_suppliers from '../data/raw_suppliers.json';
 
 const AppDataContext = createContext(null);
 
 const OFFLINE = {
-  buyers: raw_buyers,
-  products: raw_products,
-  suppliers: raw_suppliers,
-  buyerSales: raw_buyer_sales,
-  retailSales: raw_retail_sales,
-  payments: raw_payments_a,
+  buyers: [],
+  products: [],
+  suppliers: [],
+  buyerSales: [],
+  retailSales: [],
+  payments: [],
 };
 
-function isDemoModeOn() {
+const isMissingTableError = (error) => error?.code === 'PGRST205' || error?.code === '42P01';
+
+async function safeFetch(table) {
   try {
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('demo') === '1') return true;
-    return localStorage.getItem('gsm_demo') === '1';
-  } catch (e) {
-    return false;
+    const res = await fetchAllPaginated(supabase, table);
+    if (res.error) return { data: null, error: res.error };
+    return { data: res.data || [], error: null };
+  } catch (error) {
+    return { data: null, error };
   }
 }
 
-async function safeFetch(table, fallback, forceOffline) {
-  if (forceOffline) return fallback;
+async function fetchPayments() {
   try {
-    const res = await fetchAllPaginated(supabase, table);
-    if (res.error || !res.data) throw new Error(res.error?.message || 'no data');
-    if (Array.isArray(res.data) && res.data.length === 0 && Array.isArray(fallback) && fallback.length > 0) {
-      return fallback;
+    const primary = await fetchAllPaginated(supabase, 'buyer_payments');
+    if (!primary.error) {
+      if (primary.data?.length) return { data: primary.data, error: null };
+      const legacy = await fetchAllPaginated(supabase, 'payments');
+      if (legacy.error && !isMissingTableError(legacy.error)) return { data: null, error: legacy.error };
+      return { data: legacy.data?.length ? legacy.data : (primary.data || []), error: null };
     }
-    return res.data;
-  } catch (e) {
-    return fallback;
+    if (!isMissingTableError(primary.error)) return { data: null, error: primary.error };
+
+    const legacy = await fetchAllPaginated(supabase, 'payments');
+    if (legacy.error) return { data: null, error: legacy.error };
+    return { data: legacy.data || [], error: null };
+  } catch (error) {
+    return { data: null, error };
   }
 }
 
 export function AppDataProvider({ children }) {
   const auth = useAuth();
-  const initialOffline = isDemoModeOn();
-  const [buyers, setBuyers] = useState(initialOffline ? OFFLINE.buyers : []);
-  const [products, setProducts] = useState(initialOffline ? OFFLINE.products : []);
-  const [suppliers, setSuppliers] = useState(initialOffline ? OFFLINE.suppliers : []);
-  const [buyerSales, setBuyerSales] = useState(initialOffline ? OFFLINE.buyerSales : []);
-  const [retailSales, setRetailSales] = useState(initialOffline ? OFFLINE.retailSales : []);
-  const [payments, setPayments] = useState(initialOffline ? OFFLINE.payments : []);
-  const [loading, setLoading] = useState(!initialOffline);
-  const [offline, setOffline] = useState(initialOffline);
+  const [buyers, setBuyers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [removedProductIds, setRemovedProductIds] = useState(new Set());
+  const [suppliers, setSuppliers] = useState([]);
+  const [buyerSales, setBuyerSales] = useState([]);
+  const [retailSales, setRetailSales] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [inventorySettings, setInventorySettings] = useState([]);
+  const [inventorySummary, setInventorySummary] = useState([]);
+  const [inventoryCounts, setInventoryCounts] = useState([]);
+  const [inventoryMovements, setInventoryMovements] = useState([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryError, setInventoryError] = useState('');
+  const [retailDaySession, setRetailDaySession] = useState(null);
+  const [retailDayPrices, setRetailDayPrices] = useState([]);
+  const [retailDayLoading, setRetailDayLoading] = useState(false);
+  const [retailDayError, setRetailDayError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+  const [dataLoadError, setDataLoadError] = useState('');
   const [toast, setToast] = useState(null);
 
   const showToast = useCallback((message, kind = 'info') => {
@@ -74,45 +86,41 @@ export function AppDataProvider({ children }) {
     setTimeout(() => setToast((t) => (t && t.id === id ? null : t)), 3200);
   }, []);
 
-  const forceOffline = offline || !!auth?.isDemo || initialOffline;
-
   const load = useCallback(async () => {
     let b, p, s, bs, rs, pay;
-    if (forceOffline) {
-      b = OFFLINE.buyers;
-      p = OFFLINE.products;
-      s = OFFLINE.suppliers;
-      bs = OFFLINE.buyerSales;
-      rs = OFFLINE.retailSales;
-      pay = OFFLINE.payments;
+    let loadError = null;
+    setLoading(true);
+    const results = await Promise.all([
+      safeFetch('buyers'),
+      safeFetch('products'),
+      safeFetch('suppliers'),
+      safeFetch('buyer_sales'),
+      safeFetch('retail_sales'),
+      fetchPayments(),
+    ]);
+    const failed = results.find((result) => result.error);
+    if (failed) {
+      [b, p, s, bs, rs, pay] = [
+        OFFLINE.buyers,
+        OFFLINE.products,
+        OFFLINE.suppliers,
+        OFFLINE.buyerSales,
+        OFFLINE.retailSales,
+        OFFLINE.payments,
+      ];
+      setDataLoadError(`Live data could not be loaded: ${failed.error.message || 'Database request failed.'}`);
       setOffline(true);
+      loadError = failed.error;
     } else {
-      setLoading(true);
-      [b, p, s, bs, rs, pay] = await Promise.all([
-        safeFetch('buyers', OFFLINE.buyers, false),
-        safeFetch('products', OFFLINE.products, false),
-        safeFetch('suppliers', OFFLINE.suppliers, false),
-        safeFetch('buyer_sales', OFFLINE.buyerSales, false),
-        safeFetch('retail_sales', OFFLINE.retailSales, false),
-        (async () => {
-          try {
-            const res = await fetchAllPaginated(supabase, 'buyer_payments');
-            if (res.data && res.data.length) return res.data;
-            const res2 = await fetchAllPaginated(supabase, 'payments');
-            if (res2.data && res2.data.length) return res2.data;
-            return OFFLINE.payments;
-          } catch (e) {
-            return OFFLINE.payments;
-          }
-        })(),
-      ]);
-      const anyFallback =
-        b === OFFLINE.buyers ||
-        bs === OFFLINE.buyerSales ||
-        rs === OFFLINE.retailSales;
-      setOffline(anyFallback);
+      [b, p, s, bs, rs, pay] = results.map((result) => result.data);
+      setRemovedProductIds(new Set(p.filter((product) => isRemovedProductName(product.name)).map((product) => product.id)));
+      p = p.filter((product) => !isRemovedProductName(product.name));
+      bs = bs.filter((sale) => !isRemovedProductName(sale.product));
+      rs = rs.filter((sale) => !isRemovedProductName(sale.product));
+      setDataLoadError('');
+      setOffline(false);
     }
-    setRefToday(dataRefDate(bs, rs, pay));
+    setRefToday(realTodayIST());
     setBuyers(b);
     setProducts(p);
     setSuppliers(s);
@@ -120,17 +128,165 @@ export function AppDataProvider({ children }) {
     setRetailSales(rs);
     setPayments(pay);
     setLoading(false);
-  }, [forceOffline]);
+    return loadError ? { error: loadError } : { data: true };
+  }, []);
 
   useEffect(() => {
+    if (auth.loading) return;
+    if (!auth.isAuthed) {
+      setBuyers([]);
+      setProducts([]);
+      setRemovedProductIds(new Set());
+      setSuppliers([]);
+      setBuyerSales([]);
+      setRetailSales([]);
+      setPayments([]);
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayError('');
+      setOffline(false);
+      setDataLoadError('');
+      setLoading(false);
+      return;
+    }
     load();
-  }, [load]);
+  }, [auth.loading, auth.isAuthed, load]);
+
+  const loadInventory = useCallback(async () => {
+    if (offline) {
+      setInventorySettings([]);
+      setInventorySummary([]);
+      setInventoryCounts([]);
+      setInventoryMovements([]);
+      setInventoryError('Stock tracking requires the live database and the v0.2 inventory migration.');
+      return { error: new Error('offline') };
+    }
+
+    setInventoryLoading(true);
+    setInventoryError('');
+    const [settings, summary, counts, movements] = await Promise.all([
+      supabase.from('inventory_product_settings').select('product_id, enabled_at, low_stock_threshold'),
+      supabase.from('inventory_stock_summary').select('product_id, quantity_on_hand, inventory_value, average_unit_cost, enabled_at'),
+      fetchAllPaginated(supabase, 'inventory_daily_counts', {
+        columns: 'product_id, stock_date, counted_quantity, expected_quantity, variance_quantity, quantity_unit, recorded_by, created_at',
+        orderCol: 'stock_date',
+        orderAsc: true,
+      }),
+      fetchAllPaginated(supabase, 'inventory_stock_movements', {
+        columns: 'id, product_id, movement_type, quantity_delta, cost_delta, quantity_unit, movement_date, supplier_id, source_kind, source_id, reason, created_at',
+        orderCol: 'created_at',
+      }),
+    ]);
+    const failed = [settings, summary, counts].find((result) => result.error) || (movements.error ? movements : null);
+    if (failed) {
+      setInventoryLoading(false);
+      setInventoryError(`Could not load stock data: ${failed.error.message}`);
+      return { error: failed.error };
+    }
+
+    const visibleRows = (rows) => (rows || []).filter((row) => !removedProductIds.has(row.product_id));
+    setInventorySettings(visibleRows(settings.data));
+    setInventorySummary(visibleRows(summary.data));
+    setInventoryCounts(visibleRows(counts.data));
+    setInventoryMovements(visibleRows(movements.data));
+    setInventoryLoading(false);
+    return { data: true };
+  }, [offline, removedProductIds]);
+
+  const updateInventoryLowStockThreshold = async (productId, threshold) => {
+    if (offline) {
+      const error = new Error('Low-stock settings require the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const value = Number(threshold);
+    if (!Number.isFinite(value) || value < 0) {
+      const error = new Error('Enter a valid low-stock threshold of zero or more.');
+      showToast(error.message, 'error');
+      return { error };
+    }
+    const { data, error } = await supabase
+      .from('inventory_product_settings')
+      .update({ low_stock_threshold: value })
+      .eq('product_id', productId)
+      .select('product_id, enabled_at, low_stock_threshold');
+    if (error) {
+      showToast(`Could not save low-stock threshold: ${error.message}`, 'error');
+      return { error };
+    }
+    if (!data?.[0]) {
+      const missingRowError = new Error('No tracked product was updated. Apply the low-stock settings migration and try again.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setInventorySettings((previous) => previous.map((setting) => (
+      setting.product_id === productId ? { ...setting, ...data[0] } : setting
+    )));
+    showToast('Low-stock warning saved', 'success');
+    return { data: data[0] };
+  };
+
+  const refreshInventoryAfterSale = async () => {
+    if (offline) return;
+    const result = await loadInventory();
+    if (result.error) showToast('Sale was saved, but the stock balance could not refresh.', 'warn');
+  };
+
+  const loadRetailDay = useCallback(async () => {
+    if (offline) {
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayError('Retail day controls require the live database.');
+      return { error: new Error('offline') };
+    }
+    setRetailDayLoading(true);
+    setRetailDayError('');
+    const saleDate = todayIST();
+    const { data: session, error: sessionError } = await supabase
+      .from('retail_daily_sessions')
+      .select('sale_date, status, started_at, finished_at')
+      .eq('sale_date', saleDate)
+      .maybeSingle();
+    if (sessionError) {
+      setRetailDayLoading(false);
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayError(`Retail start/finish controls could not load: ${sessionError.message}`);
+      return { error: sessionError };
+    }
+    if (!session) {
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayLoading(false);
+      return { data: null };
+    }
+    const { data: prices, error: pricesError } = await supabase
+      .from('retail_daily_prices')
+      .select('product_id, quantity_unit, price_per_unit')
+      .eq('sale_date', saleDate);
+    if (pricesError) {
+      setRetailDayLoading(false);
+      setRetailDaySession(session);
+      setRetailDayPrices([]);
+      setRetailDayError(`Retail prices could not load: ${pricesError.message}`);
+      return { error: pricesError };
+    }
+    setRetailDaySession(session);
+    setRetailDayPrices(prices || []);
+    setRetailDayLoading(false);
+    return { data: session };
+  }, [offline]);
 
   const buyersById = useMemo(() => {
     const m = {};
     for (const b of buyers) m[b.id] = b;
     return m;
   }, [buyers]);
+
+  const activeBuyers = useMemo(
+    () => buyers.filter((buyer) => !buyer.archived_at),
+    [buyers]
+  );
 
   const balances = useMemo(
     () => computeBuyerBalances(buyers, buyerSales, payments),
@@ -144,8 +300,8 @@ export function AppDataProvider({ children }) {
   }, [balances]);
 
   const productRevenue = useMemo(
-    () => computeProductRevenue(buyerSales, retailSales),
-    [buyerSales, retailSales]
+    () => computeProductRevenue(buyerSales, retailSales, products),
+    [buyerSales, retailSales, products]
   );
 
   const today = useMemo(
@@ -154,8 +310,8 @@ export function AppDataProvider({ children }) {
   );
 
   const recent = useMemo(
-    () => buildRecentActivity(buyerSales, payments, buyersById, 8),
-    [buyerSales, payments, buyersById]
+    () => buildRecentActivity(buyerSales, payments, buyersById, 8, retailSales),
+    [buyerSales, payments, buyersById, retailSales]
   );
 
   const activeProducts = useMemo(
@@ -165,7 +321,7 @@ export function AppDataProvider({ children }) {
 
   const insertBuyer = async (input) => {
     if (offline) {
-      showToast('Demo mode — edits disabled. Log in to Supabase to save.', 'warn');
+      showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn');
       return { error: new Error('offline') };
     }
     const payload = { name: input.name, phone: input.phone || null, address: input.address || null };
@@ -177,7 +333,7 @@ export function AppDataProvider({ children }) {
   };
 
   const updateBuyer = async (id, patch) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
     const { data, error } = await supabase.from('buyers').update(patch).eq('id', id).select();
     if (error) { showToast('Could not update buyer: ' + error.message, 'error'); return { error }; }
     if (data?.[0]) setBuyers((prev) => prev.map((b) => (b.id === id ? { ...b, ...data[0] } : b)));
@@ -185,8 +341,68 @@ export function AppDataProvider({ children }) {
     return { data: data?.[0] };
   };
 
+  const setBuyerArchived = async (id, archived) => {
+    if (offline) {
+      const error = new Error('Buyer archiving requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+
+    const { error } = await supabase.rpc('set_buyer_archived', {
+      p_buyer_id: id,
+      p_archived: archived,
+    });
+    if (error) {
+      showToast(`Could not ${archived ? 'archive' : 'restore'} buyer: ${error.message}`, 'error');
+      return { error };
+    }
+
+    const archivedAt = archived ? new Date().toISOString() : null;
+    setBuyers((prev) => prev.map((buyer) => (
+      buyer.id === id ? { ...buyer, archived_at: archivedAt } : buyer
+    )));
+    showToast(archived ? 'Buyer archived; history and reports are unchanged.' : 'Buyer restored.', 'success');
+    return { data: true };
+  };
+
+  const purgeBuyer = async (id) => {
+    if (offline) {
+      const error = new Error('Permanent buyer purge requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+
+    const { error } = await supabase.rpc('purge_archived_buyer', {
+      p_buyer_id: id,
+    });
+    if (error) {
+      showToast(`Could not permanently purge buyer: ${error.message}`, 'error');
+      return { error };
+    }
+
+    const saleIds = new Set(buyerSales.filter((sale) => sale.buyer_id === id).map((sale) => sale.id));
+    setBuyers((prev) => prev.filter((buyer) => buyer.id !== id));
+    setBuyerSales((prev) => prev.filter((sale) => sale.buyer_id !== id));
+    setPayments((prev) => prev.filter((payment) => payment.buyer_id !== id));
+    setInventoryMovements((prev) => prev.filter((movement) => (
+      movement.source_kind !== 'buyer_sales' || !saleIds.has(movement.source_id)
+    )));
+    showToast('Buyer and linked history permanently purged from live data.', 'success');
+
+    const inventoryRefresh = await loadInventory();
+    if (inventoryRefresh.error) {
+      showToast('Buyer data was purged, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    }
+    return { data: true };
+  };
+
   const updateProduct = async (id, patch) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
+    if (isRemovedProductName(patch.name)) {
+      const error = new Error('Puundu is no longer available in the application.');
+      showToast(error.message, 'error');
+      return { error };
+    }
     const { data, error } = await supabase.from('products').update(patch).eq('id', id).select();
     if (error) { showToast('Could not update product: ' + error.message, 'error'); return { error }; }
     if (data?.[0]) setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...data[0] } : p)));
@@ -194,39 +410,366 @@ export function AppDataProvider({ children }) {
     return { data: data?.[0] };
   };
 
+  const insertProduct = async (input) => {
+    if (offline) {
+      const error = new Error('Product creation requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    if (isRemovedProductName(input.name)) {
+      const error = new Error('Puundu is no longer available in the application.');
+      showToast(error.message, 'error');
+      return { error };
+    }
+    const payload = {
+      name: input.name.trim(),
+      emoji: input.emoji,
+      sort_order: Number(input.sort_order),
+      active: input.active,
+      sales_unit: input.sales_unit,
+      stock_entry_unit: input.stock_entry_unit,
+      stock_to_sales_factor: Number(input.stock_to_sales_factor),
+    };
+    const { data, error } = await supabase.from('products').insert([payload]).select();
+    if (error) {
+      showToast('Could not add product: ' + error.message, 'error');
+      return { error };
+    }
+    if (!data?.[0]) {
+      const missingRowError = new Error('The database did not return the new product.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setProducts((prev) => [...prev, data[0]]);
+    showToast('Product added', 'success');
+    return { data: data[0] };
+  };
+
+  const deleteProduct = async (id) => {
+    if (offline) {
+      const error = new Error('Product deletion requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.from('products').delete().eq('id', id).select('id');
+    if (error) {
+      showToast('Could not delete product: ' + error.message, 'error');
+      return { error };
+    }
+    if (!data?.length) {
+      const missingRowError = new Error('No product was deleted. Check database delete permissions.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setProducts((prev) => prev.filter((product) => product.id !== id));
+    showToast('Product deleted', 'success');
+    return { data: true };
+  };
+
+  const updateBuyerSale = async (id, row) => {
+    if (offline) return { error: new Error('Buyer sale edits require the live database.') };
+    const { data, error } = await supabase.rpc('inventory_update_buyer_sale', {
+      p_id: id,
+      p_buyer_id: row.buyer_id,
+      p_product: row.product,
+      p_quantity: row.mootais,
+      p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
+      p_sale_date: row.sale_date,
+      p_notes: row.notes,
+    });
+    if (error) {
+      showToast(`Could not update buyer sale: ${error.message}`, 'error');
+      return { error };
+    }
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!updated) {
+      const missingRowError = new Error('The database did not return the updated buyer sale.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setBuyerSales((prev) => prev.map((sale) => (sale.id === id ? updated : sale)));
+    showToast('Buyer sale updated; balances and reports recalculated.', 'success');
+    const refresh = await loadInventory();
+    if (refresh.error) showToast('Sale updated, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    return { data: updated };
+  };
+
+  const updateRetailSale = async (id, row) => {
+    if (offline) return { error: new Error('Retail sale edits require the live database.') };
+    const { data, error } = await supabase.rpc('inventory_update_retail_sale', {
+      p_id: id,
+      p_product: row.product,
+      p_quantity: row.mootais_sold,
+      p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
+      p_sale_date: row.sale_date,
+      p_notes: row.notes,
+    });
+    if (error) {
+      showToast(`Could not update retail sale: ${error.message}`, 'error');
+      return { error };
+    }
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!updated) {
+      const missingRowError = new Error('The database did not return the updated retail sale.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setRetailSales((prev) => prev.map((sale) => (sale.id === id ? updated : sale)));
+    showToast('Retail sale updated; stock and reports recalculated.', 'success');
+    const refresh = await loadInventory();
+    if (refresh.error) showToast('Sale updated, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    return { data: updated };
+  };
+
+  const updateBuyerPayment = async (id, row) => {
+    if (offline) return { error: new Error('Payment edits require the live database.') };
+    const { data, error } = await supabase.rpc('inventory_update_buyer_payment', {
+      p_id: id,
+      p_buyer_id: row.buyer_id,
+      p_amount_paid: row.amount_paid,
+      p_paid_at: row.paid_at,
+      p_notes: row.notes,
+    });
+    if (error) {
+      showToast(`Could not update payment: ${error.message}`, 'error');
+      return { error };
+    }
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!updated) {
+      const missingRowError = new Error('The database did not return the updated payment.');
+      showToast(missingRowError.message, 'error');
+      return { error: missingRowError };
+    }
+    setPayments((prev) => prev.map((payment) => (payment.id === id ? updated : payment)));
+    showToast('Payment updated; buyer balance and reports recalculated.', 'success');
+    return { data: updated };
+  };
+
+  const deleteSaleRecord = async (rpcName, id, kind) => {
+    if (offline) return { error: new Error('Sale deletion requires the live database.') };
+    const { error } = await supabase.rpc(rpcName, { p_id: id });
+    if (error) {
+      showToast(`Could not delete ${kind}: ${error.message}`, 'error');
+      return { error };
+    }
+    if (kind === 'buyer sale') setBuyerSales((prev) => prev.filter((sale) => sale.id !== id));
+    else setRetailSales((prev) => prev.filter((sale) => sale.id !== id));
+    showToast(`${kind === 'buyer sale' ? 'Buyer sale' : 'Retail sale'} deleted and stock reversed.`, 'success');
+    const refresh = await loadInventory();
+    if (refresh.error) showToast('Sale deleted, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    return { data: true };
+  };
+
+  const deleteBuyerSale = (id) => deleteSaleRecord('inventory_delete_buyer_sale', id, 'buyer sale');
+  const deleteRetailSale = (id) => deleteSaleRecord('inventory_delete_retail_sale', id, 'retail sale');
+
+  const deleteBuyerPayment = async (id) => {
+    if (offline) return { error: new Error('Payment deletion requires the live database.') };
+    const { error } = await supabase.rpc('inventory_delete_buyer_payment', { p_id: id });
+    if (error) {
+      showToast(`Could not delete payment: ${error.message}`, 'error');
+      return { error };
+    }
+    setPayments((prev) => prev.filter((payment) => payment.id !== id));
+    showToast('Payment deleted; buyer balance and reports recalculated.', 'success');
+    return { data: true };
+  };
+
   const insertBuyerSale = async (row) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
-    const { data, error } = await supabase.from('buyer_sales').insert([row]).select();
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
+    const rpcResult = await supabase.rpc('inventory_record_buyer_sale_with_unit', {
+      p_id: row.id,
+      p_buyer_id: row.buyer_id,
+      p_product: row.product,
+      p_quantity: row.mootais,
+      p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
+      p_sale_date: row.sale_date,
+      p_notes: row.notes,
+    });
+    const { data, error } = rpcResult;
     if (error) { showToast('Could not save sale: ' + error.message, 'error'); return { error }; }
-    if (data?.[0]) setBuyerSales((prev) => [data[0], ...prev]);
+    if (data) {
+      setBuyerSales((prev) => [data, ...prev.filter((sale) => sale.id !== data.id)]);
+      await refreshInventoryAfterSale();
+    }
     showToast('Sale recorded', 'success');
-    return { data: data?.[0] };
+    return { data };
   };
 
   const insertPayment = async (row) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
     const tables = ['buyer_payments', 'payments'];
-    for (const tbl of tables) {
+    for (const [index, tbl] of tables.entries()) {
       try {
         const { data, error } = await supabase.from(tbl).insert([row]).select();
-        if (error && tbl !== tables.at(-1)) continue;
-        if (error) { showToast('Could not save payment: ' + error.message, 'error'); return { error }; }
+        if (error) {
+          const missingTable = error.code === 'PGRST205' || error.code === '42P01';
+          if (index === 0 && missingTable) continue;
+          showToast('Could not save payment: ' + error.message, 'error');
+          return { error };
+        }
         if (data?.[0]) setPayments((prev) => [data[0], ...prev]);
         showToast('Payment recorded', 'success');
         return { data: data?.[0] };
-      } catch (e) { /* continue to fallback table */ }
+      } catch (error) {
+        showToast(`Could not save payment: ${error.message || 'Unexpected database error.'}`, 'error');
+        return { error };
+      }
     }
-    return { error: new Error('failed') };
+    const error = new Error('Could not save payment: neither supported payment table is available.');
+    showToast(error.message, 'error');
+    return { error };
   };
 
-  const insertRetailSale = async (row) => {
-    if (offline) { showToast('Demo mode — edits disabled.', 'warn'); return { error: new Error('offline') }; }
-    const { data, error } = await supabase.from('retail_sales').insert([row]).select();
+  const insertRetailSale = async (row, { showSuccessToast = true } = {}) => {
+    if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
+    const { data, error } = await supabase.rpc('inventory_record_retail_sale_with_unit', {
+      p_id: row.id,
+      p_product: row.product,
+      p_quantity: row.mootais_sold,
+      p_quantity_unit: row.quantity_unit,
+      p_price_per_unit: row.price_per_mootai,
+      p_sale_date: row.sale_date,
+      p_notes: row.notes,
+    });
     if (error) { showToast('Could not save retail sale: ' + error.message, 'error'); return { error }; }
-    if (data?.[0]) setRetailSales((prev) => [data[0], ...prev]);
-    showToast('Retail sale recorded', 'success');
-    return { data: data?.[0] };
+    if (data) {
+      setRetailSales((prev) => [data, ...prev.filter((sale) => sale.id !== data.id)]);
+      await refreshInventoryAfterSale();
+    }
+    if (showSuccessToast) showToast('Retail sale recorded', 'success');
+    return { data };
   };
+
+  const startRetailDay = async (prices) => {
+    if (offline) {
+      const error = new Error('Starting retail sales requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_start_retail_day', { p_prices: prices });
+    if (error) {
+      showToast(`Could not start retail sales: ${error.message}`, 'error');
+      return { error };
+    }
+    const [retailRefresh, inventoryRefresh] = await Promise.all([loadRetailDay(), loadInventory()]);
+    if (retailRefresh.error || inventoryRefresh.error) {
+      showToast('Retail sales started, but some page data could not refresh.', 'warn');
+    } else {
+      showToast('Retail sales started', 'success');
+    }
+    return { data };
+  };
+
+  const finishRetailDay = async () => {
+    if (offline) {
+      const error = new Error('Finishing retail sales requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_finish_retail_day');
+    if (error) {
+      showToast(`Could not finish retail sales: ${error.message}`, 'error');
+      return { error };
+    }
+    const [dataRefresh, inventoryRefresh, retailDayRefresh] = await Promise.all([
+      load(),
+      loadInventory(),
+      loadRetailDay(),
+    ]);
+    if (dataRefresh.error || inventoryRefresh.error || retailDayRefresh.error) {
+      showToast('Retail sales finished, but some page data could not refresh.', 'warn');
+    } else {
+      showToast('Retail sales finished and remaining stock recorded', 'success');
+    }
+    return { data };
+  };
+
+  const recordInventoryAction = async (rpcName, args, successMessage) => {
+    if (offline) {
+      const error = new Error('Stock changes require an authenticated live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc(rpcName, args);
+    if (error) {
+      showToast(`Could not save stock change: ${error.message}`, 'error');
+      return { error };
+    }
+    const refresh = await loadInventory();
+    if (refresh.error) showToast('Stock change saved, but the stock view could not refresh.', 'warn');
+    else showToast(successMessage, 'success');
+    return { data, refreshError: refresh.error };
+  };
+
+  const startInventoryTracking = (
+    productId, quantity, estimatedUnitCost, damagedQuantity, damageReason, damageRequestId,
+  ) =>
+    recordInventoryAction('inventory_start_tracking_with_count', {
+      p_product_id: productId,
+      p_opening_quantity: quantity,
+      p_estimated_unit_cost: estimatedUnitCost,
+      p_damaged_quantity: damagedQuantity,
+      p_damage_reason: damageReason,
+      p_damage_request_id: damageRequestId,
+    }, 'Opening stock and today’s physical count recorded');
+
+  const recordMorningCount = (productId, quantity, surplusUnitCost) =>
+    recordInventoryAction('inventory_record_morning_count', {
+      p_product_id: productId,
+      p_counted_quantity: quantity,
+      p_surplus_unit_cost: surplusUnitCost,
+    }, 'Morning stock count recorded');
+
+  const correctMorningCount = (productId, quantity, unitCost) =>
+    recordInventoryAction('inventory_correct_morning_count', {
+      p_product_id: productId,
+      p_counted_quantity: quantity,
+      p_unit_cost: unitCost,
+    }, 'Morning stock count and today’s sale costs corrected');
+
+  const recordStockReceipt = (
+    productId, supplierId, quantity, unitCost, notes, requestId, damagedQuantity, damageReason, damageRequestId,
+    movementDate = todayIST(),
+  ) => {
+    const historicalDate = movementDate !== todayIST();
+    return recordInventoryAction(historicalDate
+      ? 'inventory_record_historical_receipt_with_damage'
+      : 'inventory_record_receipt_with_damage', {
+      p_product_id: productId,
+      p_supplier_id: supplierId,
+      p_quantity: quantity,
+      p_unit_cost: unitCost,
+      p_notes: notes,
+      p_request_id: requestId,
+      p_damaged_quantity: damagedQuantity,
+      p_damage_reason: damageReason,
+      p_damage_request_id: damageRequestId,
+      ...(historicalDate ? { p_movement_date: movementDate } : {}),
+    }, damagedQuantity > 0 ? 'Stock receipt and arrival damage recorded' : 'Extra stock receipt recorded');
+  };
+
+  const recordStockAdjustment = (productId, movementType, quantityDelta, reason, unitCost, requestId) =>
+    recordInventoryAction('inventory_record_adjustment', {
+      p_product_id: productId,
+      p_movement_type: movementType,
+      p_quantity_delta: quantityDelta,
+      p_reason: reason,
+      p_unit_cost: unitCost,
+      p_request_id: requestId,
+    }, movementType === 'spoilage' ? 'Damaged stock recorded' : 'Stock correction recorded');
+
+  const setStockQuantity = (productId, quantity, reason, unitCost, requestId) =>
+    recordInventoryAction('inventory_set_stock_quantity', {
+      p_product_id: productId,
+      p_target_quantity: quantity,
+      p_reason: reason,
+      p_unit_cost: unitCost,
+      p_request_id: requestId,
+    }, 'Stock balance updated');
 
   const filterByPeriod = useCallback((rows, period, dateField) => {
     if (period === 'all' || !period) return rows;
@@ -234,10 +777,17 @@ export function AppDataProvider({ children }) {
   }, []);
 
   const value = {
-    buyers, products, suppliers, buyerSales, retailSales, payments,
+    buyers, activeBuyers, products, suppliers, buyerSales, retailSales, payments,
+    inventorySettings, inventorySummary, inventoryCounts, inventoryMovements,
+    retailDaySession, retailDayPrices, retailDayLoading, retailDayError,
     buyersById, balances, balancesById, productRevenue, today, recent, activeProducts,
-    loading, offline, toast, showToast, load,
-    insertBuyer, updateBuyer, updateProduct, insertBuyerSale, insertPayment, insertRetailSale,
+    loading, offline, dataLoadError, toast, showToast, load,
+    inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
+    loadRetailDay, startRetailDay, finishRetailDay,
+    insertBuyer, updateBuyer, setBuyerArchived, purgeBuyer, updateProduct, insertProduct, deleteProduct,
+    insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
+    deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
+    startInventoryTracking, recordMorningCount, correctMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     filterByPeriod,
   };
 
