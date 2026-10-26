@@ -96,6 +96,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
   const [selectedDate, setSelectedDate] = useState(realTodayIST());
   const [pdfPeriod, setPdfPeriod] = useState('custom');
   const [pdfDate, setPdfDate] = useState(realTodayIST());
+  const [downloadedPdfKey, setDownloadedPdfKey] = useState('');
   const [workingKind, setWorkingKind] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -124,6 +125,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
       setSelectedDate(realTodayIST());
       setPdfPeriod('custom');
       setPdfDate(realTodayIST());
+      setDownloadedPdfKey('');
       setWorkingKind('');
       setError('');
       setNotice('');
@@ -165,6 +167,18 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
       selectedDate,
     })
     : '';
+  const pdfPeriodKey = `${pdfPeriod}:${pdfDate}`;
+  const whatsappPdfUrl = selectedRow
+    ? (() => {
+      const phone = normalizeWhatsAppPhone(selectedRow.buyer.phone);
+      if (!phone) return '';
+      const label = pdfPeriod === 'custom'
+        ? formatDateCompact(pdfDate)
+        : periodRange(pdfPeriod === 'monthly' ? 'month' : pdfPeriod === 'full' ? 'full' : pdfPeriod).label;
+      const message = `Hi ${selectedRow.buyer.name}, please find your GSM Traders bill for ${label}.`;
+      return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    })()
+    : '';
 
   const createAndDownloadBill = async () => {
     if (pdfPeriod === 'custom' && !pdfDate) {
@@ -173,6 +187,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
     }
     if (!selectedRow || !createBuyerBillFile || workingKind) return;
     setWorkingKind(pdfPeriod);
+    setDownloadedPdfKey('');
     setError('');
     setNotice('');
 
@@ -186,6 +201,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
         selectedDate: pdfDate,
       });
       downloadBillFile(file);
+      setDownloadedPdfKey(pdfPeriodKey);
       setNotice('The PDF bill has been downloaded.');
     } catch (shareError) {
       setError(`Could not prepare or download the bill: ${shareError.message || 'Unexpected error.'}`);
@@ -332,7 +348,10 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
                 <button
                   key={period}
                   type="button"
-                  onClick={() => setPdfPeriod(period)}
+                  onClick={() => {
+                    setPdfPeriod(period);
+                    setDownloadedPdfKey('');
+                  }}
                   className={`w-full rounded-xl border p-3 text-left font-semibold transition ${pdfPeriod === period ? 'border-sidebar-accent bg-sidebar-accent/5 text-sidebar-accent' : 'border-ink-200 text-ink-700 hover:bg-ink-50'}`}
                 >
                   {label}
@@ -345,7 +364,10 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
                     type="date"
                     value={pdfDate}
                     max={realTodayIST()}
-                    onChange={(event) => setPdfDate(event.target.value)}
+                    onChange={(event) => {
+                      setPdfDate(event.target.value);
+                      setDownloadedPdfKey('');
+                    }}
                     className="input mt-1"
                   />
                 </label>
@@ -360,6 +382,29 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
                 {workingKind ? 'Preparing…' : 'Download PDF bill'}
               </button>
               {!createBuyerBillFile && <span className="text-xs text-ink-500">Preparing PDF tools…</span>}
+              {downloadedPdfKey === pdfPeriodKey && (
+                <>
+                  {!whatsappPdfUrl ? (
+                    <p className="text-sm text-red-700" role="alert">
+                      The PDF was downloaded, but this buyer does not have a valid phone number for WhatsApp.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-ink-500">
+                        PDF saved to Downloads. Open the buyer’s WhatsApp chat, then attach the PDF from Downloads.
+                      </p>
+                      <a
+                        href={whatsappPdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-green w-full justify-center"
+                      >
+                        <MessageCircle className="h-4 w-4" /> Open WhatsApp chat
+                      </a>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           )}
           {notice && <p className="text-sm text-amber-800" role="status">{notice}</p>}
