@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
@@ -8,11 +9,14 @@ import {
   formatQuantityByUnit,
   getProductEmoji,
   saleQuantitiesByUnit,
+  productSalesUnit,
   todayIST,
 } from '../lib/business.js';
 import PeriodPills, { PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw, TrendingUp, Package, ShoppingBag } from 'lucide-react';
+import StartRetailDayModal from '../components/StartRetailDayModal.jsx';
+import Modal from '../components/Modal.jsx';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw, TrendingUp, Package, ShoppingBag, Store } from 'lucide-react';
 
 function parseDateKey(value) {
   const [year, month, day] = value.split('-').map(Number);
@@ -113,14 +117,103 @@ function RetailDatePicker({ value, active, onChange }) {
 }
 
 export default function Retail() {
-  const { retailSales, products, filterByPeriod, load } = useAppData();
+  const {
+    retailSales,
+    products,
+    activeProducts,
+    inventorySettings,
+    inventoryCounts,
+    inventoryMovements,
+    inventoryLoading,
+    inventoryError,
+    loadInventory,
+    retailDaySession,
+    retailDayPrices,
+    retailDayLoading,
+    retailDayError,
+    loadRetailDay,
+    startRetailDay,
+    finishRetailDay,
+    filterByPeriod,
+    load,
+  } = useAppData();
 
   const [period, setPeriod] = useState('week');
   const [viewMode, setViewMode] = useState('day');
   const [selectedDate, setSelectedDate] = useState(todayIST());
   const [modalOpen, setModalOpen] = useState(false);
+  const [startModalOpen, setStartModalOpen] = useState(false);
+  const [finishModalOpen, setFinishModalOpen] = useState(false);
+  const [dayActionBusy, setDayActionBusy] = useState(false);
+  const [retailDayReady, setRetailDayReady] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [expandedDate, setExpandedDate] = useState(null);
   const cardRefs = useRef({});
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([loadRetailDay(), loadInventory()]).then(() => {
+      if (mounted) setRetailDayReady(true);
+    });
+    return () => { mounted = false; };
+  }, [loadRetailDay, loadInventory]);
+
+  useEffect(() => {
+    if (searchParams.get('start') !== '1' || !retailDayReady || retailDayLoading || retailDayError) return;
+    if (!retailDaySession) setStartModalOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams, retailDayError, retailDayLoading, retailDayReady, retailDaySession]);
+
+  const trackedActiveProducts = useMemo(
+    () => activeProducts.filter((product) => inventorySettings.some((setting) => setting.product_id === product.id)),
+    [activeProducts, inventorySettings],
+  );
+
+  const todayStockByProduct = useMemo(() => {
+    const balances = new Map();
+    const today = todayIST();
+    for (const movement of inventoryMovements) {
+      if (movement.movement_date !== today) continue;
+      balances.set(
+        movement.product_id,
+        (balances.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+      );
+    }
+    return balances;
+  }, [inventoryMovements]);
+
+  const missingTodayCounts = inventorySettings.filter((setting) => (
+    activeProducts.some((product) => product.id === setting.product_id)
+    && !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST())
+  ));
+  const savedRetailPrices = new Map(retailDayPrices.map((price) => [price.product_id, price]));
+  const retailDayActive = retailDaySession?.status === 'active';
+  const retailDayFinished = retailDaySession?.status === 'finished';
+
+  const handleStartRetail = async (prices) => {
+    setActionError('');
+    setDayActionBusy(true);
+    const result = await startRetailDay(prices);
+    setDayActionBusy(false);
+    if (result.error) {
+      setActionError(result.error.message);
+      return;
+    }
+    setStartModalOpen(false);
+  };
+
+  const handleFinishRetail = async () => {
+    setActionError('');
+    setDayActionBusy(true);
+    const result = await finishRetailDay();
+    setDayActionBusy(false);
+    if (result.error) {
+      setActionError(result.error.message);
+      return;
+    }
+    setFinishModalOpen(false);
+  };
 
   const filtered = useMemo(() => {
     const selected = viewMode === 'day'
@@ -211,6 +304,88 @@ export default function Retail() {
           Record Retail Sale
         </button>
       </div>
+
+      {(retailDayError || inventoryError || actionError) && (
+        <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">
+          {actionError || retailDayError || inventoryError}
+        </div>
+      )}
+
+      {retailDayLoading || inventoryLoading ? (
+        <div className="metric-card text-sm text-ink-500">Loading today’s retail balance…</div>
+      ) : (
+        <section className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-bold text-violet-950">
+                <Store className="h-5 w-5" />
+                {retailDayActive ? 'Retail sales are active today' : retailDayFinished ? 'Retail sales finished today' : 'Start today’s retail sales'}
+              </h2>
+              <p className="mt-1 text-sm text-violet-900">
+                {retailDayActive
+                  ? 'Balances update as buyer and recorded retail sales use stock. Finish Retail records all remaining balance at the saved prices.'
+                  : retailDayFinished
+                    ? 'Today’s remaining balance has been recorded as retail sales.'
+                    : 'Set today’s prices after physical stock counts are complete. Buyer sales will reduce the displayed balance.'}
+              </p>
+            </div>
+            {!retailDayActive && !retailDayFinished && (
+              <button
+                type="button"
+                onClick={() => setStartModalOpen(true)}
+                disabled={retailDayLoading || missingTodayCounts.length > 0 || trackedActiveProducts.length === 0}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Store className="h-4 w-4" />
+                Retail Sales Start
+              </button>
+            )}
+            {retailDayActive && (
+              <button
+                type="button"
+                onClick={() => setFinishModalOpen(true)}
+                className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-800"
+              >
+                Finish Retail
+              </button>
+            )}
+          </div>
+
+          {missingTodayCounts.length > 0 && !retailDayActive && (
+            <p className="mt-3 text-sm font-semibold text-amber-800">
+              Record today’s physical count for each active tracked item before starting retail.
+            </p>
+          )}
+
+          {(retailDayActive || retailDayFinished) && (
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {trackedActiveProducts.map((product) => {
+                const savedPrice = savedRetailPrices.get(product.id);
+                const unit = savedPrice?.quantity_unit || productSalesUnit(product);
+                const balance = todayStockByProduct.get(product.id) || 0;
+                return (
+                  <div key={product.id} className="flex items-center justify-between gap-3 rounded-xl border border-violet-100 bg-white p-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span>{getProductEmoji(product.name, products)}</span>
+                      <span className="truncate text-sm font-semibold text-ink-800">{product.name}</span>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-sm font-bold text-violet-900">
+                        {balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}
+                      </div>
+                      {savedPrice && (
+                        <div className="text-xs text-ink-500">
+                          {currencyINR(savedPrice.price_per_unit)} / {unit}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="space-y-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -375,6 +550,35 @@ export default function Retail() {
         onClose={() => setModalOpen(false)}
         initialDate={selectedDate}
       />
+      <StartRetailDayModal
+        open={startModalOpen}
+        onClose={() => setStartModalOpen(false)}
+        products={trackedActiveProducts}
+        stockByProduct={todayStockByProduct}
+        onStart={handleStartRetail}
+        busy={dayActionBusy}
+        error={actionError}
+      />
+      <Modal
+        open={finishModalOpen}
+        onClose={() => { if (!dayActionBusy) setFinishModalOpen(false); }}
+        title="Finish Retail Sales"
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-700">
+            This will record all stock remaining for today as retail sales at the prices you set. It will also count
+            physically unsold items as sold and reduce their inventory balance to zero.
+          </p>
+          {actionError && <p className="text-sm text-red-700" role="alert">{actionError}</p>}
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => setFinishModalOpen(false)} disabled={dayActionBusy} className="btn-ghost">Cancel</button>
+            <button type="button" onClick={handleFinishRetail} disabled={dayActionBusy} className="btn-purple">
+              {dayActionBusy ? 'Finishing…' : 'Confirm Finish Retail'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

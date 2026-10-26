@@ -71,6 +71,10 @@ export function AppDataProvider({ children }) {
   const [inventoryMovements, setInventoryMovements] = useState([]);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [inventoryError, setInventoryError] = useState('');
+  const [retailDaySession, setRetailDaySession] = useState(null);
+  const [retailDayPrices, setRetailDayPrices] = useState([]);
+  const [retailDayLoading, setRetailDayLoading] = useState(false);
+  const [retailDayError, setRetailDayError] = useState('');
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [dataLoadError, setDataLoadError] = useState('');
@@ -137,6 +141,10 @@ export function AppDataProvider({ children }) {
       setBuyerSales([]);
       setRetailSales([]);
       setPayments([]);
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayLoading(false);
+      setRetailDayError('');
       setOffline(false);
       setDataLoadError('');
       setLoading(false);
@@ -185,6 +193,51 @@ export function AppDataProvider({ children }) {
     setInventoryLoading(false);
     return { data: true };
   }, [offline, removedProductIds]);
+
+  const loadRetailDay = useCallback(async () => {
+    if (offline) {
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayError('Retail day controls require the live database.');
+      return { error: new Error('offline') };
+    }
+    setRetailDayLoading(true);
+    setRetailDayError('');
+    const saleDate = todayIST();
+    const { data: session, error: sessionError } = await supabase
+      .from('retail_daily_sessions')
+      .select('sale_date, status, started_at, finished_at')
+      .eq('sale_date', saleDate)
+      .maybeSingle();
+    if (sessionError) {
+      setRetailDayLoading(false);
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayError(`Retail start/finish controls could not load: ${sessionError.message}`);
+      return { error: sessionError };
+    }
+    if (!session) {
+      setRetailDaySession(null);
+      setRetailDayPrices([]);
+      setRetailDayLoading(false);
+      return { data: null };
+    }
+    const { data: prices, error: pricesError } = await supabase
+      .from('retail_daily_prices')
+      .select('product_id, quantity_unit, price_per_unit')
+      .eq('sale_date', saleDate);
+    if (pricesError) {
+      setRetailDayLoading(false);
+      setRetailDaySession(session);
+      setRetailDayPrices([]);
+      setRetailDayError(`Retail prices could not load: ${pricesError.message}`);
+      return { error: pricesError };
+    }
+    setRetailDaySession(session);
+    setRetailDayPrices(prices || []);
+    setRetailDayLoading(false);
+    return { data: session };
+  }, [offline]);
 
   const updateInventoryLowStockThreshold = async (productId, threshold) => {
     if (offline) {
@@ -592,6 +645,50 @@ export function AppDataProvider({ children }) {
     return { data };
   };
 
+  const startRetailDay = async (prices) => {
+    if (offline) {
+      const error = new Error('Starting retail sales requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_start_retail_day', { p_prices: prices });
+    if (error) {
+      showToast(`Could not start retail sales: ${error.message}`, 'error');
+      return { error };
+    }
+    const [retailRefresh, inventoryRefresh] = await Promise.all([loadRetailDay(), loadInventory()]);
+    if (retailRefresh.error || inventoryRefresh.error) {
+      showToast('Retail sales started, but some page data could not refresh.', 'warn');
+    } else {
+      showToast('Retail sales started', 'success');
+    }
+    return { data };
+  };
+
+  const finishRetailDay = async () => {
+    if (offline) {
+      const error = new Error('Finishing retail sales requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_finish_retail_day');
+    if (error) {
+      showToast(`Could not finish retail sales: ${error.message}`, 'error');
+      return { error };
+    }
+    const [dataRefresh, inventoryRefresh, retailDayRefresh] = await Promise.all([
+      load(),
+      loadInventory(),
+      loadRetailDay(),
+    ]);
+    if (dataRefresh.error || inventoryRefresh.error || retailDayRefresh.error) {
+      showToast('Retail sales finished, but some page data could not refresh.', 'warn');
+    } else {
+      showToast('Retail sales finished and remaining stock recorded', 'success');
+    }
+    return { data };
+  };
+
   const recordInventoryAction = async (rpcName, args, successMessage) => {
     if (offline) {
       const error = new Error('Stock changes require an authenticated live database.');
@@ -701,9 +798,11 @@ export function AppDataProvider({ children }) {
   const value = {
     buyers, activeBuyers, products, suppliers, buyerSales, retailSales, payments,
     inventorySettings, inventorySummary, inventoryCounts, inventoryMovements,
+    retailDaySession, retailDayPrices, retailDayLoading, retailDayError,
     buyersById, balances, balancesById, productRevenue, today, recent, activeProducts,
     loading, offline, dataLoadError, toast, showToast, load,
     inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
+    loadRetailDay, startRetailDay, finishRetailDay,
     insertBuyer, updateBuyer, setBuyerArchived, purgeBuyer, updateProduct, insertProduct, deleteProduct,
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,

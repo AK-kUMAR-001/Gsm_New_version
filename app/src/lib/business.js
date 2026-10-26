@@ -426,11 +426,18 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
     if (String(sale.sale_date || '').slice(0, 10) !== date) return;
     const productName = String(sale.product || '').trim().toLocaleLowerCase();
     const revenue = Number(quantity || 0) * Number(price || 0);
-    const sales = salesByProduct.get(productName) || { revenue: 0, salesCount: 0 };
+    const sales = salesByProduct.get(productName) || {
+      revenue: 0,
+      buyerRevenue: 0,
+      retailRevenue: 0,
+      salesCount: 0,
+    };
     sales.revenue += revenue;
+    if (sourceKind === 'buyer_sales') sales.buyerRevenue += revenue;
+    else sales.retailRevenue += revenue;
     sales.salesCount += 1;
     salesByProduct.set(productName, sales);
-    salesBySource.set(`${sourceKind}:${sale.id}`, { productName, revenue });
+    salesBySource.set(`${sourceKind}:${sale.id}`, { productName, revenue, sourceKind });
   };
   for (const sale of buyerSales || []) {
     addSale(sale, 'buyer_sales', sale.mootais, sale.price_per_mootai);
@@ -446,8 +453,12 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
     productCosts.set(setting.product_id, {
       product,
       revenue: salesByProduct.get(String(product.name || '').trim().toLocaleLowerCase())?.revenue || 0,
+      buyerRevenue: salesByProduct.get(String(product.name || '').trim().toLocaleLowerCase())?.buyerRevenue || 0,
+      retailRevenue: salesByProduct.get(String(product.name || '').trim().toLocaleLowerCase())?.retailRevenue || 0,
       salesCount: salesByProduct.get(String(product.name || '').trim().toLocaleLowerCase())?.salesCount || 0,
       saleCost: 0,
+      buyerSaleCost: 0,
+      retailSaleCost: 0,
       costedSalesCount: 0,
       damageCost: 0,
       stockBalance: 0,
@@ -462,7 +473,10 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
     if (movement.movement_type === 'sale') {
       const sale = salesBySource.get(`${movement.source_kind}:${movement.source_id}`);
       if (sale && sale.productName === String(costs.product.name || '').trim().toLocaleLowerCase()) {
-        costs.saleCost -= Number(movement.cost_delta || 0);
+        const saleCost = -Number(movement.cost_delta || 0);
+        costs.saleCost += saleCost;
+        if (sale.sourceKind === 'buyer_sales') costs.buyerSaleCost += saleCost;
+        else costs.retailSaleCost += saleCost;
         costs.costedSalesCount += 1;
       }
     } else if (movement.movement_type === 'spoilage') {
@@ -472,9 +486,13 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
 
   return new Map(Array.from(productCosts.entries()).map(([productId, costs]) => {
     const costsComplete = costs.costedSalesCount >= costs.salesCount;
-    const stockShortage = costs.stockBalance < 0;
+    const stockBalance = Math.round(costs.stockBalance * 1000) / 1000;
+    const stockShortage = stockBalance < 0;
     return [productId, {
       ...costs,
+      stockBalance,
+      buyerProfit: costs.buyerRevenue - costs.buyerSaleCost,
+      retailProfit: costs.retailRevenue - costs.retailSaleCost,
       finalProfit: costsComplete && !stockShortage
         ? costs.revenue - costs.saleCost - costs.damageCost
         : null,

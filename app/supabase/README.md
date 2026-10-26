@@ -115,11 +115,21 @@ order:
     movement costs from the corrected count cost, and audits each correction in
     a private table. It aborts if the corrected count cannot cover the recorded
     stock movements.
+18. `202610260001_retail_day_start_finish.sql` enables the owner to start daily
+    retail sales after recording physical counts and setting a price in each
+    tracked product's sales unit. Buyer and recorded retail sales continue to
+    reduce the live balance. Finishing records each product's remaining balance
+    as one aggregate retail sale at its saved price, including physically
+    unsold stock, and closes the balance at zero.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
 also requires stock tracking for every newly recorded sale and rejects sales
 that exceed the usable balance. Existing sale rows are not rewritten.
+The daily retail migration adds owner-only session and price tables and RPCs.
+The dashboard shows buyer, retail, and combined daily profit from linked stock
+costs; retail profit includes the aggregate balance sale created when the day is
+finished.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 of the product's sales units; set it

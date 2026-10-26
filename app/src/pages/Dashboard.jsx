@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
   computeDailyProductProfits,
@@ -25,6 +25,7 @@ import {
 import RecentActivityModal from '../components/RecentActivityModal.jsx';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const {
     activeProducts,
     buyers,
@@ -103,6 +104,10 @@ export default function Dashboard() {
   const missingStockCounts = inventorySettings.filter(
     (setting) => !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST()),
   );
+  const missingActiveStockCounts = inventorySettings.filter(
+    (setting) => activeProducts.some((product) => product.id === setting.product_id)
+      && !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST()),
+  );
 
   const topOutstanding = balances.list
     .filter((b) => b.balance_due > 0)
@@ -122,6 +127,12 @@ export default function Dashboard() {
     && inventorySettings.length > 0
     && todayProductProfits.size === inventorySettings.length
     && Array.from(todayProductProfits.values()).every((item) => item.finalProfit != null);
+  const todayBuyerProfit = todayProfitAvailable
+    ? Array.from(todayProductProfits.values()).reduce((sum, item) => sum + item.buyerProfit, 0)
+    : null;
+  const todayRetailProfit = todayProfitAvailable
+    ? Array.from(todayProductProfits.values()).reduce((sum, item) => sum + item.retailProfit, 0)
+    : null;
   const todayFinalProfit = todayProfitAvailable
     ? Array.from(todayProductProfits.values()).reduce((sum, item) => sum + item.finalProfit, 0)
     : null;
@@ -212,47 +223,67 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm sm:p-5">
-        <div className="text-xs font-bold uppercase tracking-widest text-emerald-800">Today final profit</div>
-        <div className={`mt-2 break-words text-2xl font-extrabold sm:text-3xl ${todayFinalProfit == null ? 'text-ink-500' : 'text-emerald-800'}`}>
-          {todayFinalProfit == null ? 'Unavailable' : currencyINR(todayFinalProfit)}
-        </div>
-        <p className="mt-1 text-xs text-emerald-900">
-          {inventoryLoading
-            ? 'Loading today’s stock costs…'
-            : offline
-              ? 'Stock cost data is unavailable while offline.'
-              : inventoryError
-                ? `Stock cost data could not be loaded: ${inventoryError}`
-            : todayFinalProfit == null
-                ? Array.from(todayProductProfits.values()).some((item) => item.stockShortage)
-                  ? 'Profit is unavailable while recorded stock is negative; reconcile stock first.'
-                  : 'Profit needs complete linked sale costs for every tracked product.'
-                : 'Sales revenue minus recorded sale stock cost and damage cost.'}
-        </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[
+          { label: 'Today — Buyers Profit', value: todayBuyerProfit, color: 'text-blue-800', background: 'border-blue-200 bg-blue-50' },
+          { label: 'Today — Retail Profit', value: todayRetailProfit, color: 'text-violet-800', background: 'border-violet-200 bg-violet-50' },
+          { label: 'Today — Total Profit', value: todayFinalProfit, color: 'text-emerald-800', background: 'border-emerald-200 bg-emerald-50' },
+        ].map((item) => (
+          <div key={item.label} className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${item.background}`}>
+            <div className="text-xs font-bold uppercase tracking-widest text-ink-600">{item.label}</div>
+            <div className={`mt-2 break-words text-2xl font-extrabold sm:text-3xl ${item.value == null ? 'text-ink-500' : item.color}`}>
+              {inventoryLoading ? 'Loading…' : item.value == null ? 'Unavailable' : currencyINR(item.value)}
+            </div>
+            <p className="mt-1 text-xs text-ink-700">
+              {inventoryLoading
+                ? 'Loading today’s stock costs…'
+                : offline
+                  ? 'Stock cost data is unavailable while offline.'
+                  : inventoryError
+                    ? `Stock cost data could not be loaded: ${inventoryError}`
+                    : item.value == null
+                      ? Array.from(todayProductProfits.values()).some((profit) => profit.stockShortage)
+                        ? 'Reconcile negative stock before profit can be calculated.'
+                        : 'Profit needs complete linked sale costs for tracked products.'
+                      : item.label.includes('Total')
+                        ? 'After recorded damage; finish Retail to include today’s remaining balance.'
+                        : 'Sales revenue minus linked stock cost.'}
+            </p>
+          </div>
+        ))}
       </div>
 
       {inventorySettings.length > 0 && (
-        <Link
-          to="/inventory"
-          className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
+        <div
+          className={`inline-flex max-w-full flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 ${
             missingStockCounts.length > 0
               ? 'border-amber-300 bg-amber-50 text-amber-900'
               : 'border-green-200 bg-green-50 text-green-900'
           }`}
         >
-          {missingStockCounts.length > 0
-            ? <AlertTriangle className="w-5 h-5 shrink-0" />
-            : <CheckCircle2 className="w-5 h-5 shrink-0" />}
-          <span className="flex-1 text-sm font-semibold">
-            {inventoryLoading
-              ? 'Checking today’s stock counts…'
-              : missingStockCounts.length > 0
-                ? `${missingStockCounts.length} tracked product${missingStockCounts.length === 1 ? '' : 's'} need a physical count before sale.`
-                : 'Today’s physical stock counts are complete.'}
-          </span>
-          <ChevronRight className="w-4 h-4 shrink-0" />
-        </Link>
+          <Link to="/inventory" className="flex min-w-0 flex-1 items-center gap-3">
+            {missingStockCounts.length > 0
+              ? <AlertTriangle className="w-5 h-5 shrink-0" />
+              : <CheckCircle2 className="w-5 h-5 shrink-0" />}
+            <span className="text-sm font-semibold">
+              {inventoryLoading
+                ? 'Checking today’s stock counts…'
+                : missingStockCounts.length > 0
+                  ? `${missingStockCounts.length} tracked product${missingStockCounts.length === 1 ? '' : 's'} need a physical count before sale.`
+                  : 'Today’s physical stock counts are complete.'}
+            </span>
+            <ChevronRight className="w-4 h-4 shrink-0" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => navigate('/retail?start=1')}
+            disabled={inventoryLoading || missingActiveStockCounts.length > 0}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Store className="h-4 w-4" />
+            Retail Sales Start
+          </button>
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-5">
