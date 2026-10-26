@@ -175,7 +175,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
       const label = pdfPeriod === 'custom'
         ? formatDateCompact(pdfDate)
         : periodRange(pdfPeriod === 'monthly' ? 'month' : pdfPeriod === 'full' ? 'full' : pdfPeriod).label;
-      const message = `Hi ${selectedRow.buyer.name}, please find your GSM Traders bill for ${label}.`;
+      const message = `Hi ${selectedRow.buyer.name}, this is your's GSM Traders bill for ${label}.`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     })()
     : '';
