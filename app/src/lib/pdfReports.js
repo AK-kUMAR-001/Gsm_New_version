@@ -412,6 +412,9 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
   } else if (kind === 'monthly') {
     startDate = `${monthKey}-01`;
     period = `This Month (${formatDateCompact(startDate)} - ${formatDateCompact(endDate)})`;
+  } else if (kind === '3months') {
+    startDate = startOfThreeMonthsAgo('reports');
+    period = `Last 3 Months (${formatDateCompact(startDate)} - ${formatDateCompact(endDate)})`;
   } else if (kind !== 'full') {
     throw new Error('Choose a valid bill period.');
   }

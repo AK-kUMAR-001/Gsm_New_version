@@ -8,6 +8,7 @@ import {
   formatSaleRates,
   getProductEmoji,
   inPeriod,
+  realTodayIST,
 } from '../lib/business.js';
 import Avatar from '../components/Avatar.jsx';
 import PeriodPills, { BUYER_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
@@ -59,14 +60,30 @@ export default function BuyerDetail() {
 
   const downloadBuyerPdf = async () => {
     try {
-      const { downloadBuyerStatementPdf } = await import('../lib/pdfReports.js');
-      downloadBuyerStatementPdf({
-        period,
+      const { createBuyerBillFile } = await import('../lib/pdfReports.js');
+      const file = await createBuyerBillFile({
         buyer,
-        sales: filteredSales,
-        payments: filteredPayments,
+        sales: buyerSales.filter((sale) => sale.buyer_id === id),
+        payments: payments.filter((payment) => payment.buyer_id === id),
         balance,
+        kind: {
+          today: 'custom',
+          week: 'week',
+          month: 'monthly',
+          '3months': '3months',
+          all: 'full',
+        }[period],
+        selectedDate: realTodayIST(),
       });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
       showToast(`Could not create PDF: ${error.message || 'Unexpected error.'}`, 'error');
       throw error;

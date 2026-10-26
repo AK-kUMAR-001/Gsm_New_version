@@ -251,8 +251,10 @@ export default function Inventory() {
       setSaving(false);
       return;
     }
-    if (isKeerai && ['opening', 'receipt'].includes(action)
-      && stockFactor !== productStockToSalesFactor(currentProduct)) {
+    const needsKeeraiUnitSetup = currentProduct?.sales_unit !== 'Kattu'
+      || currentProduct?.stock_entry_unit !== 'Mootai'
+      || stockFactor !== Number(currentProduct?.stock_to_sales_factor || 1);
+    if (isKeerai && ['opening', 'receipt'].includes(action) && needsKeeraiUnitSetup) {
       const productHasHistory = inventoryMovements.some((movement) => movement.product_id === productId);
       if (productHasHistory) {
         window.alert('Keerai’s unit conversion cannot be changed after stock movements have been recorded.');
