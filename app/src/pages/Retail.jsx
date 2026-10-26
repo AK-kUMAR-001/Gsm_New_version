@@ -15,7 +15,6 @@ import {
 import PeriodPills, { PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import StartRetailDayModal from '../components/StartRetailDayModal.jsx';
-import Modal from '../components/Modal.jsx';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw, TrendingUp, Package, ShoppingBag, Store } from 'lucide-react';
 
 function parseDateKey(value) {
@@ -133,7 +132,6 @@ export default function Retail() {
     retailDayError,
     loadRetailDay,
     startRetailDay,
-    finishRetailDay,
     filterByPeriod,
     load,
   } = useAppData();
@@ -143,7 +141,6 @@ export default function Retail() {
   const [selectedDate, setSelectedDate] = useState(todayIST());
   const [modalOpen, setModalOpen] = useState(false);
   const [startModalOpen, setStartModalOpen] = useState(false);
-  const [finishModalOpen, setFinishModalOpen] = useState(false);
   const [dayActionBusy, setDayActionBusy] = useState(false);
   const [retailDayReady, setRetailDayReady] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -201,18 +198,6 @@ export default function Retail() {
       return;
     }
     setStartModalOpen(false);
-  };
-
-  const handleFinishRetail = async () => {
-    setActionError('');
-    setDayActionBusy(true);
-    const result = await finishRetailDay();
-    setDayActionBusy(false);
-    if (result.error) {
-      setActionError(result.error.message);
-      return;
-    }
-    setFinishModalOpen(false);
   };
 
   const filtered = useMemo(() => {
@@ -319,13 +304,13 @@ export default function Retail() {
             <div>
               <h2 className="flex items-center gap-2 text-base font-bold text-violet-950">
                 <Store className="h-5 w-5" />
-                {retailDayActive ? 'Retail sales are active today' : retailDayFinished ? 'Retail sales finished today' : 'Start today’s retail sales'}
+                {retailDayActive ? 'Retail sales are active today' : retailDayFinished ? 'Retail sales were closed today' : 'Start today’s retail sales'}
               </h2>
               <p className="mt-1 text-sm text-violet-900">
                 {retailDayActive
-                  ? 'Balances update as buyer and recorded retail sales use stock. Finish Retail records all remaining balance at the saved prices.'
+                  ? 'Balances update as buyer and recorded retail sales use stock. Remaining stock stays available and is not automatically recorded as sold.'
                   : retailDayFinished
-                    ? 'Today’s remaining balance has been recorded as retail sales.'
+                    ? 'Today’s retail session was previously closed.'
                     : 'Set today’s prices after physical stock counts are complete. Buyer sales will reduce the displayed balance.'}
               </p>
             </div>
@@ -338,15 +323,6 @@ export default function Retail() {
               >
                 <Store className="h-4 w-4" />
                 Retail Sales Start
-              </button>
-            )}
-            {retailDayActive && (
-              <button
-                type="button"
-                onClick={() => setFinishModalOpen(true)}
-                className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-800"
-              >
-                Finish Retail
               </button>
             )}
           </div>
@@ -566,26 +542,6 @@ export default function Retail() {
         busy={dayActionBusy}
         error={actionError}
       />
-      <Modal
-        open={finishModalOpen}
-        onClose={() => { if (!dayActionBusy) setFinishModalOpen(false); }}
-        title="Finish Retail Sales"
-        maxWidth="max-w-lg"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-ink-700">
-            This will record all stock remaining for today as retail sales at the prices you set. It will also count
-            physically unsold items as sold and reduce their inventory balance to zero.
-          </p>
-          {actionError && <p className="text-sm text-red-700" role="alert">{actionError}</p>}
-          <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={() => setFinishModalOpen(false)} disabled={dayActionBusy} className="btn-ghost">Cancel</button>
-            <button type="button" onClick={handleFinishRetail} disabled={dayActionBusy} className="btn-purple">
-              {dayActionBusy ? 'Finishing…' : 'Confirm Finish Retail'}
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

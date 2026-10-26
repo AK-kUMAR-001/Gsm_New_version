@@ -91,9 +91,9 @@ export default function StartRetailDayModal({
           </div>
         </div>
 
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          When you finish retail, the app will record all stock still remaining as retail sold at these prices.
-          This also counts any physically unsold stock as sold.
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          Retail balances stay in stock and update as buyer or recorded retail sales are entered. Unsold stock is
+          not automatically recorded as sold.
         </div>
 
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}

@@ -246,7 +246,7 @@ export default function Dashboard() {
                         ? 'Reconcile negative stock before profit can be calculated.'
                         : 'Profit needs complete linked sale costs for tracked products.'
                       : item.label.includes('Total')
-                        ? 'After recorded damage; finish Retail to include today’s remaining balance.'
+                        ? 'After recorded damage; only recorded sales count as sold.'
                         : 'Sales revenue minus linked stock cost.'}
             </p>
           </div>

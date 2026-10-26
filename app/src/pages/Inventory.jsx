@@ -18,7 +18,7 @@ import {
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
-import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
 const ACTION_LABELS = {
   opening: 'Enter opening stock',
@@ -73,7 +73,7 @@ export default function Inventory() {
   const {
     products, suppliers, inventorySettings, inventorySummary, inventoryCounts,
     buyers, buyerSales, retailSales, inventoryMovements, inventoryLoading, inventoryError, loadInventory,
-    startInventoryTracking, recordMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    startInventoryTracking, recordMorningCount, deleteMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     updateInventoryLowStockThreshold,
     offline,
   } = useAppData();
@@ -84,6 +84,7 @@ export default function Inventory() {
   const [form, setForm] = useState({});
   const [expandedProducts, setExpandedProducts] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  const [deletingCountProductId, setDeletingCountProductId] = useState('');
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
   const [movementDate, setMovementDate] = useState(todayIST());
@@ -208,6 +209,18 @@ export default function Inventory() {
     setRedirectNotice('');
     requestId.current = null;
     damageRequestId.current = null;
+  };
+
+  const removeMorningCount = async (product) => {
+    if (!window.confirm(
+      `Delete ${product.name}'s morning count for today? Its count adjustment will also be removed. Recorded sales, receipts, and damage entries will remain.`,
+    )) return;
+    setDeletingCountProductId(product.id);
+    try {
+      await deleteMorningCount(product.id);
+    } finally {
+      setDeletingCountProductId('');
+    }
   };
 
   const submitAction = async (event) => {
@@ -406,6 +419,17 @@ export default function Inventory() {
                       <button type="button" onClick={() => openAction('correction', item)} className="btn-outline">
                         <Pencil className="h-4 w-4" /> Edit stock
                       </button>
+                      {hasCount && (
+                        <button
+                          type="button"
+                          onClick={() => removeMorningCount(item)}
+                          disabled={offline || saving || deletingCountProductId !== ''}
+                          className="btn-outline border-red-200 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {deletingCountProductId === item.id ? 'Deleting…' : 'Delete stock'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (

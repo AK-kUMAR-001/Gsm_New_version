@@ -83,10 +83,10 @@ order:
     applied, since 004 expects canonical movement quantities. If 004 is already
     applied, 005 can still be run afterward to reconcile quantities.
 12. `202610160001_buyer_lifecycle.sql` to add archive/restore, the Deleted
-    Customers view, and audited permanent purge support. Apply it after
+    Customers view, and audited permanent deletion support. Apply it after
     `202610110001_inventory_ledger.sql` and `202610110002_delete_buyer_data.sql`.
     Run it in the Supabase SQL Editor for the new project; the app requires
-    this migration for archive and permanent purge actions.
+    this migration for archive and permanent deletion actions.
 13. `202610160002_transaction_corrections.sql` to enable owner-authorized
     editing and deletion of buyer sales, retail sales, and buyer payments.
     Apply it after `202610160001_buyer_lifecycle.sql`; sale corrections use
@@ -117,19 +117,24 @@ order:
     stock movements.
 18. `202610260001_retail_day_start_finish.sql` enables the owner to start daily
     retail sales after recording physical counts and setting a price in each
-    tracked product's sales unit. Buyer and recorded retail sales continue to
-    reduce the live balance. Finishing records each product's remaining balance
-    as one aggregate retail sale at its saved price, including physically
-    unsold stock, and closes the balance at zero.
+    tracked product's sales unit. Buyer and recorded retail sales reduce the
+    live balance.
+19. `202610270001_remove_retail_day_finish.sql` removes the retail-day finish
+    RPC. Remaining stock stays in inventory and is never recorded as sold
+    automatically.
+20. `202610270002_delete_morning_count.sql` adds an owner-authorized action to
+    delete today's morning count and its associated count-adjustment or
+    revaluation movement. Other stock movements and saved sales are retained.
+    Deleted count details are kept in a private audit table before the count is
+    removed so a fresh count can be recorded.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
 also requires stock tracking for every newly recorded sale and rejects sales
 that exceed the usable balance. Existing sale rows are not rewritten.
-The daily retail migration adds owner-only session and price tables and RPCs.
-The dashboard shows buyer, retail, and combined daily profit from linked stock
-costs; retail profit includes the aggregate balance sale created when the day is
-finished.
+The daily retail migration adds owner-only session and price tables and a
+start RPC. The dashboard shows buyer, retail, and combined daily profit from
+linked stock costs; only recorded sales count as sold.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 of the product's sales units; set it
@@ -253,15 +258,15 @@ rerun it with the same backup.
 The buyer lifecycle migration keeps archived buyers and all their historical
 sales, payments, and stock movements in the live database, so reports and
 aggregates remain unchanged. It removes archived buyers from the normal buyer
-list and allows them to be restored. Permanent purge is only allowed after
+list and allows them to be restored. Permanent deletion is only allowed after
 archiving and runs in one database transaction: it first copies the buyer,
 sales, payments (including a legacy `payments` table when present), and linked
 buyer-sale inventory movements to `app_private.buyer_purge_recycle_bin`, then
 removes those records and movements from live tables. The recycle bin is not
 granted to `anon` or `authenticated` and is not exposed through the app. The
-migration revokes direct authenticated deletes on buyer-linked tables and
-disables the older delete RPC so a purge cannot bypass the backup. The app has
-no client-side partial-delete fallback; missing migration or RPC errors leave
+The migration revokes direct authenticated deletes on buyer-linked tables and
+disables the older delete RPC so permanent deletion cannot bypass the backup.
+The app has no client-side partial-delete fallback; missing migration or RPC errors leave
 the live data untouched and are reported to the operator.
 
 The transaction-corrections migration provides the audited workflow for saved

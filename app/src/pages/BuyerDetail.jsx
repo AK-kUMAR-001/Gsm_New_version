@@ -107,11 +107,11 @@ export default function BuyerDetail() {
               type="button"
               onClick={() => setDeleteModalOpen(true)}
               className="btn-outline !px-3 !py-2 text-red-700 hover:bg-red-50"
-              title="Permanently purge this archived buyer"
-              aria-label={`Permanently purge ${buyer.name}`}
+              title="Permanently delete this archived buyer"
+              aria-label={`Permanently delete ${buyer.name}`}
             >
               <Trash2 className="w-4 h-4" />
-              Purge
+              Delete
             </button>
           </>
         ) : (

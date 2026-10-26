@@ -366,9 +366,9 @@ export function AppDataProvider({ children }) {
     return { data: true };
   };
 
-  const purgeBuyer = async (id) => {
+  const deleteArchivedBuyer = async (id) => {
     if (offline) {
-      const error = new Error('Permanent buyer purge requires the live database.');
+      const error = new Error('Permanently deleting a buyer requires the live database.');
       showToast(error.message, 'warn');
       return { error };
     }
@@ -377,7 +377,7 @@ export function AppDataProvider({ children }) {
       p_buyer_id: id,
     });
     if (error) {
-      showToast(`Could not permanently purge buyer: ${error.message}`, 'error');
+      showToast(`Could not permanently delete buyer: ${error.message}`, 'error');
       return { error };
     }
 
@@ -388,11 +388,11 @@ export function AppDataProvider({ children }) {
     setInventoryMovements((prev) => prev.filter((movement) => (
       movement.source_kind !== 'buyer_sales' || !saleIds.has(movement.source_id)
     )));
-    showToast('Buyer and linked history permanently purged from live data.', 'success');
+    showToast('Buyer and linked history permanently deleted from live data.', 'success');
 
     const inventoryRefresh = await loadInventory();
     if (inventoryRefresh.error) {
-      showToast('Buyer data was purged, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+      showToast('Buyer was deleted, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
     }
     return { data: true };
   };
@@ -665,30 +665,6 @@ export function AppDataProvider({ children }) {
     return { data };
   };
 
-  const finishRetailDay = async () => {
-    if (offline) {
-      const error = new Error('Finishing retail sales requires the live database.');
-      showToast(error.message, 'warn');
-      return { error };
-    }
-    const { data, error } = await supabase.rpc('inventory_finish_retail_day');
-    if (error) {
-      showToast(`Could not finish retail sales: ${error.message}`, 'error');
-      return { error };
-    }
-    const [dataRefresh, inventoryRefresh, retailDayRefresh] = await Promise.all([
-      load(),
-      loadInventory(),
-      loadRetailDay(),
-    ]);
-    if (dataRefresh.error || inventoryRefresh.error || retailDayRefresh.error) {
-      showToast('Retail sales finished, but some page data could not refresh.', 'warn');
-    } else {
-      showToast('Retail sales finished and remaining stock recorded', 'success');
-    }
-    return { data };
-  };
-
   const recordInventoryAction = async (rpcName, args, successMessage) => {
     if (offline) {
       const error = new Error('Stock changes require an authenticated live database.');
@@ -731,6 +707,28 @@ export function AppDataProvider({ children }) {
       p_counted_quantity: quantity,
       p_unit_cost: unitCost,
     }, 'Morning stock count and today’s sale costs corrected');
+
+  const deleteMorningCount = async (productId) => {
+    if (offline) {
+      const error = new Error('Deleting a morning count requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_delete_morning_count', {
+      p_product_id: productId,
+    });
+    if (error) {
+      showToast(`Could not delete the morning count: ${error.message}`, 'error');
+      return { error };
+    }
+    const refresh = await loadInventory();
+    if (refresh.error) {
+      showToast('Morning count deleted, but stock data could not refresh.', 'warn');
+    } else {
+      showToast('Morning count deleted. Record a new count to restore today’s stock.', 'success');
+    }
+    return { data, refreshError: refresh.error };
+  };
 
   const correctHistoricalMorningCount = (productId, date, quantity, unitCost) =>
     recordInventoryAction('inventory_correct_historical_morning_count', {
@@ -802,11 +800,11 @@ export function AppDataProvider({ children }) {
     buyersById, balances, balancesById, productRevenue, today, recent, activeProducts,
     loading, offline, dataLoadError, toast, showToast, load,
     inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
-    loadRetailDay, startRetailDay, finishRetailDay,
-    insertBuyer, updateBuyer, setBuyerArchived, purgeBuyer, updateProduct, insertProduct, deleteProduct,
+    loadRetailDay, startRetailDay,
+    insertBuyer, updateBuyer, setBuyerArchived, deleteArchivedBuyer, updateProduct, insertProduct, deleteProduct,
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
-    startInventoryTracking, recordMorningCount, correctMorningCount, correctHistoricalMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    startInventoryTracking, recordMorningCount, correctMorningCount, deleteMorningCount, correctHistoricalMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     setStockQuantityForDate,
     filterByPeriod,
   };
