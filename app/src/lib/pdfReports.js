@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import gsmLogoUrl from '../assets/Gsm_logo.png';
 import {
   formatDateCompact,
   formatQuantityByUnit,
@@ -7,6 +8,7 @@ import {
   formatSaleRates,
   inPeriod,
   saleQuantitiesByUnit,
+  saleQuantityUnit,
   realTodayIST,
   startOfMonthIST,
   startOfThreeMonthsAgo,
@@ -28,6 +30,15 @@ const quantitiesByUnit = (sales) => (sales || []).reduce((quantities, sale) => {
   }
   return quantities;
 }, {});
+const billQuantitiesByUnit = (sales) => (sales || []).reduce((quantities, sale) => {
+  const unit = saleQuantityUnit(sale);
+  quantities[unit] = (quantities[unit] || 0) + Number(sale.mootais ?? sale.mootais_sold ?? 0);
+  return quantities;
+}, {});
+const billSaleQuantity = (sale) => (
+  `${Number(sale.mootais ?? sale.mootais_sold ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${saleQuantityUnit(sale)}`
+);
+const billSaleRate = (sale) => `${RATE(sale.price_per_mootai)}/${saleQuantityUnit(sale)}`;
 const PERIOD_NAMES = {
   week: 'This Week',
   month: 'This Month',
@@ -369,7 +380,7 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
   doc.save(`GSM_${safeFilename(buyer.name)}_Statement_${safeFilename(periodName)}.pdf`);
 }
 
-export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
+export async function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   const monthKey = realTodayIST().slice(0, 7);
   const billSales = kind === 'monthly'
     ? sales.filter((sale) => String(sale.sale_date || '').slice(0, 7) === monthKey)
@@ -386,6 +397,10 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
     ? new Date(`${monthKey}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
     : 'All Time';
   const doc = startDocument(title, period);
+  const logoResponse = await fetch(gsmLogoUrl);
+  if (!logoResponse.ok) throw new Error('The GSM logo could not be loaded for the PDF.');
+  const logoBytes = new Uint8Array(await logoResponse.arrayBuffer());
+  doc.addImage(logoBytes, 'PNG', 258, 3, 25, 25);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -397,7 +412,7 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
   doc.text(`Hi ${buyer.name}, please find your GSM Traders ${kind === 'monthly' ? 'monthly' : 'complete'} bill below.`, 14, 45);
 
   addMetricCards(doc, [
-    { label: 'Total quantity', value: formatQuantityByUnit(quantitiesByUnit(billSales)) || '0' },
+    { label: 'Total quantity', value: formatQuantityByUnit(billQuantitiesByUnit(billSales)) || '0' },
     { label: kind === 'monthly' ? 'Billed this month' : 'Total billed', value: MONEY(billed) },
     { label: kind === 'monthly' ? 'Paid this month' : 'Total paid', value: MONEY(paid) },
     { label: 'Amount pending', value: MONEY(balance?.balance_due) },
@@ -410,11 +425,9 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
       const row = byProduct.get(key) || { quantities: {}, revenueByUnit: {}, billed: 0 };
       const saleQuantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
       const saleRevenue = saleQuantity * Number(sale.price_per_mootai || 0);
-      const quantities = saleQuantitiesByUnit(sale);
-      for (const [unit, quantity] of Object.entries(quantities)) {
-        row.quantities[unit] = (row.quantities[unit] || 0) + quantity;
-        row.revenueByUnit[unit] = (row.revenueByUnit[unit] || 0) + saleRevenue;
-      }
+      const unit = saleQuantityUnit(sale);
+      row.quantities[unit] = (row.quantities[unit] || 0) + saleQuantity;
+      row.revenueByUnit[unit] = (row.revenueByUnit[unit] || 0) + saleRevenue;
       row.billed += saleRevenue;
       byProduct.set(key, row);
     }
@@ -444,8 +457,8 @@ export function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
         date: sale.sale_date,
         kind: 'Bill',
         product: sale.product || 'Sale',
-        quantity: pdfSaleQuantity(sale),
-        rate: pdfSaleRate(sale),
+        quantity: billSaleQuantity(sale),
+        rate: billSaleRate(sale),
         amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
         notes: sale.notes || '',
       })),
