@@ -380,22 +380,41 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
   doc.save(`GSM_${safeFilename(buyer.name)}_Statement_${safeFilename(periodName)}.pdf`);
 }
 
-export async function createBuyerBillFile({ buyer, sales, payments, balance, kind }) {
-  const monthKey = realTodayIST().slice(0, 7);
-  const billSales = kind === 'monthly'
-    ? sales.filter((sale) => String(sale.sale_date || '').slice(0, 7) === monthKey)
-    : sales;
-  const billPayments = kind === 'monthly'
-    ? payments.filter((payment) => String(payment.paid_at || '').slice(0, 7) === monthKey)
-    : payments;
+export async function createBuyerBillFile({ buyer, sales, payments, balance, kind, selectedDate }) {
+  const today = realTodayIST();
+  const monthKey = today.slice(0, 7);
+  let startDate = '';
+  let endDate = today;
+  let period = 'All Time';
+  if (kind === 'custom') {
+    if (!selectedDate) throw new Error('Choose a bill date.');
+    startDate = selectedDate;
+    endDate = selectedDate;
+    period = formatDateCompact(selectedDate);
+  } else if (kind === 'week') {
+    startDate = startOfWeekIST('reports');
+    period = `This Week (${formatDateCompact(startDate)} - ${formatDateCompact(endDate)})`;
+  } else if (kind === 'monthly') {
+    startDate = `${monthKey}-01`;
+    period = `This Month (${formatDateCompact(startDate)} - ${formatDateCompact(endDate)})`;
+  } else if (kind !== 'full') {
+    throw new Error('Choose a valid bill period.');
+  }
+  const inSelectedPeriod = (value) => {
+    const date = String(value || '').slice(0, 10);
+    return date && date <= endDate && (!startDate || date >= startDate);
+  };
+  const billSales = sales.filter((sale) => inSelectedPeriod(sale.sale_date));
+  const billPayments = payments.filter((payment) => inSelectedPeriod(payment.paid_at));
   const billed = billSales.reduce((sum, sale) => (
     sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
   ), 0);
   const paid = billPayments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0);
-  const title = kind === 'monthly' ? 'Monthly Bill Summary' : 'Complete Detailed Bill';
-  const period = kind === 'monthly'
-    ? new Date(`${monthKey}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-    : 'All Time';
+  const title = kind === 'full'
+    ? 'Complete Detailed Bill'
+    : kind === 'monthly'
+      ? 'Monthly Bill Summary'
+      : 'Bill Statement';
   const doc = startDocument(title, period);
   const logoResponse = await fetch(gsmLogoUrl);
   if (!logoResponse.ok) throw new Error('The GSM logo could not be loaded for the PDF.');
@@ -409,12 +428,12 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...COLORS.muted);
-  doc.text(`Hi ${buyer.name}, please find your GSM Traders ${kind === 'monthly' ? 'monthly' : 'complete'} bill below.`, 14, 45);
+  doc.text(`Hi ${buyer.name}, please find your GSM Traders bill for ${period} below.`, 14, 45);
 
   addMetricCards(doc, [
     { label: 'Total quantity', value: formatQuantityByUnit(billQuantitiesByUnit(billSales)) || '0' },
-    { label: kind === 'monthly' ? 'Billed this month' : 'Total billed', value: MONEY(billed) },
-    { label: kind === 'monthly' ? 'Paid this month' : 'Total paid', value: MONEY(paid) },
+    { label: kind === 'full' ? 'Total billed' : 'Billed in period', value: MONEY(billed) },
+    { label: kind === 'full' ? 'Total paid' : 'Paid in period', value: MONEY(paid) },
     { label: 'Amount pending', value: MONEY(balance?.balance_due) },
   ], 52);
 
@@ -443,14 +462,14 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
             .join(' · '),
           MONEY(row.billed),
         ])
-        : [['—', '—', '—', 'No sales recorded this month']],
+        : [['—', '—', '—', 'No sales recorded for this period']],
       columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 52 }, 2: { cellWidth: 52 } },
     });
     const paymentY = (doc.lastAutoTable?.finalY || 88) + 8;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...COLORS.ink);
-    doc.text(`Payments received this month: ${MONEY(paid)}`, 14, paymentY);
+    doc.text(`Payments received this period: ${MONEY(paid)}`, 14, paymentY);
   } else {
     const transactions = [
       ...billSales.map((sale) => ({
@@ -486,6 +505,6 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
   }
 
   addPageNumbers(doc);
-  const filename = `GSM_${safeFilename(buyer.name)}_${kind === 'monthly' ? 'Monthly_Bill' : 'Complete_Bill'}_${safeFilename(period)}.pdf`;
+  const filename = `GSM_${safeFilename(buyer.name)}_${kind === 'full' ? 'Complete_Bill' : 'Bill'}_${safeFilename(period)}.pdf`;
   return new File([doc.output('blob')], filename, { type: 'application/pdf' });
 }

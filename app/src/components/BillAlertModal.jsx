@@ -9,7 +9,7 @@ import {
   startOfWeekIST,
 } from '../lib/business.js';
 import Modal from './Modal.jsx';
-import { ArrowLeft, Download, FileText, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircle } from 'lucide-react';
 
 function downloadBillFile(file) {
   const url = URL.createObjectURL(file);
@@ -94,6 +94,8 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
   const [sendMode, setSendMode] = useState('');
   const [textPeriod, setTextPeriod] = useState('today');
   const [selectedDate, setSelectedDate] = useState(realTodayIST());
+  const [pdfPeriod, setPdfPeriod] = useState('custom');
+  const [pdfDate, setPdfDate] = useState(realTodayIST());
   const [workingKind, setWorkingKind] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -120,6 +122,8 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
       setSendMode('');
       setTextPeriod('today');
       setSelectedDate(realTodayIST());
+      setPdfPeriod('custom');
+      setPdfDate(realTodayIST());
       setWorkingKind('');
       setError('');
       setNotice('');
@@ -162,9 +166,13 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
     })
     : '';
 
-  const createAndDownloadBill = async (kind) => {
+  const createAndDownloadBill = async () => {
+    if (pdfPeriod === 'custom' && !pdfDate) {
+      setError('Choose a bill date.');
+      return;
+    }
     if (!selectedRow || !createBuyerBillFile || workingKind) return;
-    setWorkingKind(kind);
+    setWorkingKind(pdfPeriod);
     setError('');
     setNotice('');
 
@@ -174,7 +182,8 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
         sales: selectedBuyerSales,
         payments: selectedBuyerPayments,
         balance: selectedRow.balance,
-        kind,
+        kind: pdfPeriod === 'custom' ? 'custom' : pdfPeriod,
+        selectedDate: pdfDate,
       });
       downloadBillFile(file);
       setNotice('The PDF bill has been downloaded.');
@@ -190,7 +199,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
       {!selectedRow ? (
         <>
           <p className="mb-4 text-sm text-ink-500">
-            All {rows.length} buyers are listed.             Select a buyer to send a text bill or download a PDF.
+            All {rows.length} buyers are listed. Select a buyer to send a text bill or download a PDF.
           </p>
           <div className="max-h-[60vh] divide-y divide-ink-100 overflow-y-auto">
             {rows.length ? rows.map(({ buyer, balance }) => (
@@ -314,34 +323,43 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
           )}
           {sendMode === 'pdf' && (
             <div className="space-y-3">
+              {[
+                ['custom', `Custom date (${formatDateCompact(pdfDate)})`],
+                ['week', 'This week'],
+                ['monthly', 'This month'],
+                ['full', 'Complete bill'],
+              ].map(([period, label]) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setPdfPeriod(period)}
+                  className={`w-full rounded-xl border p-3 text-left font-semibold transition ${pdfPeriod === period ? 'border-sidebar-accent bg-sidebar-accent/5 text-sidebar-accent' : 'border-ink-200 text-ink-700 hover:bg-ink-50'}`}
+                >
+                  {label}
+                </button>
+              ))}
+              {pdfPeriod === 'custom' && (
+                <label className="block text-sm font-semibold text-ink-700">
+                  Bill date
+                  <input
+                    type="date"
+                    value={pdfDate}
+                    max={realTodayIST()}
+                    onChange={(event) => setPdfDate(event.target.value)}
+                    className="input mt-1"
+                  />
+                </label>
+              )}
               <button
                 type="button"
-                onClick={() => createAndDownloadBill('full')}
-                disabled={!!workingKind || !createBuyerBillFile}
-                className="flex w-full items-center gap-3 rounded-2xl border border-ink-200 p-4 text-left transition hover:border-sidebar-accent hover:bg-ink-50 disabled:opacity-60"
+                onClick={createAndDownloadBill}
+                disabled={!!workingKind || !createBuyerBillFile || (pdfPeriod === 'custom' && !pdfDate)}
+                className="btn-green w-full justify-center disabled:opacity-60"
               >
-                <FileText className="h-6 w-6 shrink-0 text-sidebar-accent" />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-bold text-ink-900">Complete detailed bill</span>
-                  <span className="block text-xs text-ink-500">All sales and payments, including product, entered quantity/unit, rate, date, and notes.</span>
-                </span>
-                {workingKind === 'full' && <span className="text-xs text-ink-500">Preparing…</span>}
-                {!createBuyerBillFile && <span className="text-xs text-ink-500">Preparing…</span>}
+                <Download className="h-4 w-4" />
+                {workingKind ? 'Preparing…' : 'Download PDF bill'}
               </button>
-              <button
-                type="button"
-                onClick={() => createAndDownloadBill('monthly')}
-                disabled={!!workingKind || !createBuyerBillFile}
-                className="flex w-full items-center gap-3 rounded-2xl border border-ink-200 p-4 text-left transition hover:border-sidebar-accent hover:bg-ink-50 disabled:opacity-60"
-              >
-                <Download className="h-6 w-6 shrink-0 text-brand-green-dark" />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-bold text-ink-900">This month’s bill</span>
-                  <span className="block text-xs text-ink-500">This month’s product quantities by entered unit, billed amount, and payments.</span>
-                </span>
-                {workingKind === 'monthly' && <span className="text-xs text-ink-500">Preparing…</span>}
-                {!createBuyerBillFile && <span className="text-xs text-ink-500">Preparing…</span>}
-              </button>
+              {!createBuyerBillFile && <span className="text-xs text-ink-500">Preparing PDF tools…</span>}
             </div>
           )}
           {notice && <p className="text-sm text-amber-800" role="status">{notice}</p>}
