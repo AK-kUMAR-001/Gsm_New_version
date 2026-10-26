@@ -377,22 +377,6 @@ export default function Inventory() {
                     <span className={`pill ${hasCount ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
                       {hasCount ? 'Count complete' : 'Count required'}
                     </span>
-                    {!expanded && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (hasCount) removeMorningCount(item);
-                        }}
-                        disabled={!hasCount || offline || saving || deletingCountProductId !== ''}
-                        aria-label={`Delete ${item.name} morning stock count`}
-                        title={hasCount ? 'Delete stock' : 'Record a morning count before deleting stock'}
-                        className="btn-outline !min-h-8 !px-2 !py-1 text-xs border-red-200 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete stock
-                      </button>
-                    )}
                   </div>
                 )}
               </header>
