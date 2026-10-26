@@ -747,32 +747,6 @@ export function AppDataProvider({ children }) {
     return { data, refreshError: dataRefresh.error || inventoryRefresh.error || retailRefresh.error };
   };
 
-  const deleteStockMovement = async (movementId) => {
-    if (offline) {
-      const error = new Error('Deleting a stock movement requires the live database.');
-      showToast(error.message, 'warn');
-      return { error };
-    }
-    const { error } = await supabase.rpc('inventory_delete_stock_movement', {
-      p_movement_id: movementId,
-    });
-    if (error) {
-      showToast(`Could not delete stock movement: ${error.message}`, 'error');
-      return { error };
-    }
-    const [dataRefresh, inventoryRefresh, retailRefresh] = await Promise.all([
-      load(),
-      loadInventory(),
-      loadRetailDay(),
-    ]);
-    if (dataRefresh.error || inventoryRefresh.error || retailRefresh.error) {
-      showToast('Stock movement deleted, but some data could not refresh. Refresh the page to verify.', 'warn');
-    } else {
-      showToast('Stock movement and its linked record deleted.', 'success');
-    }
-    return { data: true, refreshError: dataRefresh.error || inventoryRefresh.error || retailRefresh.error };
-  };
-
   const correctHistoricalMorningCount = (productId, date, quantity, unitCost) =>
     recordInventoryAction('inventory_correct_historical_morning_count', {
       p_product_id: productId,
@@ -848,7 +822,6 @@ export function AppDataProvider({ children }) {
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
     startInventoryTracking, recordMorningCount, correctMorningCount, deleteMorningCount, correctHistoricalMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
-    deleteStockMovement,
     setStockQuantityForDate,
     filterByPeriod,
   };
