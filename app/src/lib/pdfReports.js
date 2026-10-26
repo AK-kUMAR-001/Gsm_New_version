@@ -506,7 +506,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
       columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
       styles: CUSTOMER_TRANSACTION_STYLES,
     });
-    addBillTotals(doc, doc.lastAutoTable?.finalY || 60, billed, paid, balance?.balance_due);
+    addBillTotals(doc, doc.lastAutoTable?.finalY || 60, billed, paid, balance?.balance_due, 204);
   }
 
   addPageNumbers(doc);

@@ -73,7 +73,7 @@ export default function Inventory() {
     products, suppliers, inventorySettings, inventorySummary, inventoryCounts,
     buyers, buyerSales, retailSales, inventoryMovements, inventoryLoading, inventoryError, loadInventory,
     startInventoryTracking, recordMorningCount, deleteMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
-    updateInventoryLowStockThreshold,
+    updateInventoryLowStockThreshold, updateProduct,
     offline,
   } = useAppData();
   const location = useLocation();
@@ -168,6 +168,7 @@ export default function Inventory() {
       quantity: currentCount ? String(Number(currentCount.counted_quantity) / countFactor) : '',
       unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
+      stockToSalesFactor: String(productStockToSalesFactor(target)),
       movementDate: selectedMovementDate,
       quantityUnit: ['count', 'correction'].includes(requestedAction)
         ? requestedAction === 'count' ? countUnit : productSalesUnit(target)
@@ -196,6 +197,7 @@ export default function Inventory() {
       quantity: currentCount ? String(Number(currentCount.counted_quantity) / countFactor) : '',
       unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
+      stockToSalesFactor: String(productStockToSalesFactor(product)),
       movementDate: todayIST(),
       quantityUnit: ['count', 'correction'].includes(nextAction)
         ? nextAction === 'count' ? countUnit : productSalesUnit(product)
@@ -239,7 +241,34 @@ export default function Inventory() {
     setSaving(true);
     const quantity = Number(form.quantity);
     const damagedQuantity = Number(form.damagedQuantity || 0);
-    const stockFactor = productStockToSalesFactor(productsById.get(productId));
+    const currentProduct = productsById.get(productId);
+    const isKeerai = String(currentProduct?.name || '').trim().toLocaleLowerCase() === 'keerai';
+    const stockFactor = isKeerai && ['opening', 'receipt'].includes(action)
+      ? Number(form.stockToSalesFactor)
+      : productStockToSalesFactor(currentProduct);
+    if (!Number.isFinite(stockFactor) || stockFactor <= 0) {
+      window.alert(`Enter a valid number of ${productSalesUnit(currentProduct)} per ${productStockUnit(currentProduct)}.`);
+      setSaving(false);
+      return;
+    }
+    if (isKeerai && ['opening', 'receipt'].includes(action)
+      && stockFactor !== productStockToSalesFactor(currentProduct)) {
+      const productHasHistory = inventoryMovements.some((movement) => movement.product_id === productId);
+      if (productHasHistory) {
+        window.alert('Keerai’s unit conversion cannot be changed after stock movements have been recorded.');
+        setSaving(false);
+        return;
+      }
+      const productUpdate = await updateProduct(productId, {
+        sales_unit: 'Kattu',
+        stock_entry_unit: 'Mootai',
+        stock_to_sales_factor: stockFactor,
+      });
+      if (productUpdate.error) {
+        setSaving(false);
+        return;
+      }
+    }
     const inputIsStockUnit = action === 'opening' || action === 'receipt';
     const recordedQuantity = inputIsStockUnit ? quantity * stockFactor : quantity;
     const recordedDamage = inputIsStockUnit ? damagedQuantity * stockFactor : damagedQuantity;
@@ -298,7 +327,11 @@ export default function Inventory() {
   const currentStock = summaryById.get(productId);
   const quantityInput = Number(form.quantity || 0);
   const damagedQuantity = Number(form.damagedQuantity || 0);
-  const stockFactor = productStockToSalesFactor(product);
+  const isKeerai = String(product?.name || '').trim().toLocaleLowerCase() === 'keerai';
+  const productHasMovements = inventoryMovements.some((movement) => movement.product_id === productId);
+  const stockFactor = isKeerai && ['opening', 'receipt'].includes(action)
+    ? Number(form.stockToSalesFactor || productStockToSalesFactor(product))
+    : productStockToSalesFactor(product);
   const stockUnitCost = Number(form.unitCost || 0);
   const unitCostRequired = quantityInput > 0 && (
     (action === 'count' && (
@@ -612,11 +645,21 @@ export default function Inventory() {
                 <div>
                   <label className="label">{productSalesUnit(product)} per {productStockUnit(product)}</label>
                   <input
-                    readOnly
-                    value={stockFactor.toLocaleString('en-IN')}
-                    className="input bg-ink-50"
+                    type={isKeerai && !productHasMovements ? 'number' : 'text'}
+                    min="0.000001"
+                    step="any"
+                    required={isKeerai && !productHasMovements}
+                    readOnly={!isKeerai || productHasMovements}
+                    value={form.stockToSalesFactor ?? stockFactor.toLocaleString('en-IN')}
+                    onChange={(event) => setForm((current) => ({ ...current, stockToSalesFactor: event.target.value }))}
+                    className={`input ${!isKeerai || productHasMovements ? 'bg-ink-50' : ''}`}
                     aria-label={`${productSalesUnit(product)} per ${productStockUnit(product)}`}
                   />
+                  {isKeerai && !productHasMovements && (
+                    <p className="mt-1 text-xs text-ink-500">
+                      Enter the Kattu in 1 Mootai. This ratio is saved for future stock and sales calculations.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="label">Calculated cost per {productSalesUnit(product)} (₹)</label>

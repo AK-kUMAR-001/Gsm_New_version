@@ -23,6 +23,7 @@ export function productSalesUnit(product) {
     malli: { salesUnit: 'Kattu', stockUnit: 'Mootai', factor: 50 },
     pudina: { salesUnit: 'Kattu', stockUnit: 'Mootai', factor: 200 },
     karuvepillai: { salesUnit: 'Kg', stockUnit: 'Kg', factor: 1 },
+    keerai: { salesUnit: 'Kattu', stockUnit: 'Mootai' },
   };
   const standard = productUnits[name];
   if (standard) return standard.salesUnit;
@@ -35,7 +36,7 @@ export function isRemovedProductName(name) {
 
 export function productStockUnit(product) {
   const name = String(product?.name || '').trim().toLocaleLowerCase();
-  const standard = { malli: 'Mootai', pudina: 'Mootai', karuvepillai: 'Kg' }[name];
+  const standard = { malli: 'Mootai', pudina: 'Mootai', karuvepillai: 'Kg', keerai: 'Mootai' }[name];
   return standard || String(product?.stock_entry_unit || productSalesUnit(product)).trim() || productSalesUnit(product);
 }
 
