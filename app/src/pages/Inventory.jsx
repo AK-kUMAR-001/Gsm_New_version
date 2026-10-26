@@ -73,7 +73,7 @@ export default function Inventory() {
   const {
     products, suppliers, inventorySettings, inventorySummary, inventoryCounts,
     buyers, buyerSales, retailSales, inventoryMovements, inventoryLoading, inventoryError, loadInventory,
-    startInventoryTracking, recordMorningCount, deleteMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    startInventoryTracking, recordMorningCount, deleteMorningCount, deleteStockMovement, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     updateInventoryLowStockThreshold,
     offline,
   } = useAppData();
@@ -85,6 +85,11 @@ export default function Inventory() {
   const [expandedProducts, setExpandedProducts] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [deletingCountProductId, setDeletingCountProductId] = useState('');
+  const [deleteCountTarget, setDeleteCountTarget] = useState(null);
+  const [deleteCountConfirmation, setDeleteCountConfirmation] = useState('');
+  const [deleteMovementTarget, setDeleteMovementTarget] = useState(null);
+  const [deleteMovementConfirmation, setDeleteMovementConfirmation] = useState('');
+  const [deletingMovement, setDeletingMovement] = useState(false);
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
   const [movementDate, setMovementDate] = useState(todayIST());
@@ -212,14 +217,38 @@ export default function Inventory() {
   };
 
   const removeMorningCount = async (product) => {
-    if (!window.confirm(
-      `Delete ${product.name}'s morning count for today? Its count adjustment will also be removed. Recorded sales, receipts, and damage entries will remain.`,
-    )) return;
-    setDeletingCountProductId(product.id);
+    setDeleteCountTarget(product);
+    setDeleteCountConfirmation('');
+  };
+
+  const confirmDeleteMorningCount = async (event) => {
+    event.preventDefault();
+    if (!deleteCountTarget || deleteCountConfirmation.trim().toUpperCase() !== 'YES') return;
+    const target = deleteCountTarget;
+    setDeletingCountProductId(target.id);
     try {
-      await deleteMorningCount(product.id);
+      const result = await deleteMorningCount(target.id);
+      if (!result.error) {
+        setDeleteCountTarget(null);
+        setDeleteCountConfirmation('');
+      }
     } finally {
       setDeletingCountProductId('');
+    }
+  };
+
+  const confirmDeleteMovement = async (event) => {
+    event.preventDefault();
+    if (!deleteMovementTarget || deleteMovementConfirmation.trim().toUpperCase() !== 'YES') return;
+    setDeletingMovement(true);
+    try {
+      const result = await deleteStockMovement(deleteMovementTarget.id);
+      if (!result.error) {
+        setDeleteMovementTarget(null);
+        setDeleteMovementConfirmation('');
+      }
+    } finally {
+      setDeletingMovement(false);
     }
   };
 
@@ -366,6 +395,22 @@ export default function Inventory() {
                     <span className={`pill ${hasCount ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
                       {hasCount ? 'Count complete' : 'Count required'}
                     </span>
+                    {!expanded && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (hasCount) removeMorningCount(item);
+                        }}
+                        disabled={!hasCount || offline || saving || deletingCountProductId !== ''}
+                        aria-label={`Delete ${item.name} morning stock count`}
+                        title={hasCount ? 'Delete stock' : 'Record a morning count before deleting stock'}
+                        className="btn-outline !min-h-8 !px-2 !py-1 text-xs border-red-200 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete stock
+                      </button>
+                    )}
                   </div>
                 )}
               </header>
@@ -464,6 +509,7 @@ export default function Inventory() {
                   <th className="px-5 py-3 font-semibold">Movement</th>
                   <th className="px-5 py-3 font-semibold text-right">Quantity</th>
                   <th className="px-5 py-3 font-semibold">Details</th>
+                  <th className="px-5 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
@@ -490,7 +536,7 @@ export default function Inventory() {
                         {sale ? (
                           <>
                             {sale.buyer_id && buyersById.get(sale.buyer_id)?.archived_at && (
-                              <span className="mb-1 block font-semibold text-amber-700">Deleted user · stock history preserved</span>
+                              <span className="mb-1 block font-semibold text-amber-700">Archived buyer · stock history preserved</span>
                             )}
                             <span className="block">{formatSaleRates(sale, products)}</span>
                             <span className="block font-semibold text-ink-800">Sale amount: {currencyINR(amount)}</span>
@@ -498,6 +544,21 @@ export default function Inventory() {
                         ) : movement.movement_type === 'sale' ? (
                           'Sale record unavailable'
                         ) : movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteMovementTarget(movement);
+                            setDeleteMovementConfirmation('');
+                          }}
+                          disabled={offline || deletingMovement}
+                          aria-label={`Delete ${movement.movement_type.replaceAll('_', ' ')} stock movement`}
+                          title="Delete stock movement"
+                          className="btn-outline !min-h-9 !px-2 !py-2 border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -799,6 +860,110 @@ export default function Inventory() {
                 className="btn-navy flex-1"
               >
                 {saving ? 'Saving…' : action === 'receipt' ? 'Add extra stock' : 'Save stock record'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!deleteCountTarget}
+        onClose={() => {
+          if (deletingCountProductId) return;
+          setDeleteCountTarget(null);
+          setDeleteCountConfirmation('');
+        }}
+        title="Delete morning stock"
+      >
+        {deleteCountTarget && (
+          <form onSubmit={confirmDeleteMorningCount} className="space-y-4">
+            <p className="text-sm text-ink-700">
+              This deletes {deleteCountTarget.name}'s morning count for today, its count adjustment, and reopens today's retail session. Automatically generated retail close-out sales are removed; recorded buyer/retail sales, receipts, and damage entries stay.
+            </p>
+            <div>
+              <label className="label" htmlFor="delete-stock-confirmation">
+                Type <span className="font-bold">YES</span> to confirm
+              </label>
+              <input
+                id="delete-stock-confirmation"
+                required
+                autoComplete="off"
+                value={deleteCountConfirmation}
+                onChange={(event) => setDeleteCountConfirmation(event.target.value)}
+                className="input"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteCountTarget(null);
+                  setDeleteCountConfirmation('');
+                }}
+                disabled={!!deletingCountProductId}
+                className="btn-outline flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={deleteCountConfirmation.trim().toUpperCase() !== 'YES' || !!deletingCountProductId}
+                className="btn-outline flex-1 justify-center border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deletingCountProductId ? 'Deleting…' : 'Delete stock'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!deleteMovementTarget}
+        onClose={() => {
+          if (deletingMovement) return;
+          setDeleteMovementTarget(null);
+          setDeleteMovementConfirmation('');
+        }}
+        title="Delete stock movement"
+      >
+        {deleteMovementTarget && (
+          <form onSubmit={confirmDeleteMovement} className="space-y-4">
+            <p className="text-sm text-ink-700">
+              This permanently removes this stock movement and its linked sale, if any. Deleting a morning-count movement also removes that count and reopens the retail session. A private recovery snapshot is retained.
+            </p>
+            <div>
+              <label className="label" htmlFor="delete-movement-confirmation">
+                Type <span className="font-bold">YES</span> to confirm
+              </label>
+              <input
+                id="delete-movement-confirmation"
+                required
+                autoComplete="off"
+                value={deleteMovementConfirmation}
+                onChange={(event) => setDeleteMovementConfirmation(event.target.value)}
+                className="input"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteMovementTarget(null);
+                  setDeleteMovementConfirmation('');
+                }}
+                disabled={deletingMovement}
+                className="btn-outline flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={deleteMovementConfirmation.trim().toUpperCase() !== 'YES' || deletingMovement}
+                className="btn-outline flex-1 justify-center border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deletingMovement ? 'Deleting…' : 'Delete movement'}
               </button>
             </div>
           </form>

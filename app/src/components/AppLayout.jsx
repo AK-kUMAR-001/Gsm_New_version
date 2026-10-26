@@ -9,7 +9,7 @@ const navItems = [
   { to: '/inventory', label: 'Daily Stock In', Icon: Boxes },
   { to: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { to: '/buyers',    label: 'Buyers',    Icon: Users },
-  { to: '/buyers/deleted', label: 'Deleted Customers', Icon: Archive },
+  { to: '/buyers/deleted', label: 'Archived Customers', Icon: Archive },
   { to: '/retail',    label: 'Retail',    Icon: Store },
   { to: '/reports',   label: 'Reports',   Icon: BarChart3 },
   { to: '/products',  label: 'Products',  Icon: Package },

@@ -82,7 +82,7 @@ order:
     its guarded 15 Oct values. Run 005 before 004 if 004 has not yet been
     applied, since 004 expects canonical movement quantities. If 004 is already
     applied, 005 can still be run afterward to reconcile quantities.
-12. `202610160001_buyer_lifecycle.sql` to add archive/restore, the Deleted
+12. `202610160001_buyer_lifecycle.sql` to add archive/restore, the Archived
     Customers view, and audited permanent deletion support. Apply it after
     `202610110001_inventory_ledger.sql` and `202610110002_delete_buyer_data.sql`.
     Run it in the Supabase SQL Editor for the new project; the app requires
@@ -127,6 +127,15 @@ order:
     revaluation movement. Other stock movements and saved sales are retained.
     Deleted count details are kept in a private audit table before the count is
     removed so a fresh count can be recorded.
+21. `202610270003_delete_stock_and_reopen_retail_day.sql` adds owner-authorized
+    stock-movement deletion with private recovery snapshots. Deleting a morning
+    count also reopens that date's retail session and removes only its generated
+    balance-close sales; the existing one-argument morning-count RPC remains
+    available to the app.
+22. `202610270004_harden_permanent_buyer_delete.sql` ensures permanent buyer
+    deletion snapshots the buyer and linked sales, payments, and stock
+    movements before removing those live records. Apply it after the buyer
+    lifecycle and transaction-corrections migrations.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration

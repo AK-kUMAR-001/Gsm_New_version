@@ -211,7 +211,7 @@ export default function Buyers() {
 
           <Link to="/buyers/deleted" className="btn-outline lg:!px-5 min-h-[44px]">
             <Archive className="w-4 h-4" />
-            Deleted Customers
+            Archived Customers
           </Link>
           <button
             onClick={() => setAddOpen(true)}

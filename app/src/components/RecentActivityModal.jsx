@@ -158,7 +158,7 @@ export default function RecentActivityModal({
                 <select name="buyer_id" required value={form.buyer_id} onChange={updateField} className="input mt-1">
                   {availableBuyers.map((buyer) => (
                     <option key={buyer.id} value={buyer.id}>
-                      {buyer.archived_at ? 'Deleted user (archived)' : buyer.name}
+                      {buyer.archived_at ? 'Archived buyer' : buyer.name}
                     </option>
                   ))}
                 </select>
@@ -228,7 +228,7 @@ export default function RecentActivityModal({
         </form>
       ) : (
         <>
-          <p className="mb-3 text-xs text-ink-500">Edit or remove a buyer bill, retail sale, or payment. Archived buyers appear as “Deleted user”; their recorded history remains intact.</p>
+          <p className="mb-3 text-xs text-ink-500">Edit or remove a buyer bill, retail sale, or payment. Archived buyers’ recorded history remains intact.</p>
           <div className="max-h-[68vh] divide-y divide-ink-100 overflow-y-auto">
             {!activities.length && <p className="py-10 text-center text-sm text-ink-500">No activity found.</p>}
             {activities.map((activity) => (

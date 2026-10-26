@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './useAuth.jsx';
 import {
@@ -58,6 +58,9 @@ async function fetchPayments() {
 
 export function AppDataProvider({ children }) {
   const auth = useAuth();
+  const loadRequestRef = useRef(0);
+  const inventoryLoadRequestRef = useRef(0);
+  const retailDayLoadRequestRef = useRef(0);
   const [buyers, setBuyers] = useState([]);
   const [products, setProducts] = useState([]);
   const [removedProductIds, setRemovedProductIds] = useState(new Set());
@@ -87,6 +90,7 @@ export function AppDataProvider({ children }) {
   }, []);
 
   const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
     let b, p, s, bs, rs, pay;
     let loadError = null;
     setLoading(true);
@@ -98,6 +102,7 @@ export function AppDataProvider({ children }) {
       safeFetch('retail_sales'),
       fetchPayments(),
     ]);
+    if (requestId !== loadRequestRef.current) return { data: true, stale: true };
     const failed = results.find((result) => result.error);
     if (failed) {
       [b, p, s, bs, rs, pay] = [
@@ -134,6 +139,7 @@ export function AppDataProvider({ children }) {
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.isAuthed) {
+      loadRequestRef.current += 1;
       setBuyers([]);
       setProducts([]);
       setRemovedProductIds(new Set());
@@ -155,6 +161,7 @@ export function AppDataProvider({ children }) {
 
   const loadInventory = useCallback(async () => {
     if (offline) {
+      inventoryLoadRequestRef.current += 1;
       setInventorySettings([]);
       setInventorySummary([]);
       setInventoryCounts([]);
@@ -163,6 +170,7 @@ export function AppDataProvider({ children }) {
       return { error: new Error('offline') };
     }
 
+    const requestId = ++inventoryLoadRequestRef.current;
     setInventoryLoading(true);
     setInventoryError('');
     const [settings, summary, counts, movements] = await Promise.all([
@@ -178,6 +186,7 @@ export function AppDataProvider({ children }) {
         orderCol: 'created_at',
       }),
     ]);
+    if (requestId !== inventoryLoadRequestRef.current) return { data: true, stale: true };
     const failed = [settings, summary, counts].find((result) => result.error) || (movements.error ? movements : null);
     if (failed) {
       setInventoryLoading(false);
@@ -196,11 +205,13 @@ export function AppDataProvider({ children }) {
 
   const loadRetailDay = useCallback(async () => {
     if (offline) {
+      retailDayLoadRequestRef.current += 1;
       setRetailDaySession(null);
       setRetailDayPrices([]);
       setRetailDayError('Retail day controls require the live database.');
       return { error: new Error('offline') };
     }
+    const requestId = ++retailDayLoadRequestRef.current;
     setRetailDayLoading(true);
     setRetailDayError('');
     const saleDate = todayIST();
@@ -209,6 +220,7 @@ export function AppDataProvider({ children }) {
       .select('sale_date, status, started_at, finished_at')
       .eq('sale_date', saleDate)
       .maybeSingle();
+    if (requestId !== retailDayLoadRequestRef.current) return { data: true, stale: true };
     if (sessionError) {
       setRetailDayLoading(false);
       setRetailDaySession(null);
@@ -226,6 +238,7 @@ export function AppDataProvider({ children }) {
       .from('retail_daily_prices')
       .select('product_id, quantity_unit, price_per_unit')
       .eq('sale_date', saleDate);
+    if (requestId !== retailDayLoadRequestRef.current) return { data: true, stale: true };
     if (pricesError) {
       setRetailDayLoading(false);
       setRetailDaySession(session);
@@ -390,9 +403,9 @@ export function AppDataProvider({ children }) {
     )));
     showToast('Buyer and linked history permanently deleted from live data.', 'success');
 
-    const inventoryRefresh = await loadInventory();
-    if (inventoryRefresh.error) {
-      showToast('Buyer was deleted, but stock could not refresh. Refresh Inventory to verify the balance.', 'warn');
+    const [dataRefresh, inventoryRefresh] = await Promise.all([load(), loadInventory()]);
+    if (dataRefresh.error || inventoryRefresh.error) {
+      showToast('Buyer was deleted, but some data could not refresh. Refresh the page to verify the updated records.', 'warn');
     }
     return { data: true };
   };
@@ -721,13 +734,43 @@ export function AppDataProvider({ children }) {
       showToast(`Could not delete the morning count: ${error.message}`, 'error');
       return { error };
     }
-    const refresh = await loadInventory();
-    if (refresh.error) {
-      showToast('Morning count deleted, but stock data could not refresh.', 'warn');
+    const [dataRefresh, inventoryRefresh, retailRefresh] = await Promise.all([
+      load(),
+      loadInventory(),
+      loadRetailDay(),
+    ]);
+    if (dataRefresh.error || inventoryRefresh.error || retailRefresh.error) {
+      showToast('Morning count deleted, but some stock or retail data could not refresh.', 'warn');
     } else {
-      showToast('Morning count deleted. Record a new count to restore today’s stock.', 'success');
+      showToast('Morning count deleted and the retail day reopened. Record a new count before restarting retail.', 'success');
     }
-    return { data, refreshError: refresh.error };
+    return { data, refreshError: dataRefresh.error || inventoryRefresh.error || retailRefresh.error };
+  };
+
+  const deleteStockMovement = async (movementId) => {
+    if (offline) {
+      const error = new Error('Deleting a stock movement requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { error } = await supabase.rpc('inventory_delete_stock_movement', {
+      p_movement_id: movementId,
+    });
+    if (error) {
+      showToast(`Could not delete stock movement: ${error.message}`, 'error');
+      return { error };
+    }
+    const [dataRefresh, inventoryRefresh, retailRefresh] = await Promise.all([
+      load(),
+      loadInventory(),
+      loadRetailDay(),
+    ]);
+    if (dataRefresh.error || inventoryRefresh.error || retailRefresh.error) {
+      showToast('Stock movement deleted, but some data could not refresh. Refresh the page to verify.', 'warn');
+    } else {
+      showToast('Stock movement and its linked record deleted.', 'success');
+    }
+    return { data: true, refreshError: dataRefresh.error || inventoryRefresh.error || retailRefresh.error };
   };
 
   const correctHistoricalMorningCount = (productId, date, quantity, unitCost) =>
@@ -805,6 +848,7 @@ export function AppDataProvider({ children }) {
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
     startInventoryTracking, recordMorningCount, correctMorningCount, deleteMorningCount, correctHistoricalMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    deleteStockMovement,
     setStockQuantityForDate,
     filterByPeriod,
   };

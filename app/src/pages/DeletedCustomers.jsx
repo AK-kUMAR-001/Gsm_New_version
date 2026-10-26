@@ -15,7 +15,7 @@ export default function DeletedCustomers() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-ink-900">Deleted Customers</h1>
+          <h1 className="text-2xl font-extrabold text-ink-900">Archived Customers</h1>
           <p className="mt-1 text-sm text-ink-500">
             Archived customers remain in reports and keep their complete transaction history.
           </p>

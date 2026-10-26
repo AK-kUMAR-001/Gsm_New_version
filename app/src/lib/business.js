@@ -867,12 +867,13 @@ export function buildRecentActivity(buyerSales, payments, buyersById = {}, limit
   const rows = [];
   for (const s of buyerSales || []) {
     const buyer = buyersById[s.buyer_id];
+    if (!buyer) continue;
     rows.push({
       ts: s.sale_date || s.created_at || '',
       type: 'SALE',
       id: s.id,
       product: s.product,
-      buyer_name: buyer ? (buyer.archived_at ? 'Deleted user' : buyer.name) : '',
+      buyer_name: buyer.archived_at ? 'Archived buyer' : buyer.name,
       buyer_id: s.buyer_id,
       amount: (s.mootais ?? s.mootais_sold ?? 0) * (s.price_per_mootai ?? 0),
       date: s.sale_date || null,
@@ -882,12 +883,13 @@ export function buildRecentActivity(buyerSales, payments, buyersById = {}, limit
   }
   for (const p of payments || []) {
     const buyer = buyersById[p.buyer_id];
+    if (!buyer) continue;
     rows.push({
       ts: p.paid_at || p.created_at || '',
       type: 'PAYMENT',
       id: p.id,
       product: null,
-      buyer_name: buyer ? (buyer.archived_at ? 'Deleted user' : buyer.name) : '',
+      buyer_name: buyer.archived_at ? 'Archived buyer' : buyer.name,
       buyer_id: p.buyer_id,
       amount: Number(p.amount_paid ?? 0),
       date: p.paid_at || null,
