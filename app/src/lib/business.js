@@ -1,5 +1,6 @@
 const INDIAN_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const LEGACY_SALE_UNIT_CUTOFF = '2026-10-15';
+const STOCK_PRODUCT_ORDER = ['malli', 'pudina', 'karuvepillai', 'keerai'];
 
 const CURRENCY_FMT = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -543,7 +544,16 @@ export function buildDailyStockClosingRows(settings, movements, counts, products
       countedQuantity: count?.counted_quantity ?? null,
       countRecorded: !!count,
     };
-  }).sort((a, b) => a.productName.localeCompare(b.productName));
+  }).sort((a, b) => {
+    const aName = String(a.productName || '').trim().toLocaleLowerCase();
+    const bName = String(b.productName || '').trim().toLocaleLowerCase();
+    const aOrder = STOCK_PRODUCT_ORDER.indexOf(aName);
+    const bOrder = STOCK_PRODUCT_ORDER.indexOf(bName);
+    if (aOrder < 0 && bOrder < 0) return aName.localeCompare(bName);
+    if (aOrder < 0) return 1;
+    if (bOrder < 0) return -1;
+    return aOrder - bOrder;
+  });
 }
 
 export function buildProductPerformance(buyerSales, retailSales, movements, productCatalog = []) {

@@ -389,7 +389,7 @@ export default function Inventory() {
         </div>
       )}
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <section className="grid grid-cols-1 gap-4">
         {stockProducts.map((item) => {
           const isTracked = settingsById.has(item.id);
           const stock = summaryById.get(item.id);
@@ -402,7 +402,7 @@ export default function Inventory() {
             return next;
           });
           return (
-            <article key={item.id} className="group metric-card space-y-4">
+            <article key={item.id} className="metric-card space-y-4">
               <header className="flex items-start justify-between gap-3">
                 <button
                   type="button"
@@ -418,8 +418,8 @@ export default function Inventory() {
                     <p className={`mt-0.5 text-xs ${isTracked ? 'text-green-700' : 'text-ink-500'}`}>
                       {isTracked ? 'Stock tracking enabled' : 'Tracking not started'}
                     </p>
-                    <span className="mt-1 block text-xs text-ink-400 md:hidden">
-                      {expanded ? 'Tap to hide details' : 'Tap to show details'}
+                    <span className="mt-1 block text-xs text-ink-400">
+                      {expanded ? 'Click or tap to hide details' : 'Click or tap to show details'}
                     </span>
                   </div>
                 </button>
@@ -433,9 +433,7 @@ export default function Inventory() {
               </header>
 
               <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ${
-                expanded
-                  ? 'max-h-[900px] opacity-100'
-                  : 'max-h-0 opacity-0 md:group-hover:max-h-[900px] md:group-hover:opacity-100 md:group-focus-within:max-h-[900px] md:group-focus-within:opacity-100'
+                expanded ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'
               }`}>
                 {isTracked ? (
                   <div className="space-y-4">
@@ -467,18 +465,18 @@ export default function Inventory() {
                       onSave={(threshold) => updateInventoryLowStockThreshold(item.id, threshold)}
                       disabled={offline}
                     />
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => openAction('count', item)} className="btn-navy">
+                    <div className="flex flex-col items-stretch gap-2">
+                      <button type="button" onClick={() => openAction('count', item)} className="btn-navy w-full justify-start">
                         <ClipboardCheck className="w-4 h-4" />
                         {hasCount ? 'Correct morning count' : 'Morning count'}
                       </button>
-                      <button type="button" onClick={() => openAction('receipt', item)} className="btn-outline">
+                      <button type="button" onClick={() => openAction('receipt', item)} className="btn-outline w-full justify-start">
                         <PackagePlus className="w-4 h-4" /> Add extra stock
                       </button>
-                      <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline">
+                      <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline w-full justify-start">
                         <AlertTriangle className="w-4 h-4" /> Damaged stock
                       </button>
-                      <button type="button" onClick={() => openAction('correction', item)} className="btn-outline">
+                      <button type="button" onClick={() => openAction('correction', item)} className="btn-outline w-full justify-start">
                         <Pencil className="h-4 w-4" /> Edit stock
                       </button>
                       {hasCount && (
@@ -486,7 +484,7 @@ export default function Inventory() {
                           type="button"
                           onClick={() => removeMorningCount(item)}
                           disabled={offline || saving || deletingCountProductId !== ''}
-                          className="btn-outline border-red-200 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="btn-outline w-full justify-start border-red-200 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4" />
                           {deletingCountProductId === item.id ? 'Deleting…' : 'Delete stock'}
