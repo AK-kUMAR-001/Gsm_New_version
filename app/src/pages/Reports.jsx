@@ -174,10 +174,10 @@ function DailyClosingSummary({
               <tr>
                 <th className="px-4 py-3 font-bold">Product</th>
                 <th className="px-4 py-3 font-bold">Morning count</th>
+                <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
                 <th className="px-4 py-3 text-right font-bold">Buyer sold</th>
                 <th className="px-4 py-3 text-right font-bold">Retail sold</th>
                 <th className="px-4 py-3 text-right font-bold">Damaged</th>
-                <th className="px-4 py-3 text-right font-bold">Stock corrections</th>
                 <th className="px-4 py-3 text-right font-bold">Balance count</th>
                 <th className="px-4 py-3 text-right font-bold">Final profit</th>
                 <th className="px-4 py-3 text-right font-bold">Stock-in</th>
@@ -205,10 +205,10 @@ function DailyClosingSummary({
                       )}
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.buyerSold, date)}</td>
                   <td className="px-4 py-3 text-right text-red-700">{formatSalesQuantityForDate(row.product, row.retailSold, date)}</td>
                   <td className="px-4 py-3 text-right text-amber-800">{formatProductQuantities(row.product, row.damaged)}</td>
-                  <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
                   <td className={`px-4 py-3 text-right font-bold ${row.closing < 0 ? 'text-red-700' : ''}`}>
                     {hideStockInAndBalance || !row.countRecorded ? '' : (
                       <div className="flex items-center justify-end gap-2">
@@ -887,6 +887,8 @@ export default function Reports() {
         ? formatProductQuantities(row.product, row.countedQuantity)
         : '',
       morning_count_recorded: row.countRecorded,
+      stock_corrections: row.corrections,
+      stock_corrections_display: formatProductQuantities(row.product, row.corrections),
       buyer_sales: row.buyerSold,
       buyer_sales_display: formatSalesQuantityForDate(row.product, row.buyerSold, selectedDate),
       retail_sales: row.retailSold,
@@ -895,8 +897,6 @@ export default function Reports() {
       total_sales_display: formatSalesQuantityForDate(row.product, row.sold, selectedDate),
       damaged_stock: row.damaged,
       damaged_stock_display: formatProductQuantities(row.product, row.damaged),
-      stock_corrections: row.corrections,
-      stock_corrections_display: formatProductQuantities(row.product, row.corrections),
       balance_count: selectedDate === '2026-10-15' || !row.countRecorded ? '' : row.closing,
       balance_count_display: selectedDate === '2026-10-15' || !row.countRecorded
         ? ''

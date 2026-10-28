@@ -128,10 +128,10 @@ order:
     Deleted count details are kept in a private audit table before the count is
     removed so a fresh count can be recorded.
 21. `202610270003_delete_stock_and_reopen_retail_day.sql` adds owner-authorized
-    stock-movement deletion with private recovery snapshots. Deleting a morning
-    count also reopens that date's retail session and removes only its generated
-    balance-close sales; the existing one-argument morning-count RPC remains
-    available to the app.
+    stock-movement deletion with private recovery snapshots, including receipts
+    and stock corrections. Deleting a morning count also reopens that date's
+    retail session and removes only its generated balance-close sales; the
+    existing one-argument morning-count RPC remains available to the app.
 22. `202610270004_harden_permanent_buyer_delete.sql` ensures permanent buyer
     deletion snapshots the buyer and linked sales, payments, and stock
     movements before removing those live records. Apply it after the buyer

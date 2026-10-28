@@ -747,6 +747,28 @@ export function AppDataProvider({ children }) {
     return { data, refreshError: dataRefresh.error || inventoryRefresh.error || retailRefresh.error };
   };
 
+  const deleteStockMovement = async (movementId) => {
+    if (offline) {
+      const error = new Error('Deleting a stock movement requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_delete_stock_movement', {
+      p_movement_id: movementId,
+    });
+    if (error) {
+      showToast(`Could not delete the stock movement: ${error.message}`, 'error');
+      return { error };
+    }
+    const [dataRefresh, inventoryRefresh] = await Promise.all([load(), loadInventory()]);
+    if (dataRefresh.error || inventoryRefresh.error) {
+      showToast('Stock movement deleted, but some stock data could not refresh.', 'warn');
+    } else {
+      showToast('Stock movement deleted and recorded in the audit log.', 'success');
+    }
+    return { data, refreshError: dataRefresh.error || inventoryRefresh.error };
+  };
+
   const correctHistoricalMorningCount = (productId, date, quantity, unitCost) =>
     recordInventoryAction('inventory_correct_historical_morning_count', {
       p_product_id: productId,
@@ -821,7 +843,7 @@ export function AppDataProvider({ children }) {
     insertBuyer, updateBuyer, setBuyerArchived, deleteArchivedBuyer, updateProduct, insertProduct, deleteProduct,
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
-    startInventoryTracking, recordMorningCount, correctMorningCount, deleteMorningCount, correctHistoricalMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    startInventoryTracking, recordMorningCount, correctMorningCount, deleteMorningCount, deleteStockMovement, correctHistoricalMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     setStockQuantityForDate,
     filterByPeriod,
   };

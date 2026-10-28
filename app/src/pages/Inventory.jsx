@@ -72,7 +72,7 @@ export default function Inventory() {
   const {
     products, suppliers, inventorySettings, inventorySummary, inventoryCounts,
     buyers, buyerSales, retailSales, inventoryMovements, inventoryLoading, inventoryError, loadInventory,
-    startInventoryTracking, recordMorningCount, deleteMorningCount, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    startInventoryTracking, recordMorningCount, deleteMorningCount, deleteStockMovement, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     updateInventoryLowStockThreshold, updateProduct,
     offline,
   } = useAppData();
@@ -86,6 +86,9 @@ export default function Inventory() {
   const [deletingCountProductId, setDeletingCountProductId] = useState('');
   const [deleteCountTarget, setDeleteCountTarget] = useState(null);
   const [deleteCountConfirmation, setDeleteCountConfirmation] = useState('');
+  const [deleteMovementTarget, setDeleteMovementTarget] = useState(null);
+  const [deleteMovementConfirmation, setDeleteMovementConfirmation] = useState('');
+  const [deletingMovementId, setDeletingMovementId] = useState(null);
   const [inventoryReady, setInventoryReady] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState('');
   const [movementDate, setMovementDate] = useState(todayIST());
@@ -232,6 +235,22 @@ export default function Inventory() {
       }
     } finally {
       setDeletingCountProductId('');
+    }
+  };
+
+  const confirmDeleteStockMovement = async (event) => {
+    event.preventDefault();
+    if (!deleteMovementTarget || deleteMovementConfirmation.trim().toUpperCase() !== 'YES') return;
+    const target = deleteMovementTarget;
+    setDeletingMovementId(target.id);
+    try {
+      const result = await deleteStockMovement(target.id);
+      if (!result.error) {
+        setDeleteMovementTarget(null);
+        setDeleteMovementConfirmation('');
+      }
+    } finally {
+      setDeletingMovementId(null);
     }
   };
 
@@ -541,6 +560,19 @@ export default function Inventory() {
                         ) : movement.movement_type === 'sale' ? (
                           'Sale record unavailable'
                         ) : movement.supplier_id ? suppliersById.get(movement.supplier_id)?.name || 'Supplier' : movement.reason}
+                        {['correction', 'receipt'].includes(movement.movement_type) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteMovementTarget(movement);
+                              setDeleteMovementConfirmation('');
+                            }}
+                            disabled={!!deletingMovementId}
+                            className="mt-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete movement
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -904,6 +936,63 @@ export default function Inventory() {
               >
                 <Trash2 className="h-4 w-4" />
                 {deletingCountProductId ? 'Deleting…' : 'Delete stock'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!deleteMovementTarget}
+        onClose={() => {
+          if (deletingMovementId != null) return;
+          setDeleteMovementTarget(null);
+          setDeleteMovementConfirmation('');
+        }}
+        title="Delete stock movement"
+      >
+        {deleteMovementTarget && (
+          <form onSubmit={confirmDeleteStockMovement} className="space-y-4">
+            <p className="text-sm text-ink-700">
+              This deletes only this {deleteMovementTarget.movement_type === 'receipt' ? 'stock-in' : 'stock correction'} movement for {productsById.get(deleteMovementTarget.product_id)?.name || 'this product'} ({formatMovementQuantities(
+                deleteMovementTarget,
+                productsById.get(deleteMovementTarget.product_id),
+                null,
+                products,
+              )}). Saved sales are not deleted. The movement is preserved in the audit log.
+            </p>
+            <div>
+              <label className="label" htmlFor="delete-movement-confirmation">
+                Type <span className="font-bold">YES</span> to confirm
+              </label>
+              <input
+                id="delete-movement-confirmation"
+                required
+                autoComplete="off"
+                value={deleteMovementConfirmation}
+                onChange={(event) => setDeleteMovementConfirmation(event.target.value)}
+                className="input"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteMovementTarget(null);
+                  setDeleteMovementConfirmation('');
+                }}
+                disabled={deletingMovementId != null}
+                className="btn-outline flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={deleteMovementConfirmation.trim().toUpperCase() !== 'YES' || deletingMovementId != null}
+                className="btn-outline flex-1 justify-center border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deletingMovementId != null ? 'Deleting…' : 'Delete movement'}
               </button>
             </div>
           </form>
