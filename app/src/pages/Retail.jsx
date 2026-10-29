@@ -364,6 +364,9 @@ export default function Retail() {
                       <span className="truncate text-sm font-semibold text-ink-800">{product.name}</span>
                     </div>
                     <div className="shrink-0 text-right">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                        Available after buyer + retail sales
+                      </div>
                       <div className="text-sm font-bold text-violet-900">
                         {hasStockRecord
                           ? `${balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`
@@ -371,13 +374,12 @@ export default function Retail() {
                       </div>
                       {savedPrice && (
                         <div className="mt-1 text-xs text-ink-500">
-                          <div>{currencyINR(savedPrice.price_per_unit)} / {unit}</div>
+                          <div>
+                            {formatDate(selectedDate, { day: 'numeric', month: 'short' })} retail price:
+                            {' '}{currencyINR(savedPrice.price_per_unit)} / {unit}
+                          </div>
                           <div className="font-semibold text-violet-800">
-                            {balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}
-                            {' × '}
-                            {currencyINR(savedPrice.price_per_unit)}
-                            {' = '}
-                            {currencyINR(balance * Number(savedPrice.price_per_unit))}
+                            Remaining stock value: {currencyINR(balance * Number(savedPrice.price_per_unit))}
                           </div>
                         </div>
                       )}
