@@ -107,10 +107,10 @@ function DailyActivitySection({ title, count, total, emptyText, enterLabel, onEn
 
 function DailyClosingSummary({
   date,
-  buyerSalesTotal,
-  retailSalesTotal,
+  buyerProfit,
+  retailProfit,
   paymentsTotal,
-  receiptCost,
+  morningStockCost,
   finalProfit,
   rows,
   offline,
@@ -145,12 +145,12 @@ function DailyClosingSummary({
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <ReportCostCard label="Buyer sales" amount={buyerSalesTotal} />
-        <ReportCostCard label="Retail sales" amount={retailSalesTotal} />
+        <ReportCostCard label="Buyer profit" amount={buyerProfit} />
+        <ReportCostCard label="Retail profit" amount={retailProfit} />
         <ReportCostCard label="Payments received" amount={paymentsTotal} />
         <ReportCostCard
-          label="Stock purchase cost"
-          amount={offline || inventoryError || hideStockInAndBalance ? null : receiptCost}
+          label="Morning stock purchase cost"
+          amount={offline || inventoryError || hideStockInAndBalance ? null : morningStockCost}
           empty={hideStockInAndBalance}
         />
         <ReportCostCard label="Final profit" amount={offline || inventoryError ? null : finalProfit} />
@@ -893,17 +893,40 @@ export default function Reports() {
     && dailyStockClosingRows.every((row) => row.finalProfit != null)
     ? dailyStockClosingRows.reduce((sum, row) => sum + row.finalProfit, 0)
     : null;
-  const dailyReceiptCost = useMemo(
-    () => inventoryMovements
-      .filter((movement) => {
-        const productName = products.find((product) => product.id === movement.product_id)?.name;
-        return movement.movement_date === selectedDate
-          && movement.movement_type === 'receipt'
-          && (!productFilter || productName === productFilter);
-      })
-      .reduce((sum, movement) => sum + Number(movement.cost_delta || 0), 0),
-    [inventoryMovements, products, selectedDate, productFilter]
-  );
+  const dailyProfitAvailable = dailyStockClosingRows.length > 0
+    && dailyStockClosingRows.every((row) => row.finalProfit != null);
+  const dailyBuyerProfit = dailyProfitAvailable
+    ? dailyStockClosingRows.reduce(
+      (sum, row) => sum + (dailyProductProfits.get(row.productId)?.buyerProfit || 0),
+      0,
+    )
+    : null;
+  const dailyRetailProfit = dailyProfitAvailable
+    ? dailyStockClosingRows.reduce(
+      (sum, row) => sum + (dailyProductProfits.get(row.productId)?.retailProfit || 0),
+      0,
+    )
+    : null;
+  const dailyMorningStockCost = useMemo(() => {
+    const selectedCounts = inventoryCounts.filter((count) => {
+      if (count.stock_date !== selectedDate) return false;
+      const productName = products.find((product) => product.id === count.product_id)?.name;
+      return !productFilter || productName === productFilter;
+    });
+    const expectedProductCount = inventorySettings.filter((setting) => {
+      const productName = products.find((product) => product.id === setting.product_id)?.name;
+      return !productFilter || productName === productFilter;
+    }).length;
+    if (expectedProductCount === 0 || selectedCounts.length < expectedProductCount) return null;
+
+    return selectedCounts.reduce((total, count) => total + inventoryMovements
+      .filter((movement) => (
+        movement.product_id === count.product_id
+        && movement.movement_date === selectedDate
+        && movement.created_at <= count.created_at
+      ))
+      .reduce((productCost, movement) => productCost + Number(movement.cost_delta || 0), 0), 0);
+  }, [inventoryCounts, inventorySettings, inventoryMovements, products, selectedDate, productFilter]);
 
   const downloadBackup = () => {
     const exportedAt = new Date().toISOString();
@@ -1240,10 +1263,10 @@ export default function Reports() {
 
       <DailyClosingSummary
         date={selectedDate}
-        buyerSalesTotal={dailyBuyerTotal}
-        retailSalesTotal={dailyRetailTotal}
+        buyerProfit={dailyBuyerProfit}
+        retailProfit={dailyRetailProfit}
         paymentsTotal={dailyPaymentsTotal}
-        receiptCost={dailyReceiptCost}
+        morningStockCost={dailyMorningStockCost}
         finalProfit={dailyFinalProfit}
         rows={dailyStockClosingRows}
         offline={offline}
