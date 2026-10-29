@@ -203,7 +203,7 @@ export function AppDataProvider({ children }) {
     return { data: true };
   }, [offline, removedProductIds]);
 
-  const loadRetailDay = useCallback(async () => {
+  const loadRetailDay = useCallback(async (requestedDate = todayIST()) => {
     if (offline) {
       retailDayLoadRequestRef.current += 1;
       setRetailDaySession(null);
@@ -214,7 +214,13 @@ export function AppDataProvider({ children }) {
     const requestId = ++retailDayLoadRequestRef.current;
     setRetailDayLoading(true);
     setRetailDayError('');
-    const saleDate = todayIST();
+    const saleDate = String(requestedDate || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(saleDate)) {
+      const error = new Error('Choose a valid retail date.');
+      setRetailDayLoading(false);
+      setRetailDayError(error.message);
+      return { error };
+    }
     const { data: session, error: sessionError } = await supabase
       .from('retail_daily_sessions')
       .select('sale_date, status, started_at, finished_at')

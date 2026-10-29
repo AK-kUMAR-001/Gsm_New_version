@@ -149,7 +149,10 @@ also requires stock tracking for every newly recorded sale and rejects sales
 that exceed the usable balance. Existing sale rows are not rewritten.
 The daily retail migration adds owner-only session and price tables and a
 start RPC. The dashboard shows buyer, retail, and combined daily profit from
-linked stock costs; only recorded sales count as sold.
+linked stock costs; only recorded sales count as sold. The Retail page loads
+the selected date's session and saved prices, and derives that date's available
+balance from only its stock movements, so buyer and retail sales both reduce
+the displayed balance without carrying stock across dates.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 of the product's sales units; set it

@@ -150,11 +150,11 @@ export default function Retail() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([loadRetailDay(), loadInventory()]).then(() => {
+    Promise.all([loadRetailDay(selectedDate), loadInventory()]).then(() => {
       if (mounted) setRetailDayReady(true);
     });
     return () => { mounted = false; };
-  }, [loadRetailDay, loadInventory]);
+  }, [loadRetailDay, loadInventory, selectedDate]);
 
   useEffect(() => {
     if (searchParams.get('start') !== '1' || !retailDayReady || retailDayLoading || retailDayError) return;
@@ -167,26 +167,34 @@ export default function Retail() {
     [activeProducts, inventorySettings],
   );
 
-  const todayStockByProduct = useMemo(() => {
+  const selectedDateStockByProduct = useMemo(() => {
     const balances = new Map();
-    const today = todayIST();
     for (const movement of inventoryMovements) {
-      if (movement.movement_date !== today) continue;
+      if (movement.movement_date !== selectedDate) continue;
       balances.set(
         movement.product_id,
         (balances.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
       );
     }
     return balances;
-  }, [inventoryMovements]);
+  }, [inventoryMovements, selectedDate]);
 
-  const missingTodayCounts = inventorySettings.filter((setting) => (
+  const productsWithSelectedDateStock = new Set([
+    ...inventoryCounts
+      .filter((count) => count.stock_date === selectedDate)
+      .map((count) => count.product_id),
+    ...inventoryMovements
+      .filter((movement) => movement.movement_date === selectedDate)
+      .map((movement) => movement.product_id),
+  ]);
+  const missingSelectedDateCounts = inventorySettings.filter((setting) => (
     activeProducts.some((product) => product.id === setting.product_id)
-    && !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST())
+    && !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === selectedDate)
   ));
   const savedRetailPrices = new Map(retailDayPrices.map((price) => [price.product_id, price]));
   const retailDayActive = retailDaySession?.status === 'active';
   const retailDayFinished = retailDaySession?.status === 'finished';
+  const selectedToday = selectedDate === todayIST();
 
   const handleStartRetail = async (prices) => {
     setActionError('');
@@ -297,28 +305,38 @@ export default function Retail() {
       )}
 
       {retailDayLoading || inventoryLoading ? (
-        <div className="metric-card text-sm text-ink-500">Loading today’s retail balance…</div>
+        <div className="metric-card text-sm text-ink-500">
+          Loading retail balance for {formatDate(selectedDate, { day: 'numeric', month: 'short', year: 'numeric' })}…
+        </div>
       ) : (
         <section className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 text-base font-bold text-violet-950">
                 <Store className="h-5 w-5" />
-                {retailDayActive ? 'Retail sales are active today' : retailDayFinished ? 'Retail sales were closed today' : 'Start today’s retail sales'}
+                {retailDayActive
+                  ? `Retail sales active · ${formatDate(selectedDate, { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : retailDayFinished
+                    ? `Retail sales closed · ${formatDate(selectedDate, { day: 'numeric', month: 'short', year: 'numeric' })}`
+                    : selectedToday
+                      ? 'Start today’s retail sales'
+                      : `No retail session · ${formatDate(selectedDate, { day: 'numeric', month: 'short', year: 'numeric' })}`}
               </h2>
               <p className="mt-1 text-sm text-violet-900">
                 {retailDayActive
                   ? 'Balances update as buyer and recorded retail sales use stock. Remaining stock stays available and is not automatically recorded as sold.'
                   : retailDayFinished
-                    ? 'Today’s retail session was previously closed.'
-                    : 'Set today’s prices after physical stock counts are complete. Buyer sales will reduce the displayed balance.'}
+                    ? 'This date’s retail session was previously closed.'
+                    : selectedToday
+                      ? 'Set today’s prices after physical stock counts are complete. Buyer and recorded retail sales reduce the balance.'
+                      : 'Balances below are calculated from this date’s stock movements only. Retail prices are shown only if a session was started for this date.'}
               </p>
             </div>
-            {!retailDayActive && !retailDayFinished && (
+            {selectedToday && !retailDayActive && !retailDayFinished && (
               <button
                 type="button"
                 onClick={() => setStartModalOpen(true)}
-                disabled={retailDayLoading || missingTodayCounts.length > 0 || trackedActiveProducts.length === 0}
+                disabled={retailDayLoading || missingSelectedDateCounts.length > 0 || trackedActiveProducts.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Store className="h-4 w-4" />
@@ -327,18 +345,18 @@ export default function Retail() {
             )}
           </div>
 
-          {missingTodayCounts.length > 0 && !retailDayActive && (
+          {selectedToday && missingSelectedDateCounts.length > 0 && !retailDayActive && (
             <p className="mt-3 text-sm font-semibold text-amber-800">
               Record today’s physical count for each active tracked item before starting retail.
             </p>
           )}
 
-          {(retailDayActive || retailDayFinished) && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {trackedActiveProducts.map((product) => {
                 const savedPrice = savedRetailPrices.get(product.id);
                 const unit = savedPrice?.quantity_unit || productSalesUnit(product);
-                const balance = todayStockByProduct.get(product.id) || 0;
+                const hasStockRecord = productsWithSelectedDateStock.has(product.id);
+                const balance = selectedDateStockByProduct.get(product.id) || 0;
                 return (
                   <div key={product.id} className="flex items-center justify-between gap-3 rounded-xl border border-violet-100 bg-white p-3">
                     <div className="flex min-w-0 items-center gap-2">
@@ -347,7 +365,9 @@ export default function Retail() {
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-sm font-bold text-violet-900">
-                        {balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}
+                        {hasStockRecord
+                          ? `${balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`
+                          : 'No stock recorded'}
                       </div>
                       {savedPrice && (
                         <div className="mt-1 text-xs text-ink-500">
@@ -361,12 +381,14 @@ export default function Retail() {
                           </div>
                         </div>
                       )}
+                      {!savedPrice && (
+                        <div className="mt-1 text-xs text-ink-500">No retail price saved for this date</div>
+                      )}
                     </div>
                   </div>
                 );
               })}
-            </div>
-          )}
+          </div>
         </section>
       )}
 
@@ -537,7 +559,7 @@ export default function Retail() {
         open={startModalOpen}
         onClose={() => setStartModalOpen(false)}
         products={trackedActiveProducts}
-        stockByProduct={todayStockByProduct}
+        stockByProduct={selectedDateStockByProduct}
         onStart={handleStartRetail}
         busy={dayActionBusy}
         error={actionError}
