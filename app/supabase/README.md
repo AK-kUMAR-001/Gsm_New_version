@@ -151,12 +151,13 @@ The daily retail migration adds owner-only session and price tables and a
 start RPC. The Retail and Reports pages load the selected date's session and
 saved prices, and derive that date's available balance from only its stock
 movements, so buyer and retail sales both reduce the displayed balance
-without carrying stock across dates. The Retail page shows remaining-stock
-value and potential profit using only that date's saved retail prices and
-remaining stock cost; these are estimates, not realized profit. The dashboard
-and daily closing report combine linked buyer/recorded-retail profit with
-potential profit on remaining stock only when that same date has saved retail
-prices. Unsold balances are not inserted as sale transactions.
+without carrying stock across dates. When a retail session exists, the Retail and Reports pages treat the stock
+remaining after buyer and recorded retail sales as one calculated bulk retail
+sale at that date's saved prices. New buyer entries recalculate the bulk
+quantity and revenue. This calculated sale is not inserted as a transaction.
+The dashboard and daily closing report include its retail margin in profit and
+show its quantity under Retail sold; dates without saved prices do not get an
+automatic retail sale.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 of the product's sales units; set it

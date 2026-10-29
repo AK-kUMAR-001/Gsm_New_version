@@ -498,20 +498,22 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
     const stockShortage = stockBalance < 0;
     const retailPrice = retailPricesByProduct.get(productId);
     const hasRetailPrice = retailPrice != null;
-    const remainingRetailValue = hasRetailPrice && !stockShortage ? stockBalance * retailPrice : 0;
-    const remainingRetailProfit = hasRetailPrice && !stockShortage
-      ? remainingRetailValue - costs.remainingStockCost
+    const automaticRetailQuantity = hasRetailPrice && !stockShortage ? stockBalance : 0;
+    const automaticRetailRevenue = automaticRetailQuantity * retailPrice;
+    const automaticRetailProfit = hasRetailPrice && !stockShortage
+      ? automaticRetailRevenue - costs.remainingStockCost
       : 0;
     return [productId, {
       ...costs,
       stockBalance,
       buyerProfit: costs.buyerRevenue - costs.buyerSaleCost,
       recordedRetailProfit: costs.retailRevenue - costs.retailSaleCost,
-      remainingRetailValue,
-      remainingRetailProfit,
-      retailProfit: costs.retailRevenue - costs.retailSaleCost + remainingRetailProfit,
+      automaticRetailQuantity,
+      automaticRetailRevenue,
+      automaticRetailProfit,
+      retailProfit: costs.retailRevenue - costs.retailSaleCost + automaticRetailProfit,
       finalProfit: costsComplete && !stockShortage
-        ? costs.revenue - costs.saleCost - costs.damageCost + remainingRetailProfit
+        ? costs.revenue - costs.saleCost - costs.damageCost + automaticRetailProfit
         : null,
       hasRetailPrice,
       costsComplete,
@@ -520,8 +522,12 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
   }));
 }
 
-export function buildDailyStockClosingRows(settings, movements, counts, products, date) {
+export function buildDailyStockClosingRows(settings, movements, counts, products, date, retailPrices = []) {
   const productsById = new Map((products || []).map((product) => [product.id, product]));
+  const retailPricesByProduct = new Map((retailPrices || []).map((price) => [
+    price.product_id,
+    Number(price.price_per_unit || 0),
+  ]));
   const countsByProduct = new Map(
     (counts || []).filter((count) => count.stock_date === date).map((count) => [count.product_id, count])
   );
@@ -542,6 +548,13 @@ export function buildDailyStockClosingRows(settings, movements, counts, products
       (movement) => movement.movement_type === 'sale' && movement.source_kind === 'retail_sales',
       -1
     );
+    const physicalClosing = todaysMovements.reduce(
+      (sum, movement) => sum + Number(movement.quantity_delta || 0),
+      0,
+    );
+    const automaticRetailSold = retailPricesByProduct.has(setting.product_id)
+      ? Math.max(0, physicalClosing)
+      : 0;
     const count = countsByProduct.get(setting.product_id);
     return {
       productId: setting.product_id,
@@ -551,12 +564,13 @@ export function buildDailyStockClosingRows(settings, movements, counts, products
       opening,
       receipts: quantityOf((movement) => movement.movement_type === 'receipt'),
       buyerSold,
-      retailSold,
-      sold: buyerSold + retailSold,
+      retailSold: retailSold + automaticRetailSold,
+      automaticRetailSold,
+      sold: buyerSold + retailSold + automaticRetailSold,
       damaged: quantityOf((movement) => movement.movement_type === 'spoilage', -1),
       countVariance: quantityOf((movement) => movement.movement_type === 'count_adjustment'),
       corrections: quantityOf((movement) => movement.movement_type === 'correction'),
-      closing: todaysMovements.reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0),
+      closing: physicalClosing - automaticRetailSold,
       countedQuantity: count?.counted_quantity ?? null,
       countRecorded: !!count,
     };

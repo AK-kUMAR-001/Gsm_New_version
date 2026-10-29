@@ -51,8 +51,8 @@ export default function StartRetailDayModal({
     <Modal open={open} onClose={() => { if (!busy) onClose(); }} title="Start Retail Sales" maxWidth="max-w-2xl">
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-ink-600">
-          Set today’s selling price for each active stock item. Buyer sales entered after starting will reduce the
-          balance shown on the Retail page.
+          Set today’s retail price for each active stock item. After starting, the stock left after buyer and recorded
+          retail sales is counted as an automatic bulk retail sale at these prices. New buyer sales recalculate it.
         </p>
 
         <div className="space-y-2">
@@ -66,7 +66,7 @@ export default function StartRetailDayModal({
                     <span>{getProductEmoji(product.name, products)}</span>
                     <span className="truncate">{product.name}</span>
                   </div>
-                  <div className="mt-1 text-xs text-ink-500">Retail balance: {balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}</div>
+                  <div className="mt-1 text-xs text-ink-500">Automatic retail sale quantity: {balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} {unit}</div>
                 </div>
                 <div className="hidden text-right text-xs font-semibold text-ink-500 sm:block">Unit: {unit}</div>
                 <label className="flex items-center gap-2">
@@ -90,7 +90,7 @@ export default function StartRetailDayModal({
         </div>
 
         <div className="rounded-xl bg-sidebar px-4 py-3 text-white">
-          <div className="text-center text-xs text-white/60">Value at current balance if sold at retail price</div>
+          <div className="text-center text-xs text-white/60">Automatic retail sale revenue</div>
           <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm">
             {productValues.map(({ product, value }, index) => (
               <React.Fragment key={product.id}>
@@ -101,15 +101,15 @@ export default function StartRetailDayModal({
             <span className="text-white/60">=</span>
             <span className="font-extrabold">{currencyINR(totalAtCurrentBalance)}</span>
           </div>
-          <div className="mt-3 text-center text-xs text-white/60">Potential profit if all remaining stock sells</div>
+          <div className="mt-3 text-center text-xs text-white/60">Profit on automatic retail sale</div>
           <div className="mt-1 text-center text-lg font-extrabold">
             {estimatedProfitAvailable ? currencyINR(estimatedProfitAtCurrentBalance) : 'Unavailable: stock cost is missing'}
           </div>
         </div>
 
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-          Buyer sales entered after starting update the remaining quantity and its value at these retail prices.
-          Potential profit is an estimate on unsold stock; only recorded sales count as realized profit.
+          Buyer sales entered after starting reduce the automatic retail sale quantity and update its revenue and profit.
+          No separate retail transaction entry is needed for this remaining stock.
         </div>
 
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}

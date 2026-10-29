@@ -131,7 +131,7 @@ function DailyClosingSummary({
             Balance count is calculated from this date's physical count, sales, and stock changes only. It stays blank if no physical count was recorded; previous-day stock is never carried forward.
           </p>
           <p className="mt-1 text-xs text-ink-500">
-            Final profit includes recorded buyer/retail profit plus estimated profit on remaining stock at this date's saved retail prices.
+            When retail sales have started for this date, remaining stock after buyer and recorded retail sales is counted as a bulk retail sale at the saved retail prices.
           </p>
           {hideStockInAndBalance && (
             <p className="mt-1 text-xs text-ink-500">
@@ -880,13 +880,14 @@ export default function Reports() {
       inventoryCounts,
       products,
       selectedDate,
+      retailDayPrices,
     ).map((row) => ({
       ...row,
       finalProfit: dailyProductProfits.get(row.productId)?.finalProfit ?? null,
       stockShortage: dailyProductProfits.get(row.productId)?.stockShortage ?? false,
     }))
       .filter((row) => !productFilter || products.find((product) => product.id === row.productId)?.name === productFilter),
-    [inventorySettings, inventoryMovements, inventoryCounts, products, selectedDate, productFilter, dailyProductProfits]
+    [inventorySettings, inventoryMovements, inventoryCounts, products, selectedDate, retailDayPrices, productFilter, dailyProductProfits]
   );
   const dailyFinalProfit = dailyStockClosingRows.length > 0
     && dailyStockClosingRows.every((row) => row.finalProfit != null)
@@ -1129,10 +1130,10 @@ export default function Reports() {
             })}
           </DailyActivitySection>
           <DailyActivitySection
-            title="Retail sales + remaining stock value"
+            title="Retail sales"
             count={dailyRetailSales.length + dailyRetailBalances.length}
             total={dailyRetailDisplayTotal}
-            emptyText={retailDayLoading ? 'Loading retail prices…' : 'No retail sales or priced remaining stock on this date.'}
+            emptyText={retailDayLoading ? 'Loading retail prices…' : 'No retail sales or automatic retail sale quantity on this date.'}
             enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
             onEnter={() => setEntryModal('retail')}
           >
@@ -1154,12 +1155,12 @@ export default function Reports() {
             })}
             {dailyRetailBalances.map((item) => (
               <ActivityEntry
-                key={`remaining-${item.product.id}`}
-                title={`${item.product.name} · remaining stock`}
+                key={`automatic-retail-${item.product.id}`}
+                title={`${item.product.name} · automatic retail sale`}
                 subtitle={`${item.balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${item.unit} · ${currencyINR(item.price)} / ${item.unit}`}
                 amount={item.value}
                 emoji={getProductEmoji(item.product.name, products)}
-                note="Estimated value at this date’s saved retail price; not a recorded sale."
+                note="Bulk retail sale calculated from the balance after buyer and entered retail sales."
               />
             ))}
           </DailyActivitySection>

@@ -222,6 +222,23 @@ export default function Retail() {
   const retailDayFinished = retailDaySession?.status === 'finished';
   const selectedToday = selectedDate === todayIST();
 
+  const automaticRetailSales = useMemo(() => (
+    retailDayPrices.flatMap((price) => {
+      const product = products.find((item) => item.id === price.product_id);
+      const quantity = selectedDateStockByProduct.get(price.product_id) || 0;
+      if (!product || quantity <= 0) return [];
+      return [{
+        id: `automatic-retail-${price.product_id}`,
+        product: product.name,
+        mootais_sold: quantity,
+        quantity_unit: price.quantity_unit,
+        price_per_mootai: Number(price.price_per_unit),
+        sale_date: selectedDate,
+        automatic: true,
+      }];
+    })
+  ), [retailDayPrices, products, selectedDateStockByProduct, selectedDate]);
+
   const handleStartRetail = async (prices) => {
     setActionError('');
     setDayActionBusy(true);
@@ -252,12 +269,20 @@ export default function Retail() {
         quantities[unit] = (quantities[unit] || 0) + value;
       }
     }
+    if (viewMode === 'day') {
+      for (const sale of automaticRetailSales) {
+        revenue += Number(sale.mootais_sold) * sale.price_per_mootai;
+        for (const [unit, value] of Object.entries(saleQuantitiesByUnit(sale, products))) {
+          quantities[unit] = (quantities[unit] || 0) + value;
+        }
+      }
+    }
     return {
       revenue,
       quantities,
-      count: filtered.length,
+      count: filtered.length + (viewMode === 'day' ? automaticRetailSales.length : 0),
     };
-  }, [filtered, products]);
+  }, [filtered, products, viewMode, automaticRetailSales]);
 
   const retailProfit = useMemo(() => {
     let profit = 0;
@@ -269,6 +294,9 @@ export default function Retail() {
       const daySales = salesByDate.get(date) || [];
       daySales.push(sale);
       salesByDate.set(date, daySales);
+    }
+    if (viewMode === 'day' && retailDayPrices.length > 0 && !salesByDate.has(selectedDate)) {
+      salesByDate.set(selectedDate, []);
     }
 
     for (const [date, daySales] of salesByDate) {
@@ -288,7 +316,7 @@ export default function Retail() {
     }
 
     return complete ? profit : null;
-  }, [filtered, inventorySettings, inventoryMovements, products, retailDayPrices, selectedDate]);
+  }, [filtered, inventorySettings, inventoryMovements, products, retailDayPrices, selectedDate, viewMode]);
 
   const groupedSales = useMemo(() => {
     const map = new Map();
@@ -318,8 +346,28 @@ export default function Retail() {
       entry.totalRevenue += total;
     }
 
+    if (viewMode === 'day' && automaticRetailSales.length > 0) {
+      const entry = map.get(selectedDate) || {
+        date: selectedDate,
+        sales: [],
+        quantities: {},
+        totalRevenue: 0,
+      };
+      for (const sale of automaticRetailSales) {
+        const qty = Number(sale.mootais_sold);
+        const rate = Number(sale.price_per_mootai);
+        const total = qty * rate;
+        entry.sales.push({ ...sale, qty, rate, total });
+        for (const [unit, value] of Object.entries(saleQuantitiesByUnit(sale, products))) {
+          entry.quantities[unit] = (entry.quantities[unit] || 0) + value;
+        }
+        entry.totalRevenue += total;
+      }
+      map.set(selectedDate, entry);
+    }
+
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
-  }, [filtered, products]);
+  }, [filtered, products, viewMode, automaticRetailSales, selectedDate]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -385,9 +433,9 @@ export default function Retail() {
               </h2>
               <p className="mt-1 text-sm text-violet-900">
                 {retailDayActive
-                  ? 'Balances update as buyer and recorded retail sales use stock. Remaining stock stays available and is not automatically recorded as sold.'
+                  ? 'Buyer sales and recorded retail sales reduce stock first. All remaining stock is counted as an automatic retail sale at the saved prices.'
                   : retailDayFinished
-                    ? 'This date’s retail session was previously closed.'
+                    ? 'This date’s remaining stock is counted as an automatic retail sale at the saved prices.'
                     : selectedToday
                       ? 'Set today’s prices after physical stock counts are complete. Buyer and recorded retail sales reduce the balance.'
                       : 'Balances below are calculated from this date’s stock movements only. Retail prices are shown only if a session was started for this date.'}
@@ -426,7 +474,7 @@ export default function Retail() {
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-                        Available after buyer + retail sales
+                        Automatic retail sale quantity
                       </div>
                       <div className="text-sm font-bold text-violet-900">
                         {hasStockRecord
@@ -440,18 +488,18 @@ export default function Retail() {
                             {' '}{currencyINR(savedPrice.price_per_unit)} / {unit}
                           </div>
                           <div className="font-semibold text-violet-800">
-                            Remaining stock value: {currencyINR(balance * Number(savedPrice.price_per_unit))}
+                            Automatic retail sale value: {currencyINR(balance * Number(savedPrice.price_per_unit))}
                           </div>
                           {balance >= 0 && (balance === 0 || selectedDateStockCostByProduct.has(product.id)) && (
                             <div className="font-semibold text-emerald-800">
-                              Potential profit if remaining stock sells: {currencyINR(
+                              Retail profit on automatic sale: {currencyINR(
                                 (balance * Number(savedPrice.price_per_unit))
                                   - (selectedDateStockCostByProduct.get(product.id) || 0),
                               )}
                             </div>
                           )}
                           {balance > 0 && !selectedDateStockCostByProduct.has(product.id) && (
-                            <div className="font-semibold text-amber-700">Potential profit unavailable: stock cost is missing</div>
+                            <div className="font-semibold text-amber-700">Retail profit unavailable: stock cost is missing</div>
                           )}
                         </div>
                       )}
@@ -617,6 +665,7 @@ export default function Retail() {
                             <div className="min-w-0">
                               <div className="text-lg sm:text-xl font-bold text-ink-900 truncate">
                                 {sale.product || '(Unknown)'}
+                                {sale.automatic ? ' · automatic retail sale' : ''}
                               </div>
                               <div className="text-sm sm:text-base text-ink-500">
                                 {formatSaleQuantities(sale, products)} · {formatSaleRates(sale, products)}
