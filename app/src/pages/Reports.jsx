@@ -30,7 +30,7 @@ import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import Modal from '../components/Modal.jsx';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Download, FileDown, FileJson, IndianRupee, Pencil, Search } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardCheck, Download, FileDown, FileJson, IndianRupee, Pencil, Search } from 'lucide-react';
 import { downloadCsv, downloadJson, exportDateStamp } from '../lib/dataExport.js';
 
 function dateKey(date) {
@@ -118,6 +118,7 @@ function DailyClosingSummary({
   onRequestDownload,
   onEditStock,
   onCorrectMorningCount,
+  onRecordMorningCount,
   hideStockInAndBalance,
 }) {
   return (
@@ -192,7 +193,7 @@ function DailyClosingSummary({
                       <span>
                         {row.countRecorded ? formatProductQuantities(row.product, row.countedQuantity) : 'Count not recorded'}
                       </span>
-                      {row.countRecorded && date < realTodayIST && (
+                      {date < realTodayIST && (row.countRecorded ? (
                         <button
                           type="button"
                           onClick={() => onCorrectMorningCount(row)}
@@ -202,7 +203,17 @@ function DailyClosingSummary({
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
-                      )}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onRecordMorningCount(row)}
+                          aria-label={`Record ${row.productName} morning count`}
+                          title="Record the missing historical morning count"
+                          className="btn-ghost !p-2"
+                        >
+                          <ClipboardCheck className="h-4 w-4" />
+                        </button>
+                      ))}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">{formatProductQuantities(row.product, row.corrections)}</td>
@@ -258,7 +269,7 @@ function DailyClosingSummary({
   );
 }
 
-function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount }) {
+function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount, onRecordMorningCount }) {
   const [quantity, setQuantity] = useState('');
   const [quantityUnit, setQuantityUnit] = useState('');
   const [reason, setReason] = useState('');
@@ -267,12 +278,14 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const isMorningCount = target?.mode === 'morning';
+    const isMorningCount = ['morning', 'record-morning'].includes(target?.mode);
     const countFactor = target
       ? productStockToSalesFactor(target.row.product)
       : 1;
     setQuantity(target
-      ? String(isMorningCount ? target.row.countedQuantity / countFactor : target.row.closing)
+      ? String(isMorningCount
+        ? target.row.countRecorded ? target.row.countedQuantity / countFactor : ''
+        : target.row.closing)
       : '');
     setQuantityUnit(target
       ? isMorningCount ? productStockUnit(target.row.product) : target.row.unit
@@ -302,9 +315,11 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
         reason: reason.trim(),
         unitCost: stockInput.unitCost,
       };
-      const result = target.mode === 'morning'
-        ? await onCorrectMorningCount(correction)
-        : await onSave(correction);
+      const result = target.mode === 'record-morning'
+        ? await onRecordMorningCount(correction)
+        : target.mode === 'morning'
+          ? await onCorrectMorningCount(correction)
+          : await onSave(correction);
       if (result?.error) setError(result.error.message || 'Could not update this stock value.');
       else onClose();
     } catch (saveError) {
@@ -318,14 +333,16 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
     <Modal
       open={!!target}
       onClose={busy ? () => {} : onClose}
-      title={target?.mode === 'morning' ? 'Correct historical morning count' : 'Edit daily closing stock'}
+      title={target?.mode === 'record-morning'
+        ? 'Record historical morning count'
+        : target?.mode === 'morning' ? 'Correct historical morning count' : 'Edit daily closing stock'}
     >
       {target && (
         <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-ink-600">
             {target.row.productName} · {formatReportDate(target.date, { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
-          {target.mode === 'morning' && (
+          {['morning', 'record-morning'].includes(target.mode) && (
             <p className="text-xs text-ink-500">
               Saved sales quantities stay unchanged. The day’s sale costs and closing balance are recalculated from this count and purchase cost.
             </p>
@@ -333,7 +350,7 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label" htmlFor="daily-stock-unit">
-                {target.mode === 'morning' ? 'Count unit' : 'Balance unit'}
+                {['morning', 'record-morning'].includes(target.mode) ? 'Count unit' : 'Balance unit'}
               </label>
               <select
                 id="daily-stock-unit"
@@ -348,7 +365,7 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
             </div>
             <div>
               <label className="label" htmlFor="daily-stock-quantity">
-                {target.mode === 'morning'
+                {['morning', 'record-morning'].includes(target.mode)
                   ? `Morning quantity (${quantityUnit || target.row.unit})`
                   : `Correct balance (${quantityUnit || target.row.unit})`}
               </label>
@@ -376,7 +393,7 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
               )}
             </p>
           )}
-          {target.mode !== 'morning' && (
+          {!['morning', 'record-morning'].includes(target.mode) && (
             <div>
               <label className="label">Reason for correction <span className="text-red-500">*</span></label>
               <textarea
@@ -390,21 +407,21 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
           )}
           <div>
             <label className="label">
-              {target.mode === 'morning' ? 'Purchase cost' : 'Estimated cost'} per {quantityUnit || target.row.unit}
-              {target.mode === 'morning' && Number(quantity) > 0 && <span className="text-red-500"> *</span>}
-              {target.mode !== 'morning' && ' (optional)'}
+              {['morning', 'record-morning'].includes(target.mode) ? 'Purchase cost' : 'Estimated cost'} per {quantityUnit || target.row.unit}
+              {['morning', 'record-morning'].includes(target.mode) && Number(quantity) > 0 && <span className="text-red-500"> *</span>}
+              {!['morning', 'record-morning'].includes(target.mode) && ' (optional)'}
             </label>
             <input
               type="number"
-              required={target.mode === 'morning' && Number(quantity) > 0}
-              min={target.mode === 'morning' && Number(quantity) > 0 ? '0.01' : '0'}
+              required={['morning', 'record-morning'].includes(target.mode) && Number(quantity) > 0}
+              min={['morning', 'record-morning'].includes(target.mode) && Number(quantity) > 0 ? '0.01' : '0'}
               step="0.01"
               value={unitCost}
               onChange={(event) => setUnitCost(event.target.value)}
               className="input"
             />
             <p className="mt-1 text-xs text-ink-500">
-              {target.mode === 'morning'
+              {['morning', 'record-morning'].includes(target.mode)
                 ? 'Required for a non-zero morning count. This cost is used to recalculate sale costs for the day.'
                 : 'Required only when adding stock to a date with no remaining stock value.'}
             </p>
@@ -414,10 +431,14 @@ function EditDailyStockModal({ target, onClose, onSave, onCorrectMorningCount })
             <button type="button" disabled={busy} onClick={onClose} className="btn-outline flex-1">Cancel</button>
             <button
               type="submit"
-              disabled={busy || !quantity || (target.mode !== 'morning' && !reason.trim())}
+              disabled={busy || !quantity || (!['morning', 'record-morning'].includes(target.mode) && !reason.trim())}
               className="btn-green flex-1"
             >
-              <Check className="h-4 w-4" /> {busy ? 'Saving…' : target.mode === 'morning' ? 'Save morning count' : 'Save stock balance'}
+              <Check className="h-4 w-4" /> {busy
+                ? 'Saving…'
+                : target.mode === 'record-morning'
+                  ? 'Record morning count'
+                  : target.mode === 'morning' ? 'Save morning count' : 'Save stock balance'}
             </button>
           </div>
         </form>
@@ -670,7 +691,7 @@ export default function Reports() {
     showToast,
     updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
-    setStockQuantityForDate, correctHistoricalMorningCount,
+    setStockQuantityForDate, correctHistoricalMorningCount, recordHistoricalMorningCount,
   } = app;
   const buyersById = useMemo(
     () => new Map((buyers || []).map((buyer) => [buyer.id, buyer])),
@@ -1171,6 +1192,12 @@ export default function Reports() {
           quantity,
           unitCost,
         )}
+        onRecordMorningCount={({ productId, date, quantity, unitCost }) => recordHistoricalMorningCount(
+          productId,
+          date,
+          quantity,
+          unitCost,
+        )}
       />
 
       <DailyClosingSummary
@@ -1186,6 +1213,7 @@ export default function Reports() {
         hideStockInAndBalance={selectedDate === '2026-10-15'}
         onEditStock={(row) => setStockEditTarget({ date: selectedDate, row, mode: 'closing' })}
         onCorrectMorningCount={(row) => setStockEditTarget({ date: selectedDate, row, mode: 'morning' })}
+        onRecordMorningCount={(row) => setStockEditTarget({ date: selectedDate, row, mode: 'record-morning' })}
         onRequestDownload={() => requestDownload(`the ${selectedDate} balance count CSV`, downloadDailyClosingCsv)}
       />
 

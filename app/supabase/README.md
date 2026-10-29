@@ -136,6 +136,12 @@ order:
     deletion snapshots the buyer and linked sales, payments, and stock
     movements before removing those live records. Apply it after the buyer
     lifecycle and transaction-corrections migrations.
+23. `202610290001_record_historical_morning_count.sql` enables adding a missing
+    past-date morning count from Reports. It preserves sales and stock receipts,
+    recalculates outbound movement costs using the entered count cost, and
+    stores a private snapshot of the previous movements. It aborts if the date
+    already has conflicting opening/count movements, a sale lacks its linked
+    stock movement, or the count cannot cover that day's movements.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
