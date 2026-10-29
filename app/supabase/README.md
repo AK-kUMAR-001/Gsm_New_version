@@ -152,7 +152,11 @@ start RPC. The dashboard shows buyer, retail, and combined daily profit from
 linked stock costs; only recorded sales count as sold. The Retail page loads
 the selected date's session and saved prices, and derives that date's available
 balance from only its stock movements, so buyer and retail sales both reduce
-the displayed balance without carrying stock across dates.
+the displayed balance without carrying stock across dates. The Retail page
+shows remaining-stock value and potential profit using only that date's saved
+retail prices and remaining stock cost; these are estimates, not realized
+profit. Recorded retail profit is calculated separately from linked retail
+sales and stock costs.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 of the product's sales units; set it

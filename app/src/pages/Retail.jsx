@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
@@ -11,6 +11,7 @@ import {
   saleQuantitiesByUnit,
   productSalesUnit,
   todayIST,
+  computeDailyProductProfits,
 } from '../lib/business.js';
 import PeriodPills, { PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
@@ -148,6 +149,11 @@ export default function Retail() {
   const cardRefs = useRef({});
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const refreshRetailData = useCallback(
+    () => Promise.all([load(), loadInventory(), loadRetailDay(selectedDate)]),
+    [load, loadInventory, loadRetailDay, selectedDate],
+  );
+
   useEffect(() => {
     let mounted = true;
     Promise.all([loadRetailDay(selectedDate), loadInventory()]).then(() => {
@@ -155,6 +161,14 @@ export default function Retail() {
     });
     return () => { mounted = false; };
   }, [loadRetailDay, loadInventory, selectedDate]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      void refreshRetailData();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refreshRetailData]);
 
   useEffect(() => {
     if (searchParams.get('start') !== '1' || !retailDayReady || retailDayLoading || retailDayError) return;
@@ -177,6 +191,18 @@ export default function Retail() {
       );
     }
     return balances;
+  }, [inventoryMovements, selectedDate]);
+
+  const selectedDateStockCostByProduct = useMemo(() => {
+    const costs = new Map();
+    for (const movement of inventoryMovements) {
+      if (movement.movement_date !== selectedDate) continue;
+      costs.set(
+        movement.product_id,
+        (costs.get(movement.product_id) || 0) + Number(movement.cost_delta || 0),
+      );
+    }
+    return costs;
   }, [inventoryMovements, selectedDate]);
 
   const productsWithSelectedDateStock = new Set([
@@ -232,6 +258,36 @@ export default function Retail() {
       count: filtered.length,
     };
   }, [filtered, products]);
+
+  const retailProfit = useMemo(() => {
+    let profit = 0;
+    let complete = true;
+    const salesByDate = new Map();
+    for (const sale of filtered) {
+      const date = String(sale.sale_date || '').slice(0, 10);
+      if (!date) continue;
+      const daySales = salesByDate.get(date) || [];
+      daySales.push(sale);
+      salesByDate.set(date, daySales);
+    }
+
+    for (const [date, daySales] of salesByDate) {
+      const productProfits = computeDailyProductProfits(
+        inventorySettings,
+        inventoryMovements,
+        products,
+        [],
+        daySales,
+        date,
+      );
+      for (const productProfit of productProfits.values()) {
+        profit += productProfit.retailProfit;
+        if (!productProfit.costsComplete || productProfit.stockShortage) complete = false;
+      }
+    }
+
+    return complete ? profit : null;
+  }, [filtered, inventorySettings, inventoryMovements, products]);
 
   const groupedSales = useMemo(() => {
     const map = new Map();
@@ -289,7 +345,11 @@ export default function Retail() {
             Enter data for {formatDate(selectedDate, { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
         </div>
-        <button onClick={() => load()} className="btn-ghost" title="Refresh">
+        <button
+          onClick={refreshRetailData}
+          className="btn-ghost"
+          title="Refresh"
+        >
           <RefreshCw className="w-4 h-4" />
         </button>
         <button onClick={() => setModalOpen(true)} className="btn-green">
@@ -381,6 +441,17 @@ export default function Retail() {
                           <div className="font-semibold text-violet-800">
                             Remaining stock value: {currencyINR(balance * Number(savedPrice.price_per_unit))}
                           </div>
+                          {balance >= 0 && (balance === 0 || selectedDateStockCostByProduct.has(product.id)) && (
+                            <div className="font-semibold text-emerald-800">
+                              Potential profit if remaining stock sells: {currencyINR(
+                                (balance * Number(savedPrice.price_per_unit))
+                                  - (selectedDateStockCostByProduct.get(product.id) || 0),
+                              )}
+                            </div>
+                          )}
+                          {balance > 0 && !selectedDateStockCostByProduct.has(product.id) && (
+                            <div className="font-semibold text-amber-700">Potential profit unavailable: stock cost is missing</div>
+                          )}
                         </div>
                       )}
                       {!savedPrice && (
@@ -420,7 +491,7 @@ export default function Retail() {
         />
       </section>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="metric-card">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -441,6 +512,21 @@ export default function Retail() {
             <div className="min-w-0">
               <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total quantity sold</div>
               <div className="text-2xl font-extrabold text-ink-900 mt-1">{formatQuantityByUnit(stats.quantities) || '0'}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center text-violet-600">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Retail profit (recorded sales)</div>
+              <div className="text-2xl font-extrabold text-ink-900 mt-1">
+                {retailProfit == null ? 'Unavailable' : currencyINR(retailProfit)}
+              </div>
+              <div className="mt-1 text-xs text-ink-500">Profit from recorded retail sales only</div>
             </div>
           </div>
         </div>
@@ -562,6 +648,7 @@ export default function Retail() {
         onClose={() => setStartModalOpen(false)}
         products={trackedActiveProducts}
         stockByProduct={selectedDateStockByProduct}
+        stockCostByProduct={selectedDateStockCostByProduct}
         onStart={handleStartRetail}
         busy={dayActionBusy}
         error={actionError}

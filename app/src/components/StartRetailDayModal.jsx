@@ -7,6 +7,7 @@ export default function StartRetailDayModal({
   onClose,
   products,
   stockByProduct,
+  stockCostByProduct,
   onStart,
   busy,
   error,
@@ -18,13 +19,24 @@ export default function StartRetailDayModal({
   }, [open, products]);
 
   const productValues = useMemo(
-    () => products.map((product) => ({
-      product,
-      value: (stockByProduct.get(product.id) || 0) * Number(rates[product.id] || 0),
-    })),
-    [products, rates, stockByProduct],
+    () => products.map((product) => {
+      const balance = stockByProduct.get(product.id) || 0;
+      const value = balance * Number(rates[product.id] || 0);
+      const hasCost = balance === 0 || stockCostByProduct.has(product.id);
+      return {
+        product,
+        value,
+        estimatedProfit: hasCost ? value - (stockCostByProduct.get(product.id) || 0) : null,
+      };
+    }),
+    [products, rates, stockByProduct, stockCostByProduct],
   );
   const totalAtCurrentBalance = productValues.reduce((sum, item) => sum + item.value, 0);
+  const estimatedProfitAvailable = productValues.every((item) => item.estimatedProfit != null);
+  const estimatedProfitAtCurrentBalance = productValues.reduce(
+    (sum, item) => sum + (item.estimatedProfit || 0),
+    0,
+  );
 
   const submit = async (event) => {
     event.preventDefault();
@@ -78,7 +90,7 @@ export default function StartRetailDayModal({
         </div>
 
         <div className="rounded-xl bg-sidebar px-4 py-3 text-white">
-          <div className="text-center text-xs text-white/60">Value at current balance</div>
+          <div className="text-center text-xs text-white/60">Value at current balance if sold at retail price</div>
           <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm">
             {productValues.map(({ product, value }, index) => (
               <React.Fragment key={product.id}>
@@ -89,11 +101,15 @@ export default function StartRetailDayModal({
             <span className="text-white/60">=</span>
             <span className="font-extrabold">{currencyINR(totalAtCurrentBalance)}</span>
           </div>
+          <div className="mt-3 text-center text-xs text-white/60">Potential profit if all remaining stock sells</div>
+          <div className="mt-1 text-center text-lg font-extrabold">
+            {estimatedProfitAvailable ? currencyINR(estimatedProfitAtCurrentBalance) : 'Unavailable: stock cost is missing'}
+          </div>
         </div>
 
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-          Retail balances stay in stock and update as buyer or recorded retail sales are entered. Unsold stock is
-          not automatically recorded as sold.
+          Buyer sales entered after starting update the remaining quantity and its value at these retail prices.
+          Potential profit is an estimate on unsold stock; only recorded sales count as realized profit.
         </div>
 
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
