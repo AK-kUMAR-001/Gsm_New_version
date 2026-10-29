@@ -279,6 +279,7 @@ export default function Retail() {
         [],
         daySales,
         date,
+        date === selectedDate ? retailDayPrices : [],
       );
       for (const productProfit of productProfits.values()) {
         profit += productProfit.retailProfit;
@@ -287,7 +288,7 @@ export default function Retail() {
     }
 
     return complete ? profit : null;
-  }, [filtered, inventorySettings, inventoryMovements, products]);
+  }, [filtered, inventorySettings, inventoryMovements, products, retailDayPrices, selectedDate]);
 
   const groupedSales = useMemo(() => {
     const map = new Map();

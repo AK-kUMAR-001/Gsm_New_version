@@ -130,6 +130,9 @@ function DailyClosingSummary({
           <p className="mt-1 text-xs text-ink-500">
             Balance count is calculated from this date's physical count, sales, and stock changes only. It stays blank if no physical count was recorded; previous-day stock is never carried forward.
           </p>
+          <p className="mt-1 text-xs text-ink-500">
+            Final profit includes recorded buyer/retail profit plus estimated profit on remaining stock at this date's saved retail prices.
+          </p>
           {hideStockInAndBalance && (
             <p className="mt-1 text-xs text-ink-500">
               Stock-in and balance count are not displayed for this date. Buyer sales remain unchanged.
@@ -688,6 +691,7 @@ export default function Reports() {
     buyerSales, retailSales, payments, buyers, products, balances,
     inventorySettings, inventoryCounts, inventoryMovements,
     inventoryError, loadInventory, offline,
+    retailDayPrices, retailDayLoading, loadRetailDay,
     showToast,
     updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
@@ -751,8 +755,9 @@ export default function Reports() {
   };
 
   useEffect(() => {
-    if (!offline) loadInventory();
-  }, [loadInventory, offline]);
+    if (offline) return;
+    Promise.all([loadInventory(), loadRetailDay(selectedDate)]);
+  }, [loadInventory, loadRetailDay, offline, selectedDate]);
 
   const filteredBuyerSales = useMemo(
     () => (buyerSales || []).filter((sale) => inPeriod(sale.sale_date, period, 'reports') && matchesBuyerSale(sale)),
@@ -831,6 +836,27 @@ export default function Reports() {
   };
   const dailyBuyerTotal = useMemo(() => sumSales(dailyBuyerSales), [dailyBuyerSales]);
   const dailyRetailTotal = useMemo(() => sumSales(dailyRetailSales), [dailyRetailSales]);
+  const dailyRetailBalances = useMemo(() => {
+    const pricesByProduct = new Map(retailDayPrices.map((price) => [price.product_id, price]));
+    return inventorySettings.flatMap((setting) => {
+      const price = pricesByProduct.get(setting.product_id);
+      const product = products.find((item) => item.id === setting.product_id);
+      if (!price || !product) return [];
+      const balance = inventoryMovements
+        .filter((movement) => movement.product_id === setting.product_id && movement.movement_date === selectedDate)
+        .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
+      if (balance <= 0) return [];
+      return [{
+        product,
+        balance,
+        unit: price.quantity_unit,
+        price: Number(price.price_per_unit || 0),
+        value: balance * Number(price.price_per_unit || 0),
+      }];
+    });
+  }, [inventorySettings, inventoryMovements, products, retailDayPrices, selectedDate]);
+  const dailyRemainingRetailValue = dailyRetailBalances.reduce((sum, item) => sum + item.value, 0);
+  const dailyRetailDisplayTotal = dailyRetailTotal + dailyRemainingRetailValue;
   const dailyPaymentsTotal = useMemo(
     () => dailyPayments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0),
     [dailyPayments]
@@ -843,8 +869,9 @@ export default function Reports() {
       buyerSales,
       retailSales,
       selectedDate,
+      retailDayPrices,
     ),
-    [inventorySettings, inventoryMovements, products, buyerSales, retailSales, selectedDate]
+    [inventorySettings, inventoryMovements, products, buyerSales, retailSales, selectedDate, retailDayPrices]
   );
   const dailyStockClosingRows = useMemo(
     () => buildDailyStockClosingRows(
@@ -1102,10 +1129,10 @@ export default function Reports() {
             })}
           </DailyActivitySection>
           <DailyActivitySection
-            title="Retail sales"
-            count={dailyRetailSales.length}
-            total={dailyRetailTotal}
-            emptyText="No retail sales recorded on this date."
+            title="Retail sales + remaining stock value"
+            count={dailyRetailSales.length + dailyRetailBalances.length}
+            total={dailyRetailDisplayTotal}
+            emptyText={retailDayLoading ? 'Loading retail prices…' : 'No retail sales or priced remaining stock on this date.'}
             enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
             onEnter={() => setEntryModal('retail')}
           >
@@ -1125,6 +1152,16 @@ export default function Reports() {
                 />
               );
             })}
+            {dailyRetailBalances.map((item) => (
+              <ActivityEntry
+                key={`remaining-${item.product.id}`}
+                title={`${item.product.name} · remaining stock`}
+                subtitle={`${item.balance.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${item.unit} · ${currencyINR(item.price)} / ${item.unit}`}
+                amount={item.value}
+                emoji={getProductEmoji(item.product.name, products)}
+                note="Estimated value at this date’s saved retail price; not a recorded sale."
+              />
+            ))}
           </DailyActivitySection>
           <DailyActivitySection
             title="Payments"

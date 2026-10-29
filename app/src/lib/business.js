@@ -420,8 +420,12 @@ export function computeInventoryCostReport(movements, buyerSales, retailSales, p
   };
 }
 
-export function computeDailyProductProfits(settings, movements, products, buyerSales, retailSales, date) {
+export function computeDailyProductProfits(settings, movements, products, buyerSales, retailSales, date, retailPrices = []) {
   const productsById = new Map((products || []).map((product) => [product.id, product]));
+  const retailPricesByProduct = new Map((retailPrices || []).map((price) => [
+    price.product_id,
+    Number(price.price_per_unit || 0),
+  ]));
   const salesBySource = new Map();
   const salesByProduct = new Map();
   const addSale = (sale, sourceKind, quantity, price) => {
@@ -464,6 +468,7 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
       costedSalesCount: 0,
       damageCost: 0,
       stockBalance: 0,
+      remainingStockCost: 0,
     });
   }
 
@@ -472,6 +477,7 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
     const costs = productCosts.get(movement.product_id);
     if (!costs) continue;
     costs.stockBalance += Number(movement.quantity_delta || 0);
+    costs.remainingStockCost += Number(movement.cost_delta || 0);
     if (movement.movement_type === 'sale') {
       const sale = salesBySource.get(`${movement.source_kind}:${movement.source_id}`);
       if (sale && sale.productName === String(costs.product.name || '').trim().toLocaleLowerCase()) {
@@ -490,14 +496,24 @@ export function computeDailyProductProfits(settings, movements, products, buyerS
     const costsComplete = costs.costedSalesCount >= costs.salesCount;
     const stockBalance = Math.round(costs.stockBalance * 1000) / 1000;
     const stockShortage = stockBalance < 0;
+    const retailPrice = retailPricesByProduct.get(productId);
+    const hasRetailPrice = retailPrice != null;
+    const remainingRetailValue = hasRetailPrice && !stockShortage ? stockBalance * retailPrice : 0;
+    const remainingRetailProfit = hasRetailPrice && !stockShortage
+      ? remainingRetailValue - costs.remainingStockCost
+      : 0;
     return [productId, {
       ...costs,
       stockBalance,
       buyerProfit: costs.buyerRevenue - costs.buyerSaleCost,
-      retailProfit: costs.retailRevenue - costs.retailSaleCost,
+      recordedRetailProfit: costs.retailRevenue - costs.retailSaleCost,
+      remainingRetailValue,
+      remainingRetailProfit,
+      retailProfit: costs.retailRevenue - costs.retailSaleCost + remainingRetailProfit,
       finalProfit: costsComplete && !stockShortage
-        ? costs.revenue - costs.saleCost - costs.damageCost
+        ? costs.revenue - costs.saleCost - costs.damageCost + remainingRetailProfit
         : null,
+      hasRetailPrice,
       costsComplete,
       stockShortage,
     }];

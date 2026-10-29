@@ -43,6 +43,9 @@ export default function Dashboard() {
     inventoryLoading,
     inventoryError,
     loadInventory,
+    retailDayPrices,
+    retailDayLoading,
+    loadRetailDay,
     offline,
     updateBuyerSale,
     updateRetailSale,
@@ -98,8 +101,9 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (!offline) loadInventory();
-  }, [loadInventory, offline]);
+    if (offline) return;
+    Promise.all([loadInventory(), loadRetailDay(todayIST('dashboard'))]);
+  }, [loadInventory, loadRetailDay, offline]);
 
   const missingStockCounts = inventorySettings.filter(
     (setting) => !inventoryCounts.some((count) => count.product_id === setting.product_id && count.stock_date === todayIST()),
@@ -120,9 +124,11 @@ export default function Dashboard() {
     buyerSales,
     retailSales,
     todayIST('dashboard'),
+    retailDayPrices,
   );
   const todayProfitAvailable = !offline
     && !inventoryLoading
+    && !retailDayLoading
     && !inventoryError
     && inventorySettings.length > 0
     && todayProductProfits.size === inventorySettings.length
@@ -232,10 +238,10 @@ export default function Dashboard() {
           <div key={item.label} className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${item.background}`}>
             <div className="text-xs font-bold uppercase tracking-widest text-ink-600">{item.label}</div>
             <div className={`mt-2 break-words text-2xl font-extrabold sm:text-3xl ${item.value == null ? 'text-ink-500' : item.color}`}>
-              {inventoryLoading ? 'Loading…' : item.value == null ? 'Unavailable' : currencyINR(item.value)}
+              {inventoryLoading || retailDayLoading ? 'Loading…' : item.value == null ? 'Unavailable' : currencyINR(item.value)}
             </div>
             <p className="mt-1 text-xs text-ink-700">
-              {inventoryLoading
+              {inventoryLoading || retailDayLoading
                 ? 'Loading today’s stock costs…'
                 : offline
                   ? 'Stock cost data is unavailable while offline.'
@@ -246,8 +252,10 @@ export default function Dashboard() {
                         ? 'Reconcile negative stock before profit can be calculated.'
                         : 'Profit needs complete linked sale costs for tracked products.'
                       : item.label.includes('Total')
-                        ? 'After recorded damage; only recorded sales count as sold.'
-                        : 'Sales revenue minus linked stock cost.'}
+                        ? 'Buyer and recorded retail profit plus estimated profit on remaining stock at today’s saved retail prices, after damage.'
+                        : item.label.includes('Retail')
+                          ? 'Recorded retail-sale profit plus estimated profit on remaining stock at today’s saved retail prices.'
+                          : 'Buyer sales revenue minus linked stock cost.'}
             </p>
           </div>
         ))}

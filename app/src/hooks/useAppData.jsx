@@ -214,6 +214,8 @@ export function AppDataProvider({ children }) {
     const requestId = ++retailDayLoadRequestRef.current;
     setRetailDayLoading(true);
     setRetailDayError('');
+    setRetailDaySession(null);
+    setRetailDayPrices([]);
     const saleDate = String(requestedDate || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(saleDate)) {
       const error = new Error('Choose a valid retail date.');
