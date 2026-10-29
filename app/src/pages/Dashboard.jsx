@@ -252,10 +252,10 @@ export default function Dashboard() {
                         ? 'Reconcile negative stock before profit can be calculated.'
                         : 'Profit needs complete linked sale costs for tracked products.'
                       : item.label.includes('Total')
-                        ? 'Buyer and recorded retail profit plus bulk retail profit on today’s remaining stock at saved prices, after damage.'
+                        ? 'Buyers + Retail final profit'
                         : item.label.includes('Retail')
-                          ? 'Recorded retail-sale profit plus bulk retail profit on today’s remaining stock at saved prices.'
-                          : 'Buyer sales revenue minus linked stock cost.'}
+                          ? 'Balance stock after buyers will be counted here'
+                          : 'Sale of Buyers'}
             </p>
           </div>
         ))}

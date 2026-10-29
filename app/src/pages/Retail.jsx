@@ -560,7 +560,7 @@ export default function Retail() {
             </div>
             <div className="min-w-0">
               <div className="text-sm font-semibold text-ink-500 uppercase tracking-wide">Total quantity sold</div>
-              <div className="text-2xl font-extrabold text-ink-900 mt-1">{formatQuantityByUnit(stats.quantities) || '0'}</div>
+              <div className="mt-1 text-lg font-extrabold text-ink-900 sm:text-xl">{formatQuantityByUnit(stats.quantities) || '0'}</div>
             </div>
           </div>
         </div>
