@@ -330,6 +330,61 @@ export function realTodayIST() {
   return toISTDateKey(new Date());
 }
 
+export function shiftDateKey(value, amount, unit = 'day') {
+  const [year, month, day] = String(value || '').slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day || !Number.isInteger(amount)) return '';
+  if (unit === 'month') {
+    const targetMonthIndex = year * 12 + month - 1 + amount;
+    const targetYear = Math.floor(targetMonthIndex / 12);
+    const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
+    const targetDay = Math.min(day, new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate());
+    return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+  }
+  const shifted = new Date(Date.UTC(year, month - 1, day + amount));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-${String(shifted.getUTCDate()).padStart(2, '0')}`;
+}
+
+export function dateRangeForPeriod(period, anchorDate = realTodayIST()) {
+  const anchor = String(anchorDate || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return null;
+  const today = realTodayIST();
+  if (period === 'all' || period === 'full') {
+    return { start: '', end: today, label: 'Complete bill' };
+  }
+  if (period === 'today' || period === 'custom') {
+    return { start: anchor, end: anchor, label: formatDateCompact(anchor) };
+  }
+
+  const day = parseDateStr(anchor);
+  let start;
+  let end;
+  let label;
+  if (period === 'week') {
+    const weekdayOffset = (day.getDay() + 6) % 7;
+    start = shiftDateKey(anchor, -weekdayOffset);
+    end = shiftDateKey(start, 6);
+    label = 'This week';
+  } else if (period === 'month' || period === 'monthly') {
+    start = `${anchor.slice(0, 7)}-01`;
+    end = shiftDateKey(shiftDateKey(start, 1, 'month'), -1);
+    label = 'This month';
+  } else if (period === '3months') {
+    const firstOfAnchorMonth = `${anchor.slice(0, 7)}-01`;
+    start = shiftDateKey(firstOfAnchorMonth, -2, 'month');
+    end = shiftDateKey(shiftDateKey(firstOfAnchorMonth, 1, 'month'), -1);
+    label = 'Last 3 months';
+  } else {
+    return null;
+  }
+
+  if (end > today) end = today;
+  return {
+    start,
+    end,
+    label: `${label} (${formatDateCompact(start)} - ${formatDateCompact(end)})`,
+  };
+}
+
 export function dataRefDate(...dateLists) {
   let latest = null;
   for (const list of dateLists) {

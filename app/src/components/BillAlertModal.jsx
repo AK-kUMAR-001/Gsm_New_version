@@ -8,12 +8,13 @@ import {
   buyerSaleDiscountTotal,
   buyerSaleFinalTotal,
   buyerSaleOriginalTotal,
+  dateRangeForPeriod,
   realTodayIST,
   saleQuantityUnit,
-  startOfWeekIST,
+  shiftDateKey,
 } from '../lib/business.js';
 import Modal from './Modal.jsx';
-import { ArrowLeft, Download, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, MessageCircle } from 'lucide-react';
 
 function downloadBillFile(file) {
   const url = URL.createObjectURL(file);
@@ -34,22 +35,19 @@ function normalizeWhatsAppPhone(phone) {
   return normalized.length >= 11 && normalized.length <= 15 ? normalized : '';
 }
 
-function periodRange(period, selectedDate) {
-  const today = realTodayIST();
-  if (period === 'today') return { start: selectedDate, end: selectedDate, label: formatDateCompact(selectedDate) };
-  if (period === 'week') {
-    return { start: startOfWeekIST('reports'), end: today, label: `This week (${formatDateCompact(startOfWeekIST('reports'))} - ${formatDateCompact(today)})` };
-  }
-  if (period === 'month') {
-    const start = `${today.slice(0, 7)}-01`;
-    return { start, end: today, label: `This month (${formatDateCompact(start)} - ${formatDateCompact(today)})` };
-  }
-  return { start: '', end: today, label: 'Complete bill' };
+function periodRange(period, anchorDate) {
+  return dateRangeForPeriod(period, anchorDate);
+}
+
+function movePeriodAnchor(period, anchorDate, direction) {
+  const step = period === 'week' ? 7 : period === '3months' ? 3 : 1;
+  const unit = ['month', 'monthly', '3months'].includes(period) ? 'month' : 'day';
+  return shiftDateKey(anchorDate, direction * step, unit);
 }
 
 function createTextBillUrl({ buyer, sales, payments, balance, period, selectedDate }) {
   const phone = normalizeWhatsAppPhone(buyer?.phone);
-  if (!phone || (period === 'today' && !selectedDate)) return '';
+  if (!phone || (period !== 'full' && !selectedDate)) return '';
   const range = periodRange(period, selectedDate);
   const inRange = (value) => {
     const date = String(value || '').slice(0, 10);
@@ -181,7 +179,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
       if (!phone) return '';
       const label = pdfPeriod === 'custom'
         ? formatDateCompact(pdfDate)
-        : periodRange(pdfPeriod === 'monthly' ? 'month' : pdfPeriod === 'full' ? 'full' : pdfPeriod).label;
+        : periodRange(pdfPeriod === 'monthly' ? 'monthly' : pdfPeriod, pdfDate).label;
       const message = `Hi ${selectedRow.buyer.name}, this is your's GSM Traders bill for ${label}.`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     })()
@@ -206,6 +204,7 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
         balance: selectedRow.balance,
         kind: pdfPeriod === 'custom' ? 'custom' : pdfPeriod,
         selectedDate: pdfDate,
+        anchorDate: pdfDate,
       });
       downloadBillFile(file);
       setDownloadedPdfKey(pdfPeriodKey);
@@ -297,8 +296,8 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
             <div className="space-y-3">
               {[
                 ['today', `Today (${formatDateCompact(selectedDate)})`],
-                ['week', 'This week'],
-                ['month', 'This month'],
+                ['week', 'Week'],
+                ['month', 'Month'],
                 ['full', 'Complete bill'],
               ].map(([period, label]) => (
                 <button
@@ -310,24 +309,45 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
                   {label}
                 </button>
               ))}
-              {textPeriod === 'today' && (
-                <label className="block text-sm font-semibold text-ink-700">
-                  Bill date
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    max={realTodayIST()}
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                    className="input mt-1"
-                  />
-                </label>
+              {textPeriod !== 'full' && (
+                <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="Previous text bill period"
+                    disabled={!selectedDate}
+                    onClick={() => setSelectedDate((date) => movePeriodAnchor(textPeriod, date, -1))}
+                    className="btn-outline !min-h-10 !px-2 !py-2"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <label className="block min-w-0 text-center text-xs font-semibold text-ink-700">
+                    {periodRange(textPeriod, selectedDate)?.label || 'Choose a bill date'}
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      max={realTodayIST()}
+                      onChange={(event) => setSelectedDate(event.target.value)}
+                      aria-label="Choose text bill date"
+                      className="input mt-1 !min-h-10 !py-1.5 text-center text-xs"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    aria-label="Next text bill period"
+                    disabled={!selectedDate || movePeriodAnchor(textPeriod, selectedDate, 1) > realTodayIST()}
+                    onClick={() => setSelectedDate((date) => movePeriodAnchor(textPeriod, date, 1))}
+                    className="btn-outline !min-h-10 !px-2 !py-2"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               )}
               {!normalizeWhatsAppPhone(selectedRow.buyer.phone) && (
                 <p className="text-sm text-red-700" role="alert">
                   Add a valid phone number to send a WhatsApp text bill. PDF downloads are still available.
                 </p>
               )}
-              {textPeriod === 'today' && !selectedDate && (
+              {textPeriod !== 'full' && !selectedDate && (
                 <p className="text-sm text-red-700" role="alert">Choose a bill date.</p>
               )}
               <a
@@ -348,8 +368,9 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
             <div className="space-y-3">
               {[
                 ['custom', `Custom date (${formatDateCompact(pdfDate)})`],
-                ['week', 'This week'],
-                ['monthly', 'This month'],
+                ['week', 'Week'],
+                ['monthly', 'Month'],
+                ['3months', '3 Months'],
                 ['full', 'Complete bill'],
               ].map(([period, label]) => (
                 <button
@@ -364,25 +385,51 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
                   {label}
                 </button>
               ))}
-              {pdfPeriod === 'custom' && (
-                <label className="block text-sm font-semibold text-ink-700">
-                  Bill date
-                  <input
-                    type="date"
-                    value={pdfDate}
-                    max={realTodayIST()}
-                    onChange={(event) => {
-                      setPdfDate(event.target.value);
+              {pdfPeriod !== 'full' && (
+                <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="Previous PDF bill period"
+                    disabled={!pdfDate}
+                    onClick={() => setPdfDate((date) => movePeriodAnchor(pdfPeriod === 'custom' ? 'today' : pdfPeriod, date, -1))}
+                    className="btn-outline !min-h-10 !px-2 !py-2"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <label className="block min-w-0 text-center text-xs font-semibold text-ink-700">
+                    {pdfPeriod === 'custom'
+                      ? `Bill date: ${formatDateCompact(pdfDate)}`
+                      : periodRange(pdfPeriod === 'monthly' ? 'monthly' : pdfPeriod, pdfDate)?.label || 'Choose a bill date'}
+                    <input
+                      type="date"
+                      value={pdfDate}
+                      max={realTodayIST()}
+                      onChange={(event) => {
+                        setPdfDate(event.target.value);
+                        setDownloadedPdfKey('');
+                      }}
+                      aria-label="Choose PDF bill date"
+                      className="input mt-1 !min-h-10 !py-1.5 text-center text-xs"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    aria-label="Next PDF bill period"
+                    disabled={!pdfDate || movePeriodAnchor(pdfPeriod === 'custom' ? 'today' : pdfPeriod, pdfDate, 1) > realTodayIST()}
+                    onClick={() => {
+                      setPdfDate((date) => movePeriodAnchor(pdfPeriod === 'custom' ? 'today' : pdfPeriod, date, 1));
                       setDownloadedPdfKey('');
                     }}
-                    className="input mt-1"
-                  />
-                </label>
+                    className="btn-outline !min-h-10 !px-2 !py-2"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               )}
               <button
                 type="button"
                 onClick={createAndDownloadBill}
-                disabled={!!workingKind || !createBuyerBillFile || (pdfPeriod === 'custom' && !pdfDate)}
+                disabled={!!workingKind || !createBuyerBillFile || (pdfPeriod !== 'full' && !pdfDate)}
                 className="btn-green w-full justify-center disabled:opacity-60"
               >
                 <Download className="h-4 w-4" />

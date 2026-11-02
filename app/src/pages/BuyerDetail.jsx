@@ -7,12 +7,14 @@ import {
   buyerSaleFinalTotal,
   buyerSaleOriginalTotal,
   currencyINR,
+  dateRangeForPeriod,
   formatDateCompact,
   formatSaleQuantities,
   formatSaleRates,
   getProductEmoji,
   inPeriod,
   realTodayIST,
+  shiftDateKey,
 } from '../lib/business.js';
 import Avatar from '../components/Avatar.jsx';
 import PeriodPills, { BUYER_PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
@@ -22,7 +24,13 @@ import DeleteBuyerModal from '../components/DeleteBuyerModal.jsx';
 import BillAlertModal from '../components/BillAlertModal.jsx';
 import BuyerBalanceAdjustmentModal from '../components/BuyerBalanceAdjustmentModal.jsx';
 import Modal from '../components/Modal.jsx';
-import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, FileText, Banknote, FileDown, MessageCircle, Archive, ArchiveRestore, Trash2, Pencil } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, FileText, Banknote, FileDown, MessageCircle, Archive, ArchiveRestore, Trash2, Pencil } from 'lucide-react';
+
+function movePdfAnchor(period, date, direction) {
+  const step = period === 'week' ? 7 : period === '3months' ? 3 : 1;
+  const unit = ['month', '3months'].includes(period) ? 'month' : 'day';
+  return shiftDateKey(date, direction * step, unit);
+}
 
 export default function BuyerDetail() {
   const { id } = useParams();
@@ -49,6 +57,7 @@ export default function BuyerDetail() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [pdfPeriodPickerOpen, setPdfPeriodPickerOpen] = useState(false);
   const [pdfDownloadPeriod, setPdfDownloadPeriod] = useState('month');
+  const [pdfAnchorDate, setPdfAnchorDate] = useState(realTodayIST());
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const [billAlertOpen, setBillAlertOpen] = useState(false);
   const [balanceEditorOpen, setBalanceEditorOpen] = useState(false);
@@ -96,7 +105,8 @@ export default function BuyerDetail() {
           '3months': '3months',
           all: 'full',
         }[pdfDownloadPeriod],
-        selectedDate: realTodayIST(),
+        selectedDate: pdfAnchorDate,
+        anchorDate: pdfAnchorDate,
       });
       const url = URL.createObjectURL(file);
       const link = document.createElement('a');
@@ -271,6 +281,7 @@ export default function BuyerDetail() {
             type="button"
             onClick={() => {
               setPdfDownloadPeriod(period);
+              setPdfAnchorDate(realTodayIST());
               setPdfPeriodPickerOpen(true);
             }}
             className="btn-outline"
@@ -468,6 +479,39 @@ export default function BuyerDetail() {
               </button>
             ))}
           </div>
+          {pdfDownloadPeriod !== 'all' && (
+            <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+              <button
+                type="button"
+                aria-label="Previous PDF period"
+                disabled={!pdfAnchorDate}
+                onClick={() => setPdfAnchorDate((date) => movePdfAnchor(pdfDownloadPeriod, date, -1))}
+                className="btn-outline !min-h-10 !px-2 !py-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <label className="block min-w-0 text-center text-xs font-semibold text-ink-700">
+                {dateRangeForPeriod(pdfDownloadPeriod === 'today' ? 'today' : pdfDownloadPeriod, pdfAnchorDate)?.label || 'Choose a PDF date'}
+                <input
+                  type="date"
+                  value={pdfAnchorDate}
+                  max={realTodayIST()}
+                  aria-label="Choose PDF period date"
+                  onChange={(event) => setPdfAnchorDate(event.target.value)}
+                  className="input mt-1 !min-h-10 !py-1.5 text-center text-xs"
+                />
+              </label>
+              <button
+                type="button"
+                aria-label="Next PDF period"
+                disabled={!pdfAnchorDate || movePdfAnchor(pdfDownloadPeriod, pdfAnchorDate, 1) > realTodayIST()}
+                onClick={() => setPdfAnchorDate((date) => movePdfAnchor(pdfDownloadPeriod, date, 1))}
+                className="btn-outline !min-h-10 !px-2 !py-2"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -481,7 +525,7 @@ export default function BuyerDetail() {
               type="button"
               className="btn-green"
               onClick={downloadBuyerPdf}
-              disabled={pdfDownloading}
+              disabled={pdfDownloading || (pdfDownloadPeriod !== 'all' && !pdfAnchorDate)}
             >
               <FileDown className="h-4 w-4" />
               {pdfDownloading ? 'Preparing…' : 'Download PDF'}

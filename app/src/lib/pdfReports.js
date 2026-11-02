@@ -10,6 +10,7 @@ import {
   buyerSaleDiscountTotal,
   buyerSaleFinalTotal,
   buyerSaleOriginalTotal,
+  dateRangeForPeriod,
   inPeriod,
   saleQuantitiesByUnit,
   saleQuantityUnit,
@@ -454,9 +455,16 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
   doc.save(`GSM_${safeFilename(buyer.name)}_Statement_${safeFilename(periodName)}.pdf`);
 }
 
-export async function createBuyerBillFile({ buyer, sales, payments, balance, kind, selectedDate }) {
+export async function createBuyerBillFile({
+  buyer,
+  sales,
+  payments,
+  balance,
+  kind,
+  selectedDate,
+  anchorDate = realTodayIST(),
+}) {
   const today = realTodayIST();
-  const monthKey = today.slice(0, 7);
   let startDate = '';
   let endDate = today;
   let period = 'All Time';
@@ -466,14 +474,23 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
     endDate = selectedDate;
     period = formatDateCompact(selectedDate);
   } else if (kind === 'week') {
-    startDate = startOfWeekIST('reports');
-    period = `This Week (${formatDateCompact(startDate)} - ${formatDateCompact(endDate)})`;
+    const range = dateRangeForPeriod('week', anchorDate);
+    if (!range) throw new Error('Choose a valid date for the PDF period.');
+    startDate = range.start;
+    endDate = range.end;
+    period = range.label;
   } else if (kind === 'monthly') {
-    startDate = `${monthKey}-01`;
-    period = `This Month (${formatDateCompact(startDate)} - ${formatDateCompact(endDate)})`;
+    const range = dateRangeForPeriod('monthly', anchorDate);
+    if (!range) throw new Error('Choose a valid date for the PDF period.');
+    startDate = range.start;
+    endDate = range.end;
+    period = range.label;
   } else if (kind === '3months') {
-    startDate = startOfThreeMonthsAgo('reports');
-    period = `Last 3 Months (${formatDateCompact(startDate)} - ${formatDateCompact(endDate)})`;
+    const range = dateRangeForPeriod('3months', anchorDate);
+    if (!range) throw new Error('Choose a valid date for the PDF period.');
+    startDate = range.start;
+    endDate = range.end;
+    period = range.label;
   } else if (kind !== 'full') {
     throw new Error('Choose a valid bill period.');
   }
