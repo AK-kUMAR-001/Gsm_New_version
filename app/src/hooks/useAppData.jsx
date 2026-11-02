@@ -68,6 +68,8 @@ export function AppDataProvider({ children }) {
   const [buyerSales, setBuyerSales] = useState([]);
   const [retailSales, setRetailSales] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [buyerBalanceAdjustments, setBuyerBalanceAdjustments] = useState([]);
+  const [buyerBalanceAdjustmentError, setBuyerBalanceAdjustmentError] = useState('');
   const [inventorySettings, setInventorySettings] = useState([]);
   const [inventorySummary, setInventorySummary] = useState([]);
   const [inventoryCounts, setInventoryCounts] = useState([]);
@@ -101,9 +103,17 @@ export function AppDataProvider({ children }) {
       safeFetch('buyer_sales'),
       safeFetch('retail_sales'),
       fetchPayments(),
+      fetchAllPaginated(supabase, 'buyer_balance_adjustments', {
+        orderCol: 'created_at',
+        orderAsc: true,
+      }),
     ]);
     if (requestId !== loadRequestRef.current) return { data: true, stale: true };
-    const failed = results.find((result) => result.error);
+    const balanceAdjustments = results[6];
+    const failed = results.slice(0, 6).find((result) => result.error)
+      || (balanceAdjustments.error && !isMissingTableError(balanceAdjustments.error)
+        ? balanceAdjustments
+        : null);
     if (failed) {
       [b, p, s, bs, rs, pay] = [
         OFFLINE.buyers,
@@ -117,7 +127,7 @@ export function AppDataProvider({ children }) {
       setOffline(true);
       loadError = failed.error;
     } else {
-      [b, p, s, bs, rs, pay] = results.map((result) => result.data);
+      [b, p, s, bs, rs, pay] = results.slice(0, 6).map((result) => result.data);
       setRemovedProductIds(new Set(p.filter((product) => isRemovedProductName(product.name)).map((product) => product.id)));
       p = p.filter((product) => !isRemovedProductName(product.name));
       bs = bs.filter((sale) => !isRemovedProductName(sale.product));
@@ -132,6 +142,14 @@ export function AppDataProvider({ children }) {
     setBuyerSales(bs);
     setRetailSales(rs);
     setPayments(pay);
+    setBuyerBalanceAdjustments(
+      balanceAdjustments.error ? [] : balanceAdjustments.data || [],
+    );
+    setBuyerBalanceAdjustmentError(
+      isMissingTableError(balanceAdjustments.error)
+        ? 'Apply the buyer balance adjustment migration before editing balances.'
+        : '',
+    );
     setLoading(false);
     return loadError ? { error: loadError } : { data: true };
   }, []);
@@ -147,6 +165,8 @@ export function AppDataProvider({ children }) {
       setBuyerSales([]);
       setRetailSales([]);
       setPayments([]);
+      setBuyerBalanceAdjustments([]);
+      setBuyerBalanceAdjustmentError('');
       setRetailDaySession(null);
       setRetailDayPrices([]);
       setRetailDayLoading(false);
@@ -311,8 +331,8 @@ export function AppDataProvider({ children }) {
   );
 
   const balances = useMemo(
-    () => computeBuyerBalances(buyers, buyerSales, payments),
-    [buyers, buyerSales, payments]
+    () => computeBuyerBalances(buyers, buyerSales, payments, buyerBalanceAdjustments),
+    [buyers, buyerSales, payments, buyerBalanceAdjustments]
   );
 
   const balancesById = useMemo(() => {
@@ -352,6 +372,43 @@ export function AppDataProvider({ children }) {
     if (data && data[0]) setBuyers((prev) => [...prev, data[0]]);
     showToast('Buyer added', 'success');
     return { data: data?.[0] };
+  };
+
+  const updateBuyerBalance = async (buyerId, newBalance) => {
+    if (offline) {
+      const error = new Error('Updating buyer balances requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    if (buyerBalanceAdjustmentError) {
+      const error = new Error(buyerBalanceAdjustmentError);
+      showToast(error.message, 'error');
+      return { error };
+    }
+    const amountText = String(newBalance).trim();
+    const amount = Number(amountText);
+    if (!/^\d+(?:\.\d{1,2})?$/.test(amountText) || !Number.isFinite(amount) || amount < 0) {
+      const error = new Error('Enter a valid balance amount with no more than two decimal places.');
+      showToast(error.message, 'error');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_update_buyer_balance', {
+      p_buyer_id: buyerId,
+      p_new_balance: amount,
+    });
+    if (error) {
+      showToast(`Could not update buyer balance: ${error.message}`, 'error');
+      return { error };
+    }
+    const adjustment = Array.isArray(data) ? data[0] : data;
+    if (!adjustment?.id) {
+      const missingDataError = new Error('The balance update was not confirmed by the database.');
+      showToast(missingDataError.message, 'error');
+      return { error: missingDataError };
+    }
+    setBuyerBalanceAdjustments((previous) => [...previous, adjustment]);
+    showToast('Buyer balance updated', 'success');
+    return { data: adjustment };
   };
 
   const updateBuyer = async (id, patch) => {
@@ -499,6 +556,7 @@ export function AppDataProvider({ children }) {
       p_price_per_unit: row.price_per_mootai,
       p_sale_date: row.sale_date,
       p_notes: row.notes,
+      p_discounted_bill_total: row.discounted_bill_total ?? null,
     });
     if (error) {
       showToast(`Could not update buyer sale: ${error.message}`, 'error');
@@ -610,6 +668,7 @@ export function AppDataProvider({ children }) {
       p_price_per_unit: row.price_per_mootai,
       p_sale_date: row.sale_date,
       p_notes: row.notes,
+      p_discounted_bill_total: row.discounted_bill_total ?? null,
     });
     const { data, error } = rpcResult;
     if (error) { showToast('Could not save sale: ' + error.message, 'error'); return { error }; }
@@ -888,6 +947,7 @@ export function AppDataProvider({ children }) {
     loading, offline, dataLoadError, toast, showToast, load,
     inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
     loadRetailDay, startRetailDay, saveRetailDayPrices,
+    buyerBalanceAdjustments, buyerBalanceAdjustmentError, updateBuyerBalance,
     insertBuyer, updateBuyer, setBuyerArchived, deleteArchivedBuyer, updateProduct, insertProduct, deleteProduct,
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,

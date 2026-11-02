@@ -37,6 +37,9 @@ function toForm(activity, products = []) {
     quantity: String(quantity),
     quantity_unit: quantityUnit,
     price: String(quantity > 0 ? savedAmount / quantity : record.price_per_mootai ?? ''),
+    discounted_bill_total: activity.type === 'SALE' && record.discounted_bill_total != null
+      ? String(record.discounted_bill_total)
+      : '',
     date: saleDate,
     notes: record.notes || '',
   };
@@ -90,7 +93,16 @@ export default function RecentActivityModal({
     setBusy(true);
     setError('');
     try {
-      const result = await onSave(selected, form);
+      if (selected.type === 'SALE' && !discountValid) {
+        setError('Discounted bill total must be between zero and the original bill total.');
+        return;
+      }
+      const result = await onSave(selected, {
+        ...form,
+        discounted_bill_total: selected.type === 'SALE' && form.discounted_bill_total !== ''
+          ? Number(form.discounted_bill_total)
+          : null,
+      });
       if (result?.error) setError(result.error.message || 'Could not update this record.');
       else {
         setSelectedId('');
@@ -131,6 +143,16 @@ export default function RecentActivityModal({
 
   const selectedProduct = products.find((product) => product.name === form?.product);
   const editableSaleUnits = saleInputUnits(selectedProduct || {}).filter((unit) => unit !== 'Kg');
+  const originalBillTotal = Number(form?.quantity || 0) * Number(form?.price || 0);
+  const requestedDiscountedTotal = form?.discounted_bill_total === ''
+    ? originalBillTotal
+    : Number(form?.discounted_bill_total);
+  const discountValid = Number.isFinite(requestedDiscountedTotal)
+    && requestedDiscountedTotal >= 0
+    && requestedDiscountedTotal <= originalBillTotal;
+  const finalBillTotal = discountValid ? requestedDiscountedTotal : originalBillTotal;
+  const discountAmount = Math.max(0, originalBillTotal - finalBillTotal);
+  const discountPercent = originalBillTotal > 0 ? (discountAmount / originalBillTotal) * 100 : 0;
   const availableBuyers = buyers.some((buyer) => buyer.id === form?.buyer_id)
     ? buyers
     : [...buyers, selected?.buyer].filter(Boolean);
@@ -204,7 +226,37 @@ export default function RecentActivityModal({
             )}
             {selected.type !== 'PAYMENT' && (
               <div className="self-end rounded-xl bg-brand-green/10 px-4 py-3 text-sm font-semibold text-brand-green-dark">
-                Updated bill total: {currencyINR(Number(form.quantity || 0) * Number(form.price || 0))}
+                {selected.type === 'SALE'
+                  ? `Original bill total: ${currencyINR(originalBillTotal)}`
+                  : `Updated bill total: ${currencyINR(originalBillTotal)}`}
+                {selected.type === 'SALE' && (
+                  <>
+                    <label className="mt-3 block text-xs font-bold text-ink-600">
+                      Discounted bill total (INR) · Optional
+                      <input
+                        name="discounted_bill_total"
+                        type="number"
+                        min="0"
+                        max={originalBillTotal.toFixed(2)}
+                        step="0.01"
+                        value={form.discounted_bill_total}
+                        onChange={updateField}
+                        placeholder="Leave blank for no discount"
+                        className="input mt-1 bg-white font-medium text-ink-900"
+                      />
+                    </label>
+                    <div className="mt-2 text-xs font-semibold text-ink-700">
+                      {discountAmount > 0
+                        ? `Discount: ${currencyINR(discountAmount)} (${discountPercent.toFixed(2)}%) · Final bill: ${currencyINR(finalBillTotal)}`
+                        : `Final bill: ${currencyINR(finalBillTotal)}`}
+                    </div>
+                    {!discountValid && (
+                      <p role="alert" className="mt-1 text-xs font-semibold text-red-700">
+                        Discounted bill total must be between zero and the original bill total.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             )}
             <label className="label">
@@ -221,7 +273,11 @@ export default function RecentActivityModal({
             <button type="button" onClick={remove} disabled={busy} className="btn-outline text-red-700 disabled:opacity-50">
               <Trash2 className="h-4 w-4" /> Delete record
             </button>
-            <button type="submit" disabled={busy} className="btn-green disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={busy || (selected.type === 'SALE' && !discountValid)}
+              className="btn-green disabled:opacity-50"
+            >
               <Check className="h-4 w-4" /> {busy ? 'Saving…' : 'Save changes'}
             </button>
           </div>

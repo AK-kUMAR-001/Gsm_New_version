@@ -4,6 +4,10 @@ import {
   formatDateCompact,
   formatQuantity,
   formatQuantityByUnit,
+  buyerSaleDiscountPercent,
+  buyerSaleDiscountTotal,
+  buyerSaleFinalTotal,
+  buyerSaleOriginalTotal,
   realTodayIST,
   saleQuantityUnit,
   startOfWeekIST,
@@ -60,9 +64,12 @@ function createTextBillUrl({ buyer, sales, payments, balance, period, selectedDa
       const unit = saleQuantityUnit(sale);
       quantities[unit] = (quantities[unit] || 0) + quantity;
       const rate = Number(sale.price_per_mootai || 0);
+      const originalTotal = buyerSaleOriginalTotal(sale);
+      const discount = buyerSaleDiscountTotal(sale);
+      const finalTotal = buyerSaleFinalTotal(sale);
       return {
         date: String(sale.sale_date || '').slice(0, 10),
-        text: `${formatDateCompact(sale.sale_date)} · ${sale.product || 'Sale'} · ${formatQuantity(quantity)} ${unit} × ${currencyINR(rate)}/${unit} = ${currencyINR(quantity * rate)}`,
+        text: `${formatDateCompact(sale.sale_date)} · ${sale.product || 'Sale'} · ${formatQuantity(quantity)} ${unit} × ${currencyINR(rate)}/${unit} = ${currencyINR(originalTotal)}${discount > 0 ? ` − discount ${currencyINR(discount)} (${buyerSaleDiscountPercent(sale).toFixed(2)}%) = ${currencyINR(finalTotal)}` : ''}`,
       };
     }),
     ...paymentsInPeriod.map((payment) => ({
@@ -71,7 +78,7 @@ function createTextBillUrl({ buyer, sales, payments, balance, period, selectedDa
     })),
   ].sort((left, right) => left.date.localeCompare(right.date));
   const billed = salesInPeriod.reduce((sum, sale) => (
-    sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
+    sum + buyerSaleFinalTotal(sale)
   ), 0);
   const paid = paymentsInPeriod.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0);
   const message = [

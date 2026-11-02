@@ -14,7 +14,12 @@ import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from './Modal.jsx';
 import { Search } from 'lucide-react';
 
-const emptyRow = (product) => ({ quantity: '', rate: '', quantity_unit: saleInputUnits(product)[0] });
+const emptyRow = (product) => ({
+  quantity: '',
+  rate: '',
+  quantity_unit: saleInputUnits(product)[0],
+  discounted_bill_total: '',
+});
 
 function newRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
@@ -75,11 +80,26 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
       rate: Number(rows[product.name]?.rate || 0),
     }))
     .filter(({ quantity, rate }) => quantity > 0 || rate > 0);
-  const validEntries = entries.filter(({ quantity, rate }) => quantity > 0 && rate > 0);
+  const validEntries = entries
+    .filter(({ quantity, rate }) => quantity > 0 && rate > 0)
+    .map((entry) => ({
+      ...entry,
+      discounted_bill_total: rows[entry.product.name]?.discounted_bill_total === ''
+        ? null
+        : Number(rows[entry.product.name]?.discounted_bill_total),
+    }));
   const invalidEntries = entries.length !== validEntries.length;
-  const total = validEntries.reduce((sum, entry) => sum + entry.quantity * entry.rate, 0);
+  const invalidDiscountEntries = validEntries.some((entry) => (
+    entry.discounted_bill_total != null
+      && (!Number.isFinite(entry.discounted_bill_total)
+        || entry.discounted_bill_total < 0
+        || entry.discounted_bill_total > Number((entry.quantity * entry.rate).toFixed(2)))
+  ));
+  const total = validEntries.reduce((sum, entry) => (
+    sum + (entry.discounted_bill_total ?? entry.quantity * entry.rate)
+  ), 0);
   const hasSavedSales = savedProducts.current.size > 0;
-  const valid = selectedBuyerId && validEntries.length > 0 && !invalidEntries && !saving;
+  const valid = selectedBuyerId && validEntries.length > 0 && !invalidEntries && !invalidDiscountEntries && !saving;
 
   const updateRow = (productName, field, value) => {
     setRows((current) => ({ ...current, [productName]: { ...current[productName], [field]: value } }));
@@ -103,6 +123,9 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
         mootais: quantity,
         quantity_unit: rows[product.name]?.quantity_unit || saleInputUnits(product)[0],
         price_per_mootai: rate,
+        discounted_bill_total: rows[product.name]?.discounted_bill_total === ''
+          ? null
+          : Number(rows[product.name]?.discounted_bill_total),
         sale_date: saleDate,
         notes: notes.trim() || null,
       });
@@ -253,6 +276,12 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                 const otherUnit = units.find((unit) => unit !== inputUnit);
                 const quantity = Number(row.quantity || 0);
                 const rate = Number(row.rate || 0);
+                const originalTotal = quantity * rate;
+                const discountedTotal = row.discounted_bill_total === ''
+                  ? originalTotal
+                  : Number(row.discounted_bill_total || 0);
+                const discountAmount = Math.max(0, originalTotal - discountedTotal);
+                const discountPercent = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
                 return (
                   <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_68px_68px_74px] items-center gap-2 rounded-xl px-2 py-1 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
                     <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink-800">
@@ -299,6 +328,33 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                         {' · '}{currencyINRPerUnit(saleRateInUnit(product, rate, inputUnit, otherUnit))} per {otherUnit}
                       </p>
                     )}
+                    {quantity > 0 && rate > 0 && (
+                      <div className="col-span-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 pb-2">
+                        <label className="text-[11px] font-semibold text-ink-600">
+                          Discounted bill total ₹ · Optional
+                          <input
+                            aria-label={`${product.name} discounted bill total`}
+                            type="number"
+                            disabled={savedProducts.current.has(product.name)}
+                            min="0"
+                            max={originalTotal.toFixed(2)}
+                            step="0.01"
+                            value={row.discounted_bill_total}
+                            onChange={(event) => updateRow(product.name, 'discounted_bill_total', event.target.value)}
+                            placeholder={`Original ${currencyINR(originalTotal)}`}
+                            className="input mt-1 !px-2 !py-2 text-xs"
+                          />
+                        </label>
+                        <div className="text-right text-[11px] font-semibold text-ink-700">
+                          {discountAmount > 0
+                            ? `Discount ${currencyINR(discountAmount)} (${discountPercent.toFixed(2)}%)`
+                            : 'No discount'}
+                          <span className="mt-1 block text-brand-green-dark">
+                            Final: {currencyINR(discountedTotal)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -336,14 +392,16 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
           </div>
 
           <div className="rounded-2xl bg-sidebar px-4 py-3 text-center text-white">
-            <span className="text-xs text-white/60">SALE </span>
+            <span className="text-xs text-white/60">FINAL SALE </span>
             <span className="font-bold">{currencyINR(total)}</span>
             <span className="ml-2 text-xs text-white/60">{validEntries.length} product{validEntries.length === 1 ? '' : 's'}</span>
           </div>
 
-          {(errorMessage || (invalidEntries && entries.length > 0)) && (
+          {(errorMessage || invalidDiscountEntries || (invalidEntries && entries.length > 0)) && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-              <p>{errorMessage || 'For each product, enter both quantity and rate, or leave both as zero.'}</p>
+              <p>{errorMessage || (invalidDiscountEntries
+                ? 'A discounted bill total must be between zero and that product’s original bill total.'
+                : 'For each product, enter both quantity and rate, or leave both as zero.')}</p>
             </div>
           )}
 

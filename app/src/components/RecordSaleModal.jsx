@@ -23,6 +23,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   const [quantityUnit, setQuantityUnit] = useState('');
   const [mootais, setMootais] = useState('');
   const [price_per_mootai, setPricePerMootai] = useState('');
+  const [discountedBillTotal, setDiscountedBillTotal] = useState('');
   const [payment, setPayment] = useState('');
   const [sale_date, setSaleDate] = useState(todayIST());
   const [notes, setNotes] = useState('');
@@ -38,6 +39,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
       setQuantityUnit(activeProducts[0] ? saleInputUnits(activeProducts[0])[0] : '');
       setMootais('');
       setPricePerMootai('');
+      setDiscountedBillTotal('');
       setPayment('');
       setSaleDate(todayIST());
       setNotes('');
@@ -48,6 +50,11 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   }, [open, activeProducts]);
 
   const total = (Number(mootais) || 0) * (Number(price_per_mootai) || 0);
+  const discountAmount = discountedBillTotal === ''
+    ? 0
+    : Math.max(0, total - Number(discountedBillTotal || 0));
+  const discountPercent = total > 0 ? (discountAmount / total) * 100 : 0;
+  const finalTotal = discountedBillTotal === '' ? total : Number(discountedBillTotal || 0);
   const selectedProduct = activeProducts.find((item) => item.name === product);
   const salesUnit = productSalesUnit(selectedProduct);
   const inputUnits = selectedProduct ? saleInputUnits(selectedProduct) : [];
@@ -58,6 +65,13 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!product || !mootais || !price_per_mootai || !buyerId || failedPayment.current) return;
+    if (discountedBillTotal !== ''
+      && (!Number.isFinite(Number(discountedBillTotal))
+        || Number(discountedBillTotal) < 0
+        || Number(discountedBillTotal) > Number(total.toFixed(2)))) {
+      setSaveError('Discounted bill total must be between zero and the original bill total.');
+      return;
+    }
     setBusy(true);
     const { error } = await insertBuyerSale({
       id: requestId.current,
@@ -66,6 +80,7 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
       mootais: Number(mootais),
       quantity_unit: inputUnit,
       price_per_mootai: Number(price_per_mootai),
+      discounted_bill_total: discountedBillTotal === '' ? null : Number(discountedBillTotal),
       sale_date,
       notes: notes.trim() || null,
     });
@@ -228,9 +243,29 @@ export default function RecordSaleModal({ open, onClose, buyerId }) {
         </div>
 
         {total > 0 && (
-          <div className="flex items-center justify-between bg-ink-50 rounded-2xl px-4 py-3">
-            <span className="text-sm font-semibold text-ink-600">Total Sale Value</span>
-            <span className="text-lg font-bold text-ink-900">{currencyINR(total)}</span>
+          <div className="space-y-3 rounded-2xl bg-ink-50 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-ink-600">Original bill total</span>
+              <span className="text-lg font-bold text-ink-900">{currencyINR(total)}</span>
+            </div>
+            <label className="label block">
+              Discounted bill total (INR) · Optional
+              <input
+                type="number"
+                min="0"
+                max={total.toFixed(2)}
+                step="0.01"
+                value={discountedBillTotal}
+                onChange={(event) => setDiscountedBillTotal(event.target.value)}
+                placeholder="Leave blank for no discount"
+                className="input mt-1"
+              />
+            </label>
+            <div className="text-sm font-bold text-brand-green-dark">
+              {discountAmount > 0
+                ? `Discount: ${currencyINR(discountAmount)} (${discountPercent.toFixed(2)}%) · Final bill: ${currencyINR(finalTotal)}`
+                : `Final bill: ${currencyINR(finalTotal)}`}
+            </div>
           </div>
         )}
 

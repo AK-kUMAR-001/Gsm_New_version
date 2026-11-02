@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
+  buyerSaleFinalTotal,
   currencyINR,
   formatDateCompact,
   formatMovementQuantities,
@@ -529,9 +530,7 @@ export default function Inventory() {
               <tbody className="divide-y divide-ink-100">
                 {movements.map((movement) => {
                   const sale = salesBySource.get(`${movement.source_kind}:${movement.source_id}`);
-                  const amount = sale
-                    ? Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
-                    : null;
+                  const amount = sale ? buyerSaleFinalTotal(sale) : null;
                   return (
                     <tr key={movement.id}>
                       <td className="px-5 py-3 whitespace-nowrap">{formatDateCompact(movement.movement_date)}</td>

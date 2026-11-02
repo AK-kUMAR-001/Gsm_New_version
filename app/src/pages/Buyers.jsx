@@ -5,6 +5,7 @@ import { currencyINR, formatDateCompact } from '../lib/business.js';
 import AddBuyerModal from '../components/AddBuyerModal.jsx';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
+import BuyerBalanceAdjustmentModal from '../components/BuyerBalanceAdjustmentModal.jsx';
 import Avatar from '../components/Avatar.jsx';
 import {
   IndianRupee,
@@ -24,6 +25,7 @@ import {
   HandCoins,
   AlertCircle,
   Archive,
+  Pencil,
 } from 'lucide-react';
 
 const FILTERS = [
@@ -45,7 +47,15 @@ function latestBuyerActivity(buyer) {
 }
 
 export default function Buyers() {
-  const { activeBuyers, buyersById, balances } = useAppData();
+  const {
+    activeBuyers,
+    buyersById,
+    balances,
+    balancesById,
+    buyerBalanceAdjustments,
+    buyerBalanceAdjustmentError,
+    updateBuyerBalance,
+  } = useAppData();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -53,6 +63,7 @@ export default function Buyers() {
   const [addOpen, setAddOpen] = useState(false);
   const [saleBuyerId, setSaleBuyerId] = useState(null);
   const [paymentBuyerId, setPaymentBuyerId] = useState(null);
+  const [balanceBuyerId, setBalanceBuyerId] = useState(null);
 
   const q = query.trim().toLowerCase();
   const activeBalanceList = useMemo(
@@ -326,13 +337,24 @@ export default function Buyers() {
                   >
                     Due
                   </div>
-                  <div
-                    className={`buyer-metric-value mt-1 whitespace-nowrap text-xs font-extrabold tracking-tight ${
-                      due ? 'text-amber-800' : 'text-ink-700'
-                    }`}
-                    title={currencyINR(b.balance_due)}
-                  >
-                    {currencyINR(b.balance_due)}
+                  <div className="mt-1 flex items-center gap-1">
+                    <div
+                      className={`buyer-metric-value min-w-0 whitespace-nowrap text-xs font-extrabold tracking-tight ${
+                        due ? 'text-amber-800' : 'text-ink-700'
+                      }`}
+                      title={currencyINR(b.balance_due)}
+                    >
+                      {currencyINR(b.balance_due)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBalanceBuyerId(b.id)}
+                      title={buyerBalanceAdjustmentError || `Update ${b.name}'s balance`}
+                      aria-label={`Update ${b.name}'s balance`}
+                      className="shrink-0 border-0 bg-transparent p-0.5 text-red-600 transition hover:text-red-800"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
                 <div className={`min-w-0 overflow-hidden rounded-2xl px-2 py-3 ${hasCredit ? 'bg-sky-500/10' : 'bg-ink-50'}`}>
@@ -384,6 +406,15 @@ export default function Buyers() {
         open={!!paymentBuyerId}
         onClose={() => setPaymentBuyerId(null)}
         buyerId={paymentBuyerId}
+      />
+      <BuyerBalanceAdjustmentModal
+        open={!!balanceBuyerId}
+        onClose={() => setBalanceBuyerId(null)}
+        buyer={buyersById[balanceBuyerId]}
+        currentBalance={balancesById[balanceBuyerId]?.balance_due || 0}
+        history={buyerBalanceAdjustments.filter((entry) => entry.buyer_id === balanceBuyerId)}
+        unavailableReason={buyerBalanceAdjustmentError}
+        onSave={updateBuyerBalance}
       />
     </div>
   );

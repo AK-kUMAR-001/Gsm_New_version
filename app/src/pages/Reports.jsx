@@ -7,6 +7,10 @@ import {
   buildDailyStockClosingRows,
   buildProductPerformance,
   buildRecentActivity,
+  buyerSaleFinalTotal,
+  buyerSaleDiscountPercent,
+  buyerSaleDiscountTotal,
+  buyerSaleOriginalTotal,
   computeDailyProductProfits,
   computeInventoryCostReport,
   formatProductQuantities,
@@ -564,6 +568,7 @@ function WeekDatePicker({ value, onChange, active }) {
 
 function sumSales(sales) {
   return (sales || []).reduce((total, sale) => {
+    if (sale.discounted_bill_total != null) return total + buyerSaleFinalTotal(sale);
     const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
     const rate = Number(sale.price_per_mootai ?? 0);
     return total + quantity * rate;
@@ -653,9 +658,7 @@ function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
     if (!id) continue;
     if (!byBuyer.has(id)) byBuyer.set(id, { buyer_id: id, total_revenue: 0, total_quantities: {} });
     const row = byBuyer.get(id);
-    const q = s.mootais ?? s.mootais_sold ?? 0;
-    const r = s.price_per_mootai ?? 0;
-    row.total_revenue += Number(q || 0) * Number(r || 0);
+    row.total_revenue += buyerSaleFinalTotal(s);
     for (const [unit, quantity] of Object.entries(saleQuantitiesByUnit(s, products))) {
       row.total_quantities[unit] = (row.total_quantities[unit] || 0) + quantity;
     }
@@ -844,6 +847,7 @@ export default function Reports() {
       mootais: Number(fields.quantity),
       quantity_unit: fields.quantity_unit,
       price_per_mootai: Number(fields.price),
+      discounted_bill_total: fields.discounted_bill_total,
       sale_date: fields.date,
       notes: fields.notes.trim() || null,
     });
@@ -1175,14 +1179,15 @@ export default function Reports() {
           >
             {dailyBuyerSales.map((sale) => {
               const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-              const rate = Number(sale.price_per_mootai ?? 0);
+              const discount = buyerSaleDiscountTotal(sale);
+              const original = buyerSaleOriginalTotal(sale);
               const buyerName = buyersById.get(sale.buyer_id)?.name || 'Unknown buyer';
               return (
                 <ActivityEntry
                   key={sale.id}
                   title={buyerName}
-                  subtitle={`${sale.product || 'Product'} · ${formatSaleQuantities(sale, products)} · ${formatSaleRates(sale, products)}`}
-                  amount={quantity * rate}
+                  subtitle={`${sale.product || 'Product'} · ${formatSaleQuantities(sale, products)} · ${formatSaleRates(sale, products)}${discount > 0 ? ` · Original ${currencyINR(original)} − discount ${currencyINR(discount)} (${buyerSaleDiscountPercent(sale).toFixed(2)}%)` : ''}`}
+                  amount={buyerSaleFinalTotal(sale)}
                   timestamp={entryTime(sale)}
                   emoji={getProductEmoji(sale.product, products)}
                   note={sale.notes}

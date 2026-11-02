@@ -6,6 +6,10 @@ import {
   formatQuantityByUnit,
   formatSaleQuantities,
   formatSaleRates,
+  buyerSaleDiscountPercent,
+  buyerSaleDiscountTotal,
+  buyerSaleFinalTotal,
+  buyerSaleOriginalTotal,
   inPeriod,
   saleQuantitiesByUnit,
   saleQuantityUnit,
@@ -23,7 +27,20 @@ const COLORS = {
 };
 
 const MONEY = (amount) => `INR ${Math.round(Number(amount || 0)).toLocaleString('en-IN')}`;
+const MONEY_CENTS = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
 const RATE = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 6 })}`;
+const billAmountDetails = (sale) => {
+  const discount = buyerSaleDiscountTotal(sale);
+  if (discount <= 0) return MONEY_CENTS(buyerSaleFinalTotal(sale));
+  return [
+    `Original: ${MONEY_CENTS(buyerSaleOriginalTotal(sale))}`,
+    `Discount: ${MONEY_CENTS(discount)} (${buyerSaleDiscountPercent(sale).toFixed(2)}%)`,
+    `Final: ${MONEY_CENTS(buyerSaleFinalTotal(sale))}`,
+  ].join('\n');
+};
 const quantitiesByUnit = (sales) => (sales || []).reduce((quantities, sale) => {
   for (const [unit, quantity] of Object.entries(saleQuantitiesByUnit(sale))) {
     quantities[unit] = (quantities[unit] || 0) + quantity;
@@ -34,6 +51,9 @@ const billSaleQuantity = (sale) => (
   `${Number(sale.mootais ?? sale.mootais_sold ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${saleQuantityUnit(sale)}`
 );
 const billSaleRate = (sale) => `${RATE(sale.price_per_mootai)}/${saleQuantityUnit(sale)}`;
+const sumFinalBills = (sales) => (sales || []).reduce((sum, sale) => sum + buyerSaleFinalTotal(sale), 0);
+const sumOriginalBills = (sales) => (sales || []).reduce((sum, sale) => sum + buyerSaleOriginalTotal(sale), 0);
+const sumBillDiscounts = (sales) => (sales || []).reduce((sum, sale) => sum + buyerSaleDiscountTotal(sale), 0);
 const PERIOD_NAMES = {
   week: 'This Week',
   month: 'This Month',
@@ -127,8 +147,8 @@ const CUSTOMER_TRANSACTION_COLUMN_STYLES = {
   2: { cellWidth: 39, halign: 'left' },
   3: { cellWidth: 35, halign: 'left' },
   4: { cellWidth: 46, halign: 'left' },
-  5: { cellWidth: 31, halign: 'right' },
-  6: { halign: 'left' },
+  5: { cellWidth: 49, halign: 'right' },
+  6: { cellWidth: 61, halign: 'left' },
 };
 
 const CUSTOMER_TRANSACTION_STYLES = {
@@ -150,18 +170,22 @@ function table(doc, options) {
   });
 }
 
-function addBillTotals(doc, tableEndY, billed, paid, pending, rightX = 283) {
+function addBillTotals(doc, tableEndY, billed, paid, pending, rightX = 283, originalBilled = billed, balanceAdjustment = 0) {
   let y = tableEndY + 10;
-  if (y + 14 > 190) {
-    doc.addPage();
-    y = 24;
-  }
-
   const rows = [
-    { label: 'BILL', value: MONEY(billed), color: [185, 28, 28] },
+    { label: 'ORIGINAL BILL', value: MONEY(originalBilled), color: COLORS.ink },
+    { label: 'DISCOUNT', value: MONEY(originalBilled - billed), color: COLORS.ink },
+    { label: 'FINAL BILL', value: MONEY(billed), color: [185, 28, 28] },
+    ...(Number(balanceAdjustment) !== 0
+      ? [{ label: 'BALANCE CORRECTION', value: MONEY(balanceAdjustment), color: COLORS.ink }]
+      : []),
     { label: 'PAID AMOUNT', value: MONEY(paid), color: COLORS.ink },
     { label: 'PENDING CURRENT', value: MONEY(pending), color: COLORS.ink },
   ];
+  if (y + rows.length * 6 > 190) {
+    doc.addPage();
+    y = 24;
+  }
   rows.forEach((row, index) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -180,10 +204,17 @@ export function downloadOverallReportPdf({
   const periodName = periodLabel(period);
   const doc = startDocument('Sales, Product & Stock Report', periodName);
   const totalRevenue = totalWholesale + totalRetail;
+  const originalWholesale = productRows.reduce((sum, row) => sum + Number(row.wholesale_original_revenue || 0), 0);
+  const wholesaleDiscount = productRows.reduce((sum, row) => sum + Number(row.wholesale_discount || 0), 0);
   addMetricCards(doc, [
-    { label: 'Total sales', value: MONEY(totalRevenue) },
-    { label: 'Wholesale sales', value: MONEY(totalWholesale) },
+    { label: 'Original buyer sales', value: MONEY(originalWholesale) },
+    {
+      label: 'Buyer discounts',
+      value: `${MONEY(wholesaleDiscount)} (${originalWholesale > 0 ? ((wholesaleDiscount / originalWholesale) * 100).toFixed(2) : '0.00'}%)`,
+    },
+    { label: 'Final buyer sales', value: MONEY(totalWholesale) },
     { label: 'Retail sales', value: MONEY(totalRetail) },
+    { label: 'Total final sales', value: MONEY(totalRevenue) },
     {
       label: 'Trading profit',
       value: inventoryReport.trackedSalesCount ? MONEY(inventoryReport.tradingProfit) : 'Not available',
@@ -199,7 +230,7 @@ export function downloadOverallReportPdf({
     head: [[
       'Product',
       'Wholesale qty',
-      'Wholesale sales',
+      'Buyer final sales',
       'Retail qty',
       'Retail sales',
       'Stock cost',
@@ -262,12 +293,9 @@ export function downloadCustomerStatementsPdf({
 
   addMetricCards(doc, [
     { label: 'Customers listed', value: String(statementBuyers.length) },
-    {
-      label: 'Sales in period',
-      value: MONEY(salesInPeriod.reduce((sum, sale) => (
-        sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
-      ), 0)),
-    },
+    { label: 'Original sales', value: MONEY(sumOriginalBills(salesInPeriod)) },
+    { label: 'Discounts', value: MONEY(sumBillDiscounts(salesInPeriod)) },
+    { label: 'Final sales', value: MONEY(sumFinalBills(salesInPeriod)) },
     {
       label: 'Payments in period',
       value: MONEY(paymentsInPeriod.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0)),
@@ -276,6 +304,12 @@ export function downloadCustomerStatementsPdf({
       label: 'Total pending',
       value: MONEY(statementBuyers.reduce((sum, buyer) => (
         sum + (balanceById.get(buyer.id)?.balance_due || 0)
+      ), 0)),
+    },
+    {
+      label: 'Balance corrections',
+      value: MONEY(statementBuyers.reduce((sum, buyer) => (
+        sum + Number(balanceById.get(buyer.id)?.balance_adjustment || 0)
       ), 0)),
     },
   ]);
@@ -295,7 +329,7 @@ export function downloadCustomerStatementsPdf({
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.muted);
     doc.text(
-      `Phone: ${buyer.phone || 'Not recorded'}  |  Lifetime due: ${MONEY(balance?.balance_due)}  |  Credit: ${MONEY(balance?.credit_balance)}`,
+      `Phone: ${buyer.phone || 'Not recorded'}  |  Lifetime due: ${MONEY(balance?.balance_due)}  |  Credit: ${MONEY(balance?.credit_balance)}${Number(balance?.balance_adjustment || 0) !== 0 ? `  |  Balance correction: ${MONEY(balance.balance_adjustment)}` : ''}`,
       14,
       cursorY + 5
     );
@@ -309,7 +343,7 @@ export function downloadCustomerStatementsPdf({
           details: sale.product || 'Sale',
           quantity: pdfSaleQuantity(sale),
           rate: pdfSaleRate(sale),
-          amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
+          amount: billAmountDetails(sale),
           notes: sale.notes || '',
         })),
       ...paymentsInPeriod
@@ -347,12 +381,15 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
   const periodName = periodLabel(period);
   const doc = startDocument(`${buyer.name} - Statement`, periodName);
   addMetricCards(doc, [
-    { label: 'Billed in period', value: MONEY(sales.reduce((sum, sale) => (
-      sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
-    ), 0)) },
+    { label: 'Original bill', value: MONEY(sumOriginalBills(sales)) },
+    { label: 'Discount', value: MONEY(sumBillDiscounts(sales)) },
+    { label: 'Final bill', value: MONEY(sumFinalBills(sales)) },
     { label: 'Paid in period', value: MONEY(payments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0)) },
     { label: 'Lifetime due', value: MONEY(balance?.balance_due) },
     { label: 'Credit balance', value: MONEY(balance?.credit_balance) },
+    ...(Number(balance?.balance_adjustment || 0) !== 0
+      ? [{ label: 'Balance correction', value: MONEY(balance.balance_adjustment) }]
+      : []),
   ]);
 
   const transactions = [
@@ -362,7 +399,7 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
       details: sale.product || 'Sale',
       quantity: pdfSaleQuantity(sale),
       rate: pdfSaleRate(sale),
-      amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
+      amount: billAmountDetails(sale),
       notes: sale.notes || '',
     })),
     ...payments.map((payment) => ({
@@ -424,9 +461,8 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
   };
   const billSales = sales.filter((sale) => inSelectedPeriod(sale.sale_date));
   const billPayments = payments.filter((payment) => inSelectedPeriod(payment.paid_at));
-  const billed = billSales.reduce((sum, sale) => (
-    sum + Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)
-  ), 0);
+  const billed = sumFinalBills(billSales);
+  const originalBilled = sumOriginalBills(billSales);
   const paid = billPayments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0);
   const title = kind === 'full'
     ? 'Complete Detailed Bill'
@@ -452,31 +488,53 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
     const byProduct = new Map();
     for (const sale of billSales) {
       const key = sale.product || 'Sale';
-      const row = byProduct.get(key) || { quantities: {}, revenueByUnit: {}, billed: 0 };
+      const row = byProduct.get(key) || {
+        quantities: {},
+        originalRevenueByUnit: {},
+        originalBilled: 0,
+        discount: 0,
+        billed: 0,
+      };
       const saleQuantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-      const saleRevenue = saleQuantity * Number(sale.price_per_mootai || 0);
+      const originalRevenue = buyerSaleOriginalTotal(sale);
+      const saleRevenue = buyerSaleFinalTotal(sale);
       const unit = saleQuantityUnit(sale);
       row.quantities[unit] = (row.quantities[unit] || 0) + saleQuantity;
-      row.revenueByUnit[unit] = (row.revenueByUnit[unit] || 0) + saleRevenue;
+      row.originalRevenueByUnit[unit] = (row.originalRevenueByUnit[unit] || 0) + originalRevenue;
+      row.originalBilled += originalRevenue;
+      row.discount += buyerSaleDiscountTotal(sale);
       row.billed += saleRevenue;
       byProduct.set(key, row);
     }
     table(doc, {
       startY: 52,
-      head: [['Product', 'Quantity by unit', 'Average rate by unit', 'Total Bill']],
+      head: [['Product', 'Quantity by unit', 'Average rate by unit', 'Original Bill', 'Discount', 'Final Bill']],
       body: byProduct.size
         ? Array.from(byProduct.entries()).map(([product, row]) => [
           product,
           formatQuantityByUnit(row.quantities),
           Object.entries(row.quantities)
-            .map(([unit, quantity]) => `${RATE(quantity ? row.revenueByUnit[unit] / quantity : 0)}/${unit}`)
+            .map(([unit, quantity]) => `${RATE(quantity ? row.originalRevenueByUnit[unit] / quantity : 0)}/${unit}`)
             .join(' · '),
+          MONEY(row.originalBilled),
+          row.discount > 0
+            ? `${MONEY(row.discount)} (${row.originalBilled > 0 ? ((row.discount / row.originalBilled) * 100).toFixed(2) : '0.00'}%)`
+            : MONEY(0),
           MONEY(row.billed),
         ])
-        : [['—', '—', '—', 'No sales recorded for this period']],
-      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 52 }, 2: { cellWidth: 52 } },
+        : [['—', '—', '—', '—', '—', 'No sales recorded for this period']],
+      columnStyles: { 0: { cellWidth: 57 }, 1: { cellWidth: 43 }, 2: { cellWidth: 52 } },
     });
-    addBillTotals(doc, doc.lastAutoTable?.finalY || 60, billed, paid, balance?.balance_due, 204);
+    addBillTotals(
+      doc,
+      doc.lastAutoTable?.finalY || 60,
+      billed,
+      paid,
+      balance?.balance_due,
+      283,
+      originalBilled,
+      balance?.balance_adjustment,
+    );
   } else {
     const transactions = [
       ...billSales.map((sale) => ({
@@ -485,7 +543,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
         product: sale.product || 'Sale',
         quantity: billSaleQuantity(sale),
         rate: billSaleRate(sale),
-        amount: MONEY(Number(sale.mootais ?? sale.mootais_sold ?? 0) * Number(sale.price_per_mootai || 0)),
+        amount: billAmountDetails(sale),
         notes: sale.notes || '',
       })),
       ...billPayments.map((paymentRow) => ({
@@ -509,7 +567,16 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
       columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
       styles: CUSTOMER_TRANSACTION_STYLES,
     });
-    addBillTotals(doc, doc.lastAutoTable?.finalY || 60, billed, paid, balance?.balance_due, 204);
+    addBillTotals(
+      doc,
+      doc.lastAutoTable?.finalY || 60,
+      billed,
+      paid,
+      balance?.balance_due,
+      283,
+      originalBilled,
+      balance?.balance_adjustment,
+    );
   }
 
   addPageNumbers(doc);

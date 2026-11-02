@@ -89,6 +89,7 @@ export default function Dashboard() {
       mootais: Number(fields.quantity),
       quantity_unit: fields.quantity_unit,
       price_per_mootai: Number(fields.price),
+      discounted_bill_total: fields.discounted_bill_total,
       sale_date: fields.date,
       notes: fields.notes.trim() || null,
     });

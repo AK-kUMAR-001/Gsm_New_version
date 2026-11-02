@@ -146,6 +146,15 @@ order:
     correcting each product's retail price for today or a past date from
     Reports. It requires a physical morning count for every active tracked
     product and preserves all existing sales and stock movements.
+25. `202611020002_buyer_balance_adjustments.sql` enables owner-authorized,
+    audited balance corrections from the Buyers page. It preserves sales and
+    payment records, recalculates the dashboard's pending total, and includes
+    adjustment history in the private snapshot when a buyer is permanently
+    deleted.
+26. `202611020003_buyer_sale_discounts.sql` enables optional discounted bill
+    totals on buyer sales. Entered discounts recalculate buyer balances and
+    sales revenue; buyer statements and PDF bills show the original amount,
+    discount amount and percentage, and final amount.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration

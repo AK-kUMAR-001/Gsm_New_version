@@ -2,6 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
+  buyerSaleDiscountPercent,
+  buyerSaleDiscountTotal,
+  buyerSaleFinalTotal,
+  buyerSaleOriginalTotal,
   currencyINR,
   formatDateCompact,
   formatSaleQuantities,
@@ -278,8 +282,9 @@ export default function BuyerDetail() {
                   </tr>
                 ) : (
                   filteredSales.map((s) => {
-                    const qty = s.mootais ?? s.mootais_sold ?? 0;
-                    const total = Number(qty) * Number(s.price_per_mootai ?? 0);
+                    const total = buyerSaleFinalTotal(s);
+                    const originalTotal = buyerSaleOriginalTotal(s);
+                    const discountTotal = buyerSaleDiscountTotal(s);
                     return (
                       <tr key={s.id} className="border-t border-ink-100 hover:bg-ink-50/50 transition">
                         <td className="px-5 py-4 whitespace-nowrap text-ink-600">
@@ -296,7 +301,17 @@ export default function BuyerDetail() {
                         </td>
                         <td className="px-5 py-4 text-right text-ink-700 font-semibold">{formatSaleQuantities(s, products)}</td>
                         <td className="px-5 py-4 text-right text-ink-600">{formatSaleRates(s, products)}</td>
-                        <td className="px-5 py-4 text-right font-bold text-ink-900">{currencyINR(total)}</td>
+                        <td className="px-5 py-4 text-right font-bold text-ink-900">
+                          {discountTotal > 0 ? (
+                            <span title={`Original ${currencyINR(originalTotal)} − discount ${currencyINR(discountTotal)} (${buyerSaleDiscountPercent(s).toFixed(2)}%)`}>
+                              <span className="block text-xs font-medium text-ink-500 line-through">{currencyINR(originalTotal)}</span>
+                              <span>{currencyINR(total)}</span>
+                              <span className="block text-xs font-semibold text-red-700">
+                                −{currencyINR(discountTotal)} ({buyerSaleDiscountPercent(s).toFixed(2)}%)
+                              </span>
+                            </span>
+                          ) : currencyINR(total)}
+                        </td>
                         <td className="px-5 py-4 text-ink-500 max-w-[240px] truncate" title={s.notes || ''}>
                           {s.notes ? <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 shrink-0 opacity-60" />{s.notes}</span> : <span className="text-ink-300">—</span>}
                         </td>
