@@ -82,6 +82,7 @@ function safeFilename(value) {
 
 function startDocument(title, period) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  doc.setDisplayMode('fullwidth', 'continuous');
   doc.setFillColor(...COLORS.navy);
   doc.rect(0, 0, 297, 34, 'F');
   doc.setTextColor(255, 255, 255);

@@ -172,7 +172,13 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Quick Buyer Entry" maxWidth="max-w-2xl">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Quick Buyer Entry"
+      maxWidth="max-w-xl"
+      contentClassName="!p-3 sm:!p-4"
+    >
       {choosingBuyer ? (
         <div className="space-y-4">
           <label className="label" htmlFor="quick-buyer-search">Buyer *</label>
@@ -223,9 +229,9 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
           </div>
         </div>
       ) : selectedBuyer && (
-        <form onSubmit={submit} className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-ink-50 px-4 py-3">
-            <span className="w-10 h-10 rounded-full bg-sidebar-accent text-white flex items-center justify-center font-bold">
+        <form onSubmit={submit} className="space-y-2.5">
+          <div className="flex items-center gap-2.5 rounded-2xl bg-ink-50 px-3 py-2">
+            <span             className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent font-bold text-white">
               {String(selectedBuyer.name || '?').slice(0, 1).toUpperCase()}
             </span>
             <span className="min-w-0 flex-1">
@@ -264,7 +270,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
           </div>
 
           <div>
-            <div className="grid grid-cols-[minmax(0,1fr)_68px_68px_74px] gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+            <div className="grid grid-cols-[minmax(0,1fr)_64px_64px_68px] gap-1.5 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
               <span>Buyer Sale</span><span className="text-center">Unit</span><span className="text-center">Qty</span><span className="text-center">Rate ₹</span>
             </div>
             <div className="space-y-1">
@@ -281,7 +287,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                 const discountedTotal = Math.max(0, originalTotal - discountAmount);
                 const discountPercent = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
                 return (
-                  <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_68px_68px_74px] items-center gap-2 rounded-xl px-2 py-1 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
+                  <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_64px_64px_68px] items-center gap-1.5 rounded-xl px-2 py-0.5 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
                     <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink-800">
                       <span>{getProductEmoji(product.name, activeProducts)}</span>
                       <span className="min-w-0 truncate">
@@ -294,7 +300,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                       disabled={savedProducts.current.has(product.name) || units.length === 1}
                       value={inputUnit}
                       onChange={(event) => updateRow(product.name, 'quantity_unit', event.target.value)}
-                      className="input !px-1 !py-2 text-center text-xs"
+                      className="input !min-h-9 !px-1 !py-1.5 text-center text-xs"
                     >
                       {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                     </select>
@@ -307,7 +313,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                       value={row.quantity}
                       onChange={(event) => updateRow(product.name, 'quantity', event.target.value)}
                       placeholder="0"
-                      className="input !px-2 !py-2 text-center"
+                      className="input !min-h-9 !px-2 !py-1.5 text-center"
                     />
                     <input
                       aria-label={`${product.name} rate per ${inputUnit}`}
@@ -318,7 +324,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                       value={row.rate}
                       onChange={(event) => updateRow(product.name, 'rate', event.target.value)}
                       placeholder="0"
-                      className="input !px-2 !py-2 text-center"
+                      className="input !min-h-9 !px-2 !py-1.5 text-center"
                     />
                     {otherUnit && quantity > 0 && rate > 0 && (
                       <p className="col-span-4 pb-1 text-right text-[11px] font-medium text-ink-500">
@@ -327,7 +333,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                       </p>
                     )}
                     {quantity > 0 && rate > 0 && (
-                      <div className="col-span-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 pb-2">
+                      <div className="col-span-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-1.5 pb-1">
                         <label className="text-[11px] font-semibold text-ink-600">
                           Original bill total (₹)
                           <input
@@ -335,7 +341,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                             type="text"
                             readOnly
                             value={currencyINR(originalTotal)}
-                            className="input mt-1 !cursor-not-allowed !bg-slate-50 !px-2 !py-2 text-xs !text-ink-500"
+                            className="input mt-1 !min-h-9 !cursor-not-allowed !bg-slate-50 !px-2 !py-1.5 text-xs !text-ink-500"
                           />
                         </label>
                         <label className="text-[11px] font-semibold text-ink-600">
@@ -350,14 +356,14 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                             value={row.discount_amount}
                             onChange={(event) => updateRow(product.name, 'discount_amount', event.target.value)}
                             placeholder="0.00"
-                            className="input mt-1 !px-2 !py-2 text-xs"
+                            className="input mt-1 !min-h-9 !px-2 !py-1.5 text-xs"
                           />
                         </label>
                         <div className="col-span-2 text-right text-[11px] font-semibold text-ink-700">
                           {discountAmount > 0
                             ? `Discount ${currencyINR(discountAmount)} (${discountPercent.toFixed(2)}%)`
                             : 'No discount'}
-                          <span className="mt-1 block text-brand-green-dark">
+                          <span className="mt-1 block text-base font-extrabold text-red-700 sm:text-lg">
                             Final: {currencyINR(discountedTotal)}
                           </span>
                         </div>
@@ -399,7 +405,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
             />
           </div>
 
-          <div className="rounded-2xl bg-sidebar px-4 py-3 text-center text-white">
+          <div className="rounded-2xl bg-sidebar px-4 py-2.5 text-center text-white">
             <span className="text-xs text-white/60">FINAL SALE </span>
             <span className="font-bold">{currencyINR(total)}</span>
             <span className="ml-2 text-xs text-white/60">{validEntries.length} product{validEntries.length === 1 ? '' : 's'}</span>
