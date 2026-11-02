@@ -35,9 +35,9 @@ const FILTERS = [
 ];
 
 const SORTS = [
-  { key: 'due_desc', label: 'Highest Due first' },
+  { key: 'due_desc', label: 'Highest Balance first' },
   { key: 'activity_asc', label: 'Oldest activity first' },
-  { key: 'due_asc', label: 'Lowest Due' },
+  { key: 'due_asc', label: 'Lowest Balance' },
   { key: 'az', label: 'A-Z' },
 ];
 
@@ -133,7 +133,7 @@ export default function Buyers() {
           </div>
           <div className="mt-3 flex items-center gap-1 text-xs font-semibold text-amber-600">
             <TrendingDown className="w-3.5 h-3.5" />
-            Pending dues
+            Pending balances
           </div>
         </div>
 
@@ -156,7 +156,7 @@ export default function Buyers() {
         <div className="metric-card">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-ink-500">Total Due</div>
+              <div className="text-sm font-semibold text-ink-500">Total Balance</div>
               <div className="mt-2 break-words text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">
                 {currencyINR(activeBalanceSummary.outstandingTotal)}
               </div>
@@ -275,7 +275,7 @@ export default function Buyers() {
                     <h3 className="font-bold text-ink-900 truncate">{b.name}</h3>
                     {due ? (
                       <span className="pill !text-[10px] !py-0.5 !px-2 bg-amber-500/10 text-amber-700">
-                        Due
+                        Balance
                       </span>
                     ) : hasCredit ? (
                       <span className="pill !text-[10px] !py-0.5 !px-2 bg-sky-500/10 text-sky-700">
@@ -307,7 +307,7 @@ export default function Buyers() {
                 </div>
               </div>
 
-              {/* 2 Mini Metrics (actually 3 values in 2 cards: Purchases + Paid + Due) */}
+              {/* Buyer purchase, payment, balance, and credit summary */}
               <div className="buyer-metrics mt-5 grid grid-cols-2 min-[420px]:grid-cols-4 gap-2">
                 <div className="min-w-0 overflow-hidden bg-ink-50 rounded-2xl px-2 py-3">
                   <div className="truncate text-[10px] font-bold uppercase tracking-wider text-ink-500">
@@ -335,7 +335,7 @@ export default function Buyers() {
                       due ? 'text-amber-700' : 'text-ink-500'
                     }`}
                   >
-                    Due
+                    Balance
                   </div>
                   <div className="mt-1 flex items-center gap-1">
                     <div

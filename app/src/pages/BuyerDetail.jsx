@@ -21,12 +21,26 @@ import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import DeleteBuyerModal from '../components/DeleteBuyerModal.jsx';
 import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
 import BillAlertModal from '../components/BillAlertModal.jsx';
-import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, FileText, Banknote, FileDown, MessageCircle, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
+import BuyerBalanceAdjustmentModal from '../components/BuyerBalanceAdjustmentModal.jsx';
+import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, FileText, Banknote, FileDown, MessageCircle, Archive, ArchiveRestore, Trash2, Pencil } from 'lucide-react';
 
 export default function BuyerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { buyersById, balancesById, buyerSales, payments, products, balances, load, showToast, setBuyerArchived } = useAppData();
+  const {
+    buyersById,
+    balancesById,
+    buyerSales,
+    payments,
+    products,
+    balances,
+    buyerBalanceAdjustments,
+    buyerBalanceAdjustmentError,
+    updateBuyerBalance,
+    load,
+    showToast,
+    setBuyerArchived,
+  } = useAppData();
 
   const [period, setPeriod] = useState('month');
   const [activeTab, setActiveTab] = useState('sales');
@@ -35,6 +49,7 @@ export default function BuyerDetail() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [pdfConfirmOpen, setPdfConfirmOpen] = useState(false);
   const [billAlertOpen, setBillAlertOpen] = useState(false);
+  const [balanceEditorOpen, setBalanceEditorOpen] = useState(false);
 
   const buyer = buyersById[id];
   const isArchived = Boolean(buyer?.archived_at);
@@ -202,8 +217,23 @@ export default function BuyerDetail() {
               <div className="text-amber-300 font-bold text-lg md:text-2xl">{currencyINR(balance?.total_paid || 0)}</div>
             </div>
             <div className="bg-amber-400/20 backdrop-blur-sm rounded-2xl p-3 md:p-4 text-center border border-amber-300/30">
-              <div className="text-xs md:text-sm font-semibold text-amber-200/90 uppercase tracking-wide mb-1">Due</div>
-              <div className="text-amber-300 font-extrabold text-lg md:text-2xl">{currencyINR(balance?.balance_due || 0)}</div>
+              <div className="flex items-center justify-center gap-1.5">
+                <div className="text-xs md:text-sm font-semibold text-amber-200/90 uppercase tracking-wide">Balance</div>
+                {!isArchived && (
+                  <button
+                    type="button"
+                    onClick={() => setBalanceEditorOpen(true)}
+                    title={buyerBalanceAdjustmentError || `Update ${buyer.name}'s balance`}
+                    aria-label={`Update ${buyer.name}'s balance`}
+                    className="rounded-full p-1 text-red-300 transition hover:bg-white/10 hover:text-red-200"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="mt-1 break-words text-amber-300 font-extrabold text-lg md:text-2xl">
+                {currencyINR(balance?.balance_due || 0)}
+              </div>
             </div>
             <div className="bg-sky-400/20 backdrop-blur-sm rounded-2xl p-3 md:p-4 text-center border border-sky-300/30">
               <div className="text-xs md:text-sm font-semibold text-sky-100 uppercase tracking-wide mb-1">Credit</div>
@@ -384,10 +414,15 @@ export default function BuyerDetail() {
           <BillAlertModal
             open={billAlertOpen}
             onClose={() => setBillAlertOpen(false)}
-            buyers={[buyer]}
-            balances={{ list: balance ? [{ ...balance, id }] : [] }}
-            buyerSales={buyerSales}
-            payments={payments}
+          />
+          <BuyerBalanceAdjustmentModal
+            open={balanceEditorOpen}
+            onClose={() => setBalanceEditorOpen(false)}
+            buyer={buyer}
+            currentBalance={balance?.balance_due || 0}
+            history={buyerBalanceAdjustments.filter((entry) => entry.buyer_id === id)}
+            unavailableReason={buyerBalanceAdjustmentError}
+            onSave={updateBuyerBalance}
           />
         </>
       )}
