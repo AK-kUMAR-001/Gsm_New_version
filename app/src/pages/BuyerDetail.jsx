@@ -414,6 +414,10 @@ export default function BuyerDetail() {
           <BillAlertModal
             open={billAlertOpen}
             onClose={() => setBillAlertOpen(false)}
+            buyers={[buyer]}
+            balances={{ list: balance ? [{ ...balance, id }] : [] }}
+            buyerSales={buyerSales}
+            payments={payments}
           />
           <BuyerBalanceAdjustmentModal
             open={balanceEditorOpen}

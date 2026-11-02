@@ -83,6 +83,11 @@ function safeFilename(value) {
 function startDocument(title, period, orientation = 'landscape') {
   const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
   doc.setDisplayMode('fullwidth', 'continuous');
+  drawDocumentHeader(doc, title, period);
+  return doc;
+}
+
+function drawDocumentHeader(doc, title, period) {
   const pageWidth = doc.internal.pageSize.getWidth();
   doc.setFillColor(...COLORS.navy);
   doc.rect(0, 0, pageWidth, 34, 'F');
@@ -96,7 +101,6 @@ function startDocument(title, period, orientation = 'landscape') {
   doc.setFontSize(9);
   doc.text(`${period}  |  Created ${formatDateCompact(realTodayIST())}`, 14, 30);
   doc.setTextColor(...COLORS.ink);
-  return doc;
 }
 
 function addPageNumbers(doc) {
@@ -118,21 +122,27 @@ function addPageNumbers(doc) {
 function addMetricCards(doc, values, top = 40) {
   const gap = 4;
   const startX = 14;
-  const width = (269 - gap * (values.length - 1)) / values.length;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const columns = pageWidth < 250 ? 2 : values.length;
+  const width = (pageWidth - startX * 2 - gap * (columns - 1)) / columns;
   values.forEach((metric, index) => {
-    const x = startX + index * (width + gap);
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const x = startX + column * (width + gap);
+    const y = top + row * 28;
     doc.setFillColor(...COLORS.pale);
-    doc.roundedRect(x, top, width, 24, 2, 2, 'F');
+    doc.roundedRect(x, y, width, 24, 2, 2, 'F');
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.muted);
-    doc.text(metric.label.toUpperCase(), x + 4, top + 6);
+    doc.text(metric.label.toUpperCase(), x + 4, y + 6);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.ink);
     const valueLines = doc.splitTextToSize(String(metric.value), width - 8);
-    doc.text(valueLines, x + 4, top + 12, { lineHeightFactor: 1.15 });
+    doc.text(valueLines, x + 4, y + 12, { lineHeightFactor: 1.15 });
   });
+  return top + Math.ceil(values.length / columns) * 28 - 4;
 }
 
 function pdfSaleQuantity(sale) {
@@ -146,38 +156,46 @@ function pdfSaleRate(sale) {
 }
 
 const CUSTOMER_TRANSACTION_COLUMN_STYLES = {
-  0: { cellWidth: 23, halign: 'left' },
-  1: { cellWidth: 16, halign: 'left' },
-  2: { cellWidth: 39, halign: 'left' },
-  3: { cellWidth: 35, halign: 'left' },
-  4: { cellWidth: 46, halign: 'left' },
-  5: { cellWidth: 49, halign: 'right' },
-  6: { cellWidth: 61, halign: 'left' },
+  0: { cellWidth: 22, halign: 'left' },
+  1: { cellWidth: 94, halign: 'left' },
+  2: { cellWidth: 66, halign: 'left' },
 };
 
 const CUSTOMER_TRANSACTION_STYLES = {
   font: 'helvetica',
-  fontSize: 7.5,
-  cellPadding: 1.5,
+  fontSize: 9,
+  cellPadding: 2,
   overflow: 'linebreak',
   textColor: COLORS.ink,
 };
 
 const BUYER_BILL_TRANSACTION_COLUMN_STYLES = {
-  0: { cellWidth: 17, halign: 'left' },
-  1: { cellWidth: 14, halign: 'left' },
-  2: { cellWidth: 28, halign: 'left' },
-  3: { cellWidth: 21, halign: 'left' },
-  4: { cellWidth: 22, halign: 'left' },
-  5: { cellWidth: 43, halign: 'left' },
-  6: { cellWidth: 30, halign: 'left' },
+  0: { cellWidth: 22, halign: 'left' },
+  1: { cellWidth: 94, halign: 'left' },
+  2: { cellWidth: 66, halign: 'left' },
 };
 
 const BUYER_BILL_TRANSACTION_STYLES = {
   ...CUSTOMER_TRANSACTION_STYLES,
-  fontSize: 6.5,
-  cellPadding: 1.2,
+  fontSize: 9,
+  cellPadding: 2,
 };
+
+function buyerTransactionDetails(row) {
+  const details = [row.details || ''];
+  if (row.quantity && row.quantity !== '—') details.push(`Quantity: ${row.quantity}`);
+  if (row.rate && row.rate !== '—') details.push(`Rate: ${row.rate}`);
+  if (row.notes) details.push(`Notes: ${row.notes}`);
+  return details.filter(Boolean).join('\n');
+}
+
+function buyerTransactionTableRows(rows) {
+  return rows.map((row) => [
+    formatDateCompact(row.date),
+    buyerTransactionDetails(row),
+    row.amount,
+  ]);
+}
 
 function table(doc, options) {
   autoTable(doc, {
@@ -222,11 +240,11 @@ export function downloadOverallReportPdf({
   productRows,
 }) {
   const periodName = periodLabel(period);
-  const doc = startDocument('Sales, Product & Stock Report', periodName);
+  const doc = startDocument('Sales, Product & Stock Report', periodName, 'portrait');
   const totalRevenue = totalWholesale + totalRetail;
   const originalWholesale = productRows.reduce((sum, row) => sum + Number(row.wholesale_original_revenue || 0), 0);
   const wholesaleDiscount = productRows.reduce((sum, row) => sum + Number(row.wholesale_discount || 0), 0);
-  addMetricCards(doc, [
+  const metricsEndY = addMetricCards(doc, [
     { label: 'Original buyer sales', value: MONEY(originalWholesale) },
     {
       label: 'Buyer discounts',
@@ -244,39 +262,26 @@ export function downloadOverallReportPdf({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(...COLORS.ink);
-  doc.text('Product performance', 14, 70);
+  const tableTop = metricsEndY + 10;
+  doc.text('Product performance', 14, tableTop);
   table(doc, {
-    startY: 74,
-    head: [[
-      'Product',
-      'Wholesale qty',
-      'Buyer final sales',
-      'Retail qty',
-      'Retail sales',
-      'Stock cost',
-      'Wastage cost',
-      'Trading profit*',
-    ]],
+    startY: tableTop + 4,
+    head: [['Product', 'Sales and stock details']],
     body: productRows.map((row) => [
       row.product,
-      formatQuantityByUnit(row.wholesale_quantities),
-      MONEY(row.wholesale_revenue),
-      formatQuantityByUnit(row.retail_quantities),
-      MONEY(row.retail_revenue),
-      row.tracked_sales ? MONEY(row.stock_cost) : 'Not tracked',
-      MONEY(row.spoilage_cost),
-      row.trading_profit == null ? 'Not available' : MONEY(row.trading_profit),
+      [
+        `Buyer: ${formatQuantityByUnit(row.wholesale_quantities)} · ${MONEY(row.wholesale_revenue)}`,
+        `Retail: ${formatQuantityByUnit(row.retail_quantities)} · ${MONEY(row.retail_revenue)}`,
+        `Stock cost: ${row.tracked_sales ? MONEY(row.stock_cost) : 'Not tracked'}`,
+        `Wastage: ${MONEY(row.spoilage_cost)}`,
+        `Trading profit: ${row.trading_profit == null ? 'Not available' : MONEY(row.trading_profit)}`,
+      ].join('\n'),
     ]),
     columnStyles: {
-      0: { cellWidth: 36 },
-      1: { cellWidth: 32 },
-      2: { cellWidth: 36 },
-      3: { cellWidth: 27 },
-      4: { cellWidth: 33 },
-      5: { cellWidth: 34 },
-      6: { cellWidth: 32 },
-      7: { cellWidth: 39 },
+      0: { cellWidth: 34 },
+      1: { cellWidth: 148 },
     },
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, textColor: COLORS.ink },
   });
 
   const noteY = (doc.lastAutoTable?.finalY || 74) + 7;
@@ -284,8 +289,8 @@ export function downloadOverallReportPdf({
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.muted);
   doc.text('* Trading profit = tracked sales revenue - recorded stock cost - recorded spoilage cost.', 14, noteY);
-  doc.text('Untracked sales are excluded from profit. Opening stock costs may be estimates. No rent, wages, fuel, or other expenses are included.', 14, noteY + 5);
-  doc.text(`Stock purchases in this period: ${MONEY(inventoryReport.receiptCost)}.`, 14, noteY + 10);
+  doc.text('Untracked sales are excluded from profit. Opening stock costs may be estimates. No rent, wages, fuel, or other expenses are included.', 14, noteY + 5, { maxWidth: 182 });
+  doc.text(`Stock purchases in this period: ${MONEY(inventoryReport.receiptCost)}.`, 14, noteY + 12);
 
   addPageNumbers(doc);
   doc.save(`GSM_Overall_Report_${safeFilename(periodName)}.pdf`);
@@ -299,7 +304,7 @@ export function downloadCustomerStatementsPdf({
   balances,
 }) {
   const periodName = periodLabel(period);
-  const doc = startDocument('Customer Bills & Payments', periodName);
+  const doc = startDocument('Customer Bills & Payments', periodName, 'portrait');
   const balanceById = new Map((balances?.list || []).map((balance) => [balance.id, balance]));
   const salesInPeriod = (buyerSales || []).filter((sale) => inPeriod(sale.sale_date, period, 'reports'));
   const paymentsInPeriod = (payments || []).filter((payment) => inPeriod(payment.paid_at, period, 'reports'));
@@ -311,7 +316,7 @@ export function downloadCustomerStatementsPdf({
     .filter((buyer) => activity.has(buyer.id) || (balanceById.get(buyer.id)?.balance_due || 0) > 0)
     .sort((left, right) => left.name.localeCompare(right.name));
 
-  addMetricCards(doc, [
+  const metricsEndY = addMetricCards(doc, [
     { label: 'Customers listed', value: String(statementBuyers.length) },
     { label: 'Original sales', value: MONEY(sumOriginalBills(salesInPeriod)) },
     { label: 'Discounts', value: MONEY(sumBillDiscounts(salesInPeriod)) },
@@ -334,12 +339,13 @@ export function downloadCustomerStatementsPdf({
     },
   ]);
 
-  let cursorY = 68;
+  let cursorY = metricsEndY + 8;
   for (const buyer of statementBuyers) {
     const balance = balanceById.get(buyer.id);
-    if (cursorY > 177) {
+    if (cursorY > doc.internal.pageSize.getHeight() - 65) {
       doc.addPage();
-      cursorY = 18;
+      drawDocumentHeader(doc, 'Customer Bills & Payments', periodName);
+      cursorY = 42;
     }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
@@ -381,12 +387,10 @@ export function downloadCustomerStatementsPdf({
 
     table(doc, {
       startY: cursorY + 8,
-      head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
+      head: [['Date', 'Bill or payment details', 'Amount']],
       body: transactions.length
-        ? transactions.map((row) => [
-          formatDateCompact(row.date), row.kind, row.details, row.quantity, row.rate, row.amount, row.notes,
-        ])
-        : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
+        ? buyerTransactionTableRows(transactions)
+        : [['—', 'No bills or payments in this period', '—']],
       columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
       styles: CUSTOMER_TRANSACTION_STYLES,
     });
@@ -399,8 +403,8 @@ export function downloadCustomerStatementsPdf({
 
 export function downloadBuyerStatementPdf({ period, buyer, sales, payments, balance }) {
   const periodName = periodLabel(period);
-  const doc = startDocument(`${buyer.name} - Statement`, periodName);
-  addMetricCards(doc, [
+  const doc = startDocument(`${buyer.name} - Statement`, periodName, 'portrait');
+  const metricsEndY = addMetricCards(doc, [
     { label: 'Original bill', value: MONEY(sumOriginalBills(sales)) },
     { label: 'Discount', value: MONEY(sumBillDiscounts(sales)) },
     { label: 'Final bill', value: MONEY(sumFinalBills(sales)) },
@@ -434,20 +438,18 @@ export function downloadBuyerStatementPdf({ period, buyer, sales, payments, bala
   ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
 
   table(doc, {
-    startY: 68,
-    head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
+    startY: metricsEndY + 18,
+    head: [['Date', 'Bill or payment details', 'Amount']],
     body: transactions.length
-      ? transactions.map((row) => [
-        formatDateCompact(row.date), row.kind, row.details, row.quantity, row.rate, row.amount, row.notes,
-      ])
-      : [['—', '—', 'No bills or payments in this period', '—', '—', '—', '']],
+      ? buyerTransactionTableRows(transactions)
+      : [['—', 'No bills or payments in this period', '—']],
     columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
     styles: CUSTOMER_TRANSACTION_STYLES,
   });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.muted);
-  doc.text(`Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`, 14, 64);
+  doc.text(`Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`, 14, metricsEndY + 9);
   addPageNumbers(doc);
   doc.save(`GSM_${safeFilename(buyer.name)}_Statement_${safeFilename(periodName)}.pdf`);
 }
@@ -529,30 +531,23 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
     }
     table(doc, {
       startY: 52,
-      head: [['Product', 'Quantity by unit', 'Average rate by unit', 'Original Bill', 'Discount', 'Final Bill']],
+      head: [['Product', 'Quantity and bill breakdown']],
       body: byProduct.size
         ? Array.from(byProduct.entries()).map(([product, row]) => [
           product,
-          formatQuantityByUnit(row.quantities),
-          Object.entries(row.quantities)
-            .map(([unit, quantity]) => `${RATE(quantity ? row.originalRevenueByUnit[unit] / quantity : 0)}/${unit}`)
-            .join(' · '),
-          MONEY(row.originalBilled),
-          row.discount > 0
-            ? `${MONEY(row.discount)} (${row.originalBilled > 0 ? ((row.discount / row.originalBilled) * 100).toFixed(2) : '0.00'}%)`
-            : MONEY(0),
-          MONEY(row.billed),
+          [
+            `Quantity: ${formatQuantityByUnit(row.quantities)}`,
+            `Average rate: ${Object.entries(row.quantities)
+              .map(([unit, quantity]) => `${RATE(quantity ? row.originalRevenueByUnit[unit] / quantity : 0)}/${unit}`)
+              .join(' · ')}`,
+            `Original: ${MONEY(row.originalBilled)}`,
+            `Discount: ${MONEY(row.discount)} (${row.originalBilled > 0 ? ((row.discount / row.originalBilled) * 100).toFixed(2) : '0.00'}%)`,
+            `Final: ${MONEY(row.billed)}`,
+          ].join('\n'),
         ])
-        : [['—', '—', '—', '—', '—', 'No sales recorded for this period']],
-      columnStyles: {
-        0: { cellWidth: 26 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 32 },
-        3: { cellWidth: 27 },
-        4: { cellWidth: 34 },
-        5: { cellWidth: 27 },
-      },
-      styles: { font: 'helvetica', fontSize: 7, cellPadding: 1.4, textColor: COLORS.ink },
+        : [['—', 'No sales recorded for this period']],
+      columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 148 } },
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, textColor: COLORS.ink },
     });
     addBillTotals(
       doc,
@@ -587,12 +582,10 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
     ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
     table(doc, {
       startY: 52,
-      head: [['Date', 'Type', 'Product / details', 'Quantity', 'Rate', 'Amount', 'Notes']],
+      head: [['Date', 'Bill or payment details', 'Amount']],
       body: transactions.length
-        ? transactions.map((row) => [
-          formatDateCompact(row.date), row.kind, row.product, row.quantity, row.rate, row.amount, row.notes,
-        ])
-        : [['—', '—', 'No bills or payments recorded', '—', '—', '—', '']],
+        ? buyerTransactionTableRows(transactions.map((row) => ({ ...row, details: `${row.kind}: ${row.product}` })))
+        : [['—', 'No bills or payments recorded', '—']],
       columnStyles: BUYER_BILL_TRANSACTION_COLUMN_STYLES,
       styles: BUYER_BILL_TRANSACTION_STYLES,
     });

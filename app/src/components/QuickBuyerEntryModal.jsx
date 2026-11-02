@@ -205,7 +205,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
       open={open}
       onClose={onClose}
       title="Quick Buyer Entry"
-      maxWidth="max-w-xl"
+      maxWidth="max-w-lg"
       contentClassName="!p-3 sm:!p-4"
     >
       {choosingBuyer ? (
