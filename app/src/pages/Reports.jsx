@@ -28,7 +28,7 @@ import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
 import RecentActivityModal from '../components/RecentActivityModal.jsx';
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
-import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
+import StartRetailDayModal from '../components/StartRetailDayModal.jsx';
 import Modal from '../components/Modal.jsx';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardCheck, Download, FileDown, FileJson, IndianRupee, Pencil, Search } from 'lucide-react';
 import { downloadCsv, downloadJson, exportDateStamp } from '../lib/dataExport.js';
@@ -71,7 +71,7 @@ function sortEntriesByCreatedAt(entries) {
   ));
 }
 
-function DailyActivitySection({ title, count, total, emptyText, enterLabel, onEnter, children }) {
+function DailyActivitySection({ title, count, total, emptyText, enterLabel, onEnter, enterDisabled = false, children }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-3 border-b border-ink-100 px-4 py-4 sm:px-5">
@@ -82,6 +82,7 @@ function DailyActivitySection({ title, count, total, emptyText, enterLabel, onEn
               <button
                 type="button"
                 onClick={onEnter}
+                disabled={enterDisabled}
                 className="text-sm font-bold text-red-700 hover:text-red-800"
               >
                 {enterLabel}
@@ -685,13 +686,17 @@ export default function Reports() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityEditTarget, setActivityEditTarget] = useState(null);
   const [entryModal, setEntryModal] = useState(null);
+  const [retailPriceModalOpen, setRetailPriceModalOpen] = useState(false);
+  const [retailPriceBusy, setRetailPriceBusy] = useState(false);
+  const [retailPriceError, setRetailPriceError] = useState('');
   const [stockEditTarget, setStockEditTarget] = useState(null);
   const app = useAppData();
   const {
-    buyerSales, retailSales, payments, buyers, products, balances,
+    buyerSales, retailSales, payments, buyers, products, activeProducts, balances,
     inventorySettings, inventoryCounts, inventoryMovements,
-    inventoryError, loadInventory, offline,
+    inventoryError, inventoryLoading, loadInventory, offline,
     retailDayPrices, retailDayLoading, loadRetailDay,
+    saveRetailDayPrices,
     showToast,
     updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
@@ -703,6 +708,20 @@ export default function Reports() {
   );
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
   const requestDownload = (fileLabel, action) => setConfirmDownload({ fileLabel, action });
+  const trackedActiveProducts = activeProducts.filter((product) => (
+    inventorySettings.some((setting) => setting.product_id === product.id)
+  ));
+  const handleSaveRetailPrices = async (prices) => {
+    setRetailPriceError('');
+    setRetailPriceBusy(true);
+    const result = await saveRetailDayPrices(prices, selectedDate);
+    setRetailPriceBusy(false);
+    if (result.error) {
+      setRetailPriceError(result.error.message);
+      return;
+    }
+    setRetailPriceModalOpen(false);
+  };
 
   const matchesBuyerSale = (sale) => {
     const buyerName = String(buyersById.get(sale.buyer_id)?.name || '').toLocaleLowerCase();
@@ -836,15 +855,35 @@ export default function Reports() {
   };
   const dailyBuyerTotal = useMemo(() => sumSales(dailyBuyerSales), [dailyBuyerSales]);
   const dailyRetailTotal = useMemo(() => sumSales(dailyRetailSales), [dailyRetailSales]);
+  const dailyStockByProduct = useMemo(() => {
+    const balancesByProduct = new Map();
+    for (const movement of inventoryMovements) {
+      if (movement.movement_date !== selectedDate) continue;
+      balancesByProduct.set(
+        movement.product_id,
+        (balancesByProduct.get(movement.product_id) || 0) + Number(movement.quantity_delta || 0),
+      );
+    }
+    return balancesByProduct;
+  }, [inventoryMovements, selectedDate]);
+  const dailyStockCostByProduct = useMemo(() => {
+    const costsByProduct = new Map();
+    for (const movement of inventoryMovements) {
+      if (movement.movement_date !== selectedDate) continue;
+      costsByProduct.set(
+        movement.product_id,
+        (costsByProduct.get(movement.product_id) || 0) + Number(movement.cost_delta || 0),
+      );
+    }
+    return costsByProduct;
+  }, [inventoryMovements, selectedDate]);
   const dailyRetailBalances = useMemo(() => {
     const pricesByProduct = new Map(retailDayPrices.map((price) => [price.product_id, price]));
     return inventorySettings.flatMap((setting) => {
       const price = pricesByProduct.get(setting.product_id);
       const product = products.find((item) => item.id === setting.product_id);
       if (!price || !product) return [];
-      const balance = inventoryMovements
-        .filter((movement) => movement.product_id === setting.product_id && movement.movement_date === selectedDate)
-        .reduce((sum, movement) => sum + Number(movement.quantity_delta || 0), 0);
+      const balance = dailyStockByProduct.get(setting.product_id) || 0;
       if (balance <= 0) return [];
       return [{
         product,
@@ -854,7 +893,7 @@ export default function Reports() {
         value: balance * Number(price.price_per_unit || 0),
       }];
     });
-  }, [inventorySettings, inventoryMovements, products, retailDayPrices, selectedDate]);
+  }, [inventorySettings, dailyStockByProduct, products, retailDayPrices]);
   const dailyRemainingRetailValue = dailyRetailBalances.reduce((sum, item) => sum + item.value, 0);
   const dailyRetailDisplayTotal = dailyRetailTotal + dailyRemainingRetailValue;
   const dailyPaymentsTotal = useMemo(
@@ -1157,8 +1196,14 @@ export default function Reports() {
             count={dailyRetailSales.length + dailyRetailBalances.length}
             total={dailyRetailDisplayTotal}
             emptyText={retailDayLoading ? 'Loading retail prices…' : 'No retail sales or automatic retail sale quantity on this date.'}
-            enterLabel={`Enter data for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
-            onEnter={() => setEntryModal('retail')}
+            enterLabel={retailDayPrices.length
+              ? `Update retail prices for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`
+              : `Enter retail prices for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
+            enterDisabled={retailDayLoading || inventoryLoading || !!inventoryError || offline}
+            onEnter={() => {
+              setRetailPriceError('');
+              setRetailPriceModalOpen(true);
+            }}
           >
             {dailyRetailSales.map((sale) => {
               const quantity = Number(sale.mootais_sold ?? sale.mootais ?? 0);
@@ -1226,10 +1271,17 @@ export default function Reports() {
         onClose={() => setEntryModal(null)}
         initialDate={selectedDate}
       />
-      <RecordRetailSaleModal
-        open={entryModal === 'retail'}
-        onClose={() => setEntryModal(null)}
-        initialDate={selectedDate}
+      <StartRetailDayModal
+        open={retailPriceModalOpen}
+        onClose={() => setRetailPriceModalOpen(false)}
+        products={trackedActiveProducts}
+        stockByProduct={dailyStockByProduct}
+        stockCostByProduct={dailyStockCostByProduct}
+        saleDate={selectedDate}
+        initialPrices={retailDayPrices}
+        onStart={handleSaveRetailPrices}
+        busy={retailPriceBusy}
+        error={retailPriceError}
       />
       <RecordPaymentModal
         open={entryModal === 'payment'}

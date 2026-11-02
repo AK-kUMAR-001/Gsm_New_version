@@ -672,16 +672,48 @@ export function AppDataProvider({ children }) {
       showToast(error.message, 'warn');
       return { error };
     }
-    const { data, error } = await supabase.rpc('inventory_start_retail_day', { p_prices: prices });
+    const saleDate = todayIST();
+    const { data, error } = await supabase.rpc('inventory_start_retail_day', {
+      p_prices: prices,
+    });
     if (error) {
-      showToast(`Could not start retail sales: ${error.message}`, 'error');
+      showToast(`Could not save retail prices: ${error.message}`, 'error');
       return { error };
     }
-    const [retailRefresh, inventoryRefresh] = await Promise.all([loadRetailDay(), loadInventory()]);
+    const [retailRefresh, inventoryRefresh] = await Promise.all([
+      loadRetailDay(saleDate),
+      loadInventory(),
+    ]);
     if (retailRefresh.error || inventoryRefresh.error) {
-      showToast('Retail sales started, but some page data could not refresh.', 'warn');
+      showToast('Retail prices saved, but some page data could not refresh.', 'warn');
     } else {
-      showToast('Retail sales started', 'success');
+      showToast('Retail prices saved', 'success');
+    }
+    return { data };
+  };
+
+  const saveRetailDayPrices = async (prices, saleDate) => {
+    if (offline) {
+      const error = new Error('Saving retail prices requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase.rpc('inventory_save_retail_day_prices', {
+      p_sale_date: saleDate,
+      p_prices: prices,
+    });
+    if (error) {
+      showToast(`Could not save retail prices: ${error.message}`, 'error');
+      return { error };
+    }
+    const [retailRefresh, inventoryRefresh] = await Promise.all([
+      loadRetailDay(saleDate),
+      loadInventory(),
+    ]);
+    if (retailRefresh.error || inventoryRefresh.error) {
+      showToast('Retail prices saved, but some page data could not refresh.', 'warn');
+    } else {
+      showToast('Retail prices saved', 'success');
     }
     return { data };
   };
@@ -855,7 +887,7 @@ export function AppDataProvider({ children }) {
     buyersById, balances, balancesById, productRevenue, today, recent, activeProducts,
     loading, offline, dataLoadError, toast, showToast, load,
     inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
-    loadRetailDay, startRetailDay,
+    loadRetailDay, startRetailDay, saveRetailDayPrices,
     insertBuyer, updateBuyer, setBuyerArchived, deleteArchivedBuyer, updateProduct, insertProduct, deleteProduct,
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,

@@ -142,6 +142,10 @@ order:
     stores a private snapshot of the previous movements. It aborts if the date
     already has conflicting opening/count movements, a sale lacks its linked
     stock movement, or the count cannot cover that day's movements.
+24. `202611020001_retail_prices_for_selected_date.sql` enables saving or
+    correcting each product's retail price for today or a past date from
+    Reports. It requires a physical morning count for every active tracked
+    product and preserves all existing sales and stock movements.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
@@ -157,7 +161,10 @@ sale at that date's saved prices. New buyer entries recalculate the bulk
 quantity and revenue. This calculated sale is not inserted as a transaction.
 The dashboard and daily closing report include its retail margin in profit and
 show its quantity under Retail sold; dates without saved prices do not get an
-automatic retail sale.
+automatic retail sale. Reports' Retail entry action opens the per-product
+retail-price form for its selected date; saving prices recalculates that date's
+automatic bulk retail quantity, revenue, stock balance, and profit without
+inserting a sale transaction.
 
 The `202610120001_low_stock_threshold.sql` migration adds a configurable warning
 level to tracked products. It defaults to 5 of the product's sales units; set it

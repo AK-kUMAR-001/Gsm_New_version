@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { currencyINR, productSalesUnit, getProductEmoji } from '../lib/business.js';
+import { currencyINR, productSalesUnit, getProductEmoji, todayIST } from '../lib/business.js';
 import Modal from './Modal.jsx';
 
 export default function StartRetailDayModal({
@@ -8,6 +8,8 @@ export default function StartRetailDayModal({
   products,
   stockByProduct,
   stockCostByProduct,
+  saleDate = todayIST(),
+  initialPrices = [],
   onStart,
   busy,
   error,
@@ -15,8 +17,21 @@ export default function StartRetailDayModal({
   const [rates, setRates] = useState({});
 
   useEffect(() => {
-    if (open) setRates(Object.fromEntries(products.map((product) => [product.id, ''])));
-  }, [open, products]);
+    if (open) {
+      const savedPrices = new Map(initialPrices.map((price) => [price.product_id, price.price_per_unit]));
+      setRates(Object.fromEntries(products.map((product) => [
+        product.id,
+        savedPrices.has(product.id) ? String(savedPrices.get(product.id)) : '',
+      ])));
+    }
+  }, [open, products, initialPrices]);
+
+  const dateLabel = new Date(`${saleDate}T00:00:00`).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const isToday = saleDate === todayIST();
 
   const productValues = useMemo(
     () => products.map((product) => {
@@ -48,11 +63,11 @@ export default function StartRetailDayModal({
   };
 
   return (
-    <Modal open={open} onClose={() => { if (!busy) onClose(); }} title="Start Retail Sales" maxWidth="max-w-2xl">
+    <Modal open={open} onClose={() => { if (!busy) onClose(); }} title="Set Retail Prices" maxWidth="max-w-2xl">
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-ink-600">
-          Set today’s retail price for each active stock item. After starting, the stock left after buyer and recorded
-          retail sales is counted as an automatic bulk retail sale at these prices. New buyer sales recalculate it.
+          Set the retail price for each active stock item for {dateLabel}. After saving, stock left after buyer and
+          recorded retail sales is counted as an automatic bulk retail sale at these prices.
         </p>
 
         <div className="space-y-2">
@@ -115,7 +130,11 @@ export default function StartRetailDayModal({
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
 
         <button type="submit" disabled={busy || products.length === 0} className="btn-green w-full justify-center">
-          {busy ? 'Starting…' : 'Start Retail Sales'}
+          {busy
+            ? 'Saving…'
+            : isToday && initialPrices.length === 0
+              ? 'Start Retail Sales'
+              : 'Save Retail Prices'}
         </button>
       </form>
     </Modal>
