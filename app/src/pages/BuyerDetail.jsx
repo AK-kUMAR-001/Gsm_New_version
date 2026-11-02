@@ -19,9 +19,9 @@ import PeriodPills, { BUYER_PERIOD_OPTIONS } from '../components/PeriodPills.jsx
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordPaymentModal from '../components/RecordPaymentModal.jsx';
 import DeleteBuyerModal from '../components/DeleteBuyerModal.jsx';
-import ConfirmDownloadModal from '../components/ConfirmDownloadModal.jsx';
 import BillAlertModal from '../components/BillAlertModal.jsx';
 import BuyerBalanceAdjustmentModal from '../components/BuyerBalanceAdjustmentModal.jsx';
+import Modal from '../components/Modal.jsx';
 import { ArrowLeft, RefreshCw, IndianRupee, Package, ShoppingBag, Calendar, FileText, Banknote, FileDown, MessageCircle, Archive, ArchiveRestore, Trash2, Pencil } from 'lucide-react';
 
 export default function BuyerDetail() {
@@ -47,7 +47,9 @@ export default function BuyerDetail() {
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [pdfConfirmOpen, setPdfConfirmOpen] = useState(false);
+  const [pdfPeriodPickerOpen, setPdfPeriodPickerOpen] = useState(false);
+  const [pdfDownloadPeriod, setPdfDownloadPeriod] = useState('month');
+  const [pdfDownloading, setPdfDownloading] = useState(false);
   const [billAlertOpen, setBillAlertOpen] = useState(false);
   const [balanceEditorOpen, setBalanceEditorOpen] = useState(false);
 
@@ -78,6 +80,8 @@ export default function BuyerDetail() {
   }, [payments, id, period]);
 
   const downloadBuyerPdf = async () => {
+    if (pdfDownloading) return;
+    setPdfDownloading(true);
     try {
       const { createBuyerBillFile } = await import('../lib/pdfReports.js');
       const file = await createBuyerBillFile({
@@ -91,7 +95,7 @@ export default function BuyerDetail() {
           month: 'monthly',
           '3months': '3months',
           all: 'full',
-        }[period],
+        }[pdfDownloadPeriod],
         selectedDate: realTodayIST(),
       });
       const url = URL.createObjectURL(file);
@@ -103,9 +107,11 @@ export default function BuyerDetail() {
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setPdfPeriodPickerOpen(false);
     } catch (error) {
       showToast(`Could not create PDF: ${error.message || 'Unexpected error.'}`, 'error');
-      throw error;
+    } finally {
+      setPdfDownloading(false);
     }
   };
 
@@ -263,7 +269,10 @@ export default function BuyerDetail() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setPdfConfirmOpen(true)}
+            onClick={() => {
+              setPdfDownloadPeriod(period);
+              setPdfPeriodPickerOpen(true);
+            }}
             className="btn-outline"
           >
             <FileDown className="w-4 h-4" /> Download PDF
@@ -438,12 +447,48 @@ export default function BuyerDetail() {
           onDeleted={() => navigate('/buyers/deleted', { replace: true })}
         />
       )}
-      <ConfirmDownloadModal
-        open={pdfConfirmOpen}
-        fileLabel="this buyer statement PDF"
-        onClose={() => setPdfConfirmOpen(false)}
-        onConfirm={downloadBuyerPdf}
-      />
+      <Modal
+        open={pdfPeriodPickerOpen}
+        onClose={() => setPdfPeriodPickerOpen(false)}
+        title="Choose PDF period"
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-600">Choose the date range to include in this buyer PDF.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {BUYER_PERIOD_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                aria-pressed={pdfDownloadPeriod === option.key}
+                onClick={() => setPdfDownloadPeriod(option.key)}
+                className={`period-pill min-h-11 ${pdfDownloadPeriod === option.key ? 'active' : ''}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => setPdfPeriodPickerOpen(false)}
+              disabled={pdfDownloading}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-green"
+              onClick={downloadBuyerPdf}
+              disabled={pdfDownloading}
+            >
+              <FileDown className="h-4 w-4" />
+              {pdfDownloading ? 'Preparing…' : 'Download PDF'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
