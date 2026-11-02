@@ -18,7 +18,7 @@ const emptyRow = (product) => ({
   quantity: '',
   rate: '',
   quantity_unit: saleInputUnits(product)[0],
-  discounted_bill_total: '',
+  discount_amount: '',
 });
 
 function newRequestIds(products) {
@@ -84,19 +84,19 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
     .filter(({ quantity, rate }) => quantity > 0 && rate > 0)
     .map((entry) => ({
       ...entry,
-      discounted_bill_total: rows[entry.product.name]?.discounted_bill_total === ''
-        ? null
-        : Number(rows[entry.product.name]?.discounted_bill_total),
+      original_total: Number((entry.quantity * entry.rate).toFixed(2)),
+      discount_amount: rows[entry.product.name]?.discount_amount === ''
+        ? 0
+        : Number(rows[entry.product.name]?.discount_amount),
     }));
   const invalidEntries = entries.length !== validEntries.length;
   const invalidDiscountEntries = validEntries.some((entry) => (
-    entry.discounted_bill_total != null
-      && (!Number.isFinite(entry.discounted_bill_total)
-        || entry.discounted_bill_total < 0
-        || entry.discounted_bill_total > Number((entry.quantity * entry.rate).toFixed(2)))
+    !Number.isFinite(entry.discount_amount)
+      || entry.discount_amount < 0
+      || entry.discount_amount > entry.original_total
   ));
   const total = validEntries.reduce((sum, entry) => (
-    sum + (entry.discounted_bill_total ?? entry.quantity * entry.rate)
+    sum + entry.original_total - entry.discount_amount
   ), 0);
   const hasSavedSales = savedProducts.current.size > 0;
   const valid = selectedBuyerId && validEntries.length > 0 && !invalidEntries && !invalidDiscountEntries && !saving;
@@ -123,9 +123,9 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
         mootais: quantity,
         quantity_unit: rows[product.name]?.quantity_unit || saleInputUnits(product)[0],
         price_per_mootai: rate,
-        discounted_bill_total: rows[product.name]?.discounted_bill_total === ''
-          ? null
-          : Number(rows[product.name]?.discounted_bill_total),
+        discounted_bill_total: rows[product.name]?.discount_amount
+          ? Number((quantity * rate - Number(rows[product.name].discount_amount)).toFixed(2))
+          : null,
         sale_date: saleDate,
         notes: notes.trim() || null,
       });
@@ -276,11 +276,9 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                 const otherUnit = units.find((unit) => unit !== inputUnit);
                 const quantity = Number(row.quantity || 0);
                 const rate = Number(row.rate || 0);
-                const originalTotal = quantity * rate;
-                const discountedTotal = row.discounted_bill_total === ''
-                  ? originalTotal
-                  : Number(row.discounted_bill_total || 0);
-                const discountAmount = Math.max(0, originalTotal - discountedTotal);
+                const originalTotal = Number((quantity * rate).toFixed(2));
+                const discountAmount = Number(row.discount_amount || 0);
+                const discountedTotal = Math.max(0, originalTotal - discountAmount);
                 const discountPercent = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
                 return (
                   <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_68px_68px_74px] items-center gap-2 rounded-xl px-2 py-1 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
@@ -331,21 +329,31 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                     {quantity > 0 && rate > 0 && (
                       <div className="col-span-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 pb-2">
                         <label className="text-[11px] font-semibold text-ink-600">
-                          Discounted bill total ₹ · Optional
+                          Original bill total (₹)
                           <input
-                            aria-label={`${product.name} discounted bill total`}
+                            aria-label={`${product.name} original bill total`}
+                            type="text"
+                            readOnly
+                            value={currencyINR(originalTotal)}
+                            className="input mt-1 !cursor-not-allowed !bg-slate-50 !px-2 !py-2 text-xs !text-ink-500"
+                          />
+                        </label>
+                        <label className="text-[11px] font-semibold text-ink-600">
+                          Discount amount (₹) · Optional
+                          <input
+                            aria-label={`${product.name} discount amount`}
                             type="number"
                             disabled={savedProducts.current.has(product.name)}
                             min="0"
                             max={originalTotal.toFixed(2)}
                             step="0.01"
-                            value={row.discounted_bill_total}
-                            onChange={(event) => updateRow(product.name, 'discounted_bill_total', event.target.value)}
-                            placeholder={`Original ${currencyINR(originalTotal)}`}
+                            value={row.discount_amount}
+                            onChange={(event) => updateRow(product.name, 'discount_amount', event.target.value)}
+                            placeholder="0.00"
                             className="input mt-1 !px-2 !py-2 text-xs"
                           />
                         </label>
-                        <div className="text-right text-[11px] font-semibold text-ink-700">
+                        <div className="col-span-2 text-right text-[11px] font-semibold text-ink-700">
                           {discountAmount > 0
                             ? `Discount ${currencyINR(discountAmount)} (${discountPercent.toFixed(2)}%)`
                             : 'No discount'}
@@ -400,7 +408,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
           {(errorMessage || invalidDiscountEntries || (invalidEntries && entries.length > 0)) && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
               <p>{errorMessage || (invalidDiscountEntries
-                ? 'A discounted bill total must be between zero and that product’s original bill total.'
+                ? 'A discount amount must be between zero and that product’s original bill total.'
                 : 'For each product, enter both quantity and rate, or leave both as zero.')}</p>
             </div>
           )}
