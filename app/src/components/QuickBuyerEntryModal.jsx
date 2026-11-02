@@ -453,17 +453,33 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                 </div>
               )}
               {discountMode === 'confirmed' && (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-ink-700">
-                    Discount confirmed: {currencyINR(discountTotal)} ({discountPercent.toFixed(2)}%)
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setDiscountMode('editing')}
-                    className="text-sm font-bold text-sidebar-accent hover:underline"
-                  >
-                    Edit discount
-                  </button>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    {validEntries.map(({ product, quantity, rate, original_total: originalTotal, discount_amount: discountAmount }) => {
+                      const finalAmount = Math.max(0, originalTotal - discountAmount);
+                      const itemDiscountPercent = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
+                      return (
+                        <div key={product.id} className="flex flex-wrap items-baseline justify-between gap-x-3 rounded-lg bg-white px-3 py-1.5 text-xs">
+                          <span className="font-semibold text-ink-700">
+                            {product.name}: {quantity} × {currencyINR(rate)} · Original {currencyINR(originalTotal)} · Discount {currencyINR(discountAmount)} ({itemDiscountPercent.toFixed(2)}%)
+                          </span>
+                          <span className="font-extrabold text-red-700">Final {currencyINR(finalAmount)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-ink-700">
+                      Discount confirmed: {currencyINR(discountTotal)} ({discountPercent.toFixed(2)}%)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setDiscountMode('editing')}
+                      className="text-sm font-bold text-sidebar-accent hover:underline"
+                    >
+                      Edit discount
+                    </button>
+                  </div>
                 </div>
               )}
               {discountMode === 'without' && (
