@@ -35,6 +35,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
   const [query, setQuery] = useState('');
   const [saleDate, setSaleDate] = useState(todayIST());
   const [rows, setRows] = useState({});
+  const [discountMode, setDiscountMode] = useState('choose');
   const [payment, setPayment] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -53,6 +54,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
     setQuery('');
     setSaleDate(initialDate || todayIST());
     setRows(Object.fromEntries(activeProducts.map((product) => [product.name, emptyRow(product)])));
+    setDiscountMode('choose');
     setPayment('');
     setNotes('');
     setSaving(false);
@@ -90,22 +92,49 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
         : Number(rows[entry.product.name]?.discount_amount),
     }));
   const invalidEntries = entries.length !== validEntries.length;
-  const invalidDiscountEntries = validEntries.some((entry) => (
+  const discountTotal = validEntries.reduce((sum, entry) => sum + entry.discount_amount, 0);
+  const discountPercent = validEntries.reduce((sum, entry) => sum + entry.original_total, 0) > 0
+    ? (discountTotal / validEntries.reduce((sum, entry) => sum + entry.original_total, 0)) * 100
+    : 0;
+  const invalidDiscountEntries = ['editing', 'confirmed'].includes(discountMode) && validEntries.some((entry) => (
     !Number.isFinite(entry.discount_amount)
       || entry.discount_amount < 0
       || entry.discount_amount > entry.original_total
   ));
+  const discountsApplied = ['editing', 'confirmed'].includes(discountMode);
   const total = validEntries.reduce((sum, entry) => (
-    sum + entry.original_total - entry.discount_amount
+    sum + entry.original_total - (discountsApplied ? entry.discount_amount : 0)
   ), 0);
   const hasSavedSales = savedProducts.current.size > 0;
-  const valid = selectedBuyerId && validEntries.length > 0 && !invalidEntries && !invalidDiscountEntries && !saving;
+  const valid = selectedBuyerId
+    && validEntries.length > 0
+    && !invalidEntries
+    && !invalidDiscountEntries
+    && !['choose', 'editing'].includes(discountMode)
+    && !saving;
 
   const updateRow = (productName, field, value) => {
-    setRows((current) => ({ ...current, [productName]: { ...current[productName], [field]: value } }));
+    setRows((current) => {
+      if (field === 'discount_amount') {
+        return { ...current, [productName]: { ...current[productName], [field]: value } };
+      }
+      return Object.fromEntries(Object.entries(current).map(([name, row]) => [
+        name,
+        { ...row, [field]: name === productName ? value : row[field], discount_amount: '' },
+      ]));
+    });
+    if (field !== 'discount_amount') setDiscountMode('choose');
     savedProducts.current.delete(productName);
     requestIds.current[productName] = window.crypto.randomUUID();
     setErrorMessage('');
+  };
+
+  const skipDiscount = () => {
+    setRows((current) => Object.fromEntries(Object.entries(current).map(([name, row]) => [
+      name,
+      { ...row, discount_amount: '' },
+    ])));
+    setDiscountMode('without');
   };
 
   const submit = async (event) => {
@@ -123,7 +152,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
         mootais: quantity,
         quantity_unit: rows[product.name]?.quantity_unit || saleInputUnits(product)[0],
         price_per_mootai: rate,
-        discounted_bill_total: rows[product.name]?.discount_amount
+        discounted_bill_total: discountMode === 'confirmed' && rows[product.name]?.discount_amount
           ? Number((quantity * rate - Number(rows[product.name].discount_amount)).toFixed(2))
           : null,
         sale_date: saleDate,
@@ -282,10 +311,6 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                 const otherUnit = units.find((unit) => unit !== inputUnit);
                 const quantity = Number(row.quantity || 0);
                 const rate = Number(row.rate || 0);
-                const originalTotal = Number((quantity * rate).toFixed(2));
-                const discountAmount = Number(row.discount_amount || 0);
-                const discountedTotal = Math.max(0, originalTotal - discountAmount);
-                const discountPercent = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
                 return (
                   <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_64px_64px_68px] items-center gap-1.5 rounded-xl px-2 py-0.5 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
                     <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink-800">
@@ -332,48 +357,129 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                         {' · '}{currencyINRPerUnit(saleRateInUnit(product, rate, inputUnit, otherUnit))} per {otherUnit}
                       </p>
                     )}
-                    {quantity > 0 && rate > 0 && (
-                      <div className="col-span-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-1.5 pb-1">
-                        <label className="text-[11px] font-semibold text-ink-600">
-                          Original bill total (₹)
-                          <input
-                            aria-label={`${product.name} original bill total`}
-                            type="text"
-                            readOnly
-                            value={currencyINR(originalTotal)}
-                            className="input mt-1 !min-h-9 !cursor-not-allowed !bg-slate-50 !px-2 !py-1.5 text-xs !text-ink-500"
-                          />
-                        </label>
-                        <label className="text-[11px] font-semibold text-ink-600">
-                          Discount amount (₹) · Optional
-                          <input
-                            aria-label={`${product.name} discount amount`}
-                            type="number"
-                            disabled={savedProducts.current.has(product.name)}
-                            min="0"
-                            max={originalTotal.toFixed(2)}
-                            step="0.01"
-                            value={row.discount_amount}
-                            onChange={(event) => updateRow(product.name, 'discount_amount', event.target.value)}
-                            placeholder="0.00"
-                            className="input mt-1 !min-h-9 !px-2 !py-1.5 text-xs"
-                          />
-                        </label>
-                        <div className="col-span-2 text-right text-[11px] font-semibold text-ink-700">
-                          {discountAmount > 0
-                            ? `Discount ${currencyINR(discountAmount)} (${discountPercent.toFixed(2)}%)`
-                            : 'No discount'}
-                          <span className="mt-1 block text-base font-extrabold text-red-700 sm:text-lg">
-                            Final: {currencyINR(discountedTotal)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {validEntries.length > 0 && !invalidEntries && (
+            <section className="rounded-xl border border-ink-200 bg-ink-50 p-3" aria-label="Discount options">
+              {discountMode === 'choose' && (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-ink-700">Add a discount to this sale?</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDiscountMode('editing')}
+                      className="btn-outline flex-1 justify-center !px-3 !py-2 sm:flex-none"
+                    >
+                      Add discount
+                    </button>
+                    <button
+                      type="button"
+                      onClick={skipDiscount}
+                      className="btn-outline flex-1 justify-center !px-3 !py-2 sm:flex-none"
+                    >
+                      Without discount
+                    </button>
+                  </div>
+                </div>
+              )}
+              {discountMode === 'editing' && (
+                <div className="space-y-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-ink-800">Apply discount</h4>
+                    <p className="text-xs text-ink-500">Enter an amount for each item; percentage and final amount update automatically.</p>
+                  </div>
+                  <div className="max-h-52 space-y-2 overflow-y-auto overscroll-contain pr-1">
+                    {validEntries.map(({ product, quantity, rate, original_total: originalTotal, discount_amount: discountAmount }) => {
+                      const row = rows[product.name] || emptyRow(product);
+                      const finalAmount = Math.max(0, originalTotal - discountAmount);
+                      const itemDiscountPercent = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
+                      return (
+                        <div key={product.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] items-center gap-x-3 gap-y-1 rounded-lg bg-white px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-ink-800">{product.name}</p>
+                            <p className="text-xs text-ink-500">
+                              {quantity} × {currencyINR(rate)} = {currencyINR(originalTotal)}
+                            </p>
+                            <p className="text-sm font-extrabold text-red-700">
+                              {itemDiscountPercent.toFixed(2)}% discount · Final {currencyINR(finalAmount)}
+                            </p>
+                          </div>
+                          <label className="text-[10px] font-bold uppercase text-ink-500">
+                            Discount ₹
+                            <input
+                              aria-label={`${product.name} discount amount`}
+                              type="number"
+                              disabled={savedProducts.current.has(product.name)}
+                              min="0"
+                              max={originalTotal.toFixed(2)}
+                              step="0.01"
+                              value={row.discount_amount}
+                              onChange={(event) => updateRow(product.name, 'discount_amount', event.target.value)}
+                              placeholder="0.00"
+                              className="input mt-1 !min-h-9 !px-2 !py-1.5 text-sm"
+                            />
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {invalidDiscountEntries && (
+                    <p className="text-xs font-semibold text-red-700" role="alert">
+                      Each discount must be between zero and that item’s original amount.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-ink-700">
+                      Total discount: {currencyINR(discountTotal)} ({discountPercent.toFixed(2)}%)
+                    </p>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={skipDiscount} className="btn-outline !px-3 !py-2">
+                        Without discount
+                      </button>
+                      <button
+                        type="button"
+                        disabled={invalidDiscountEntries || saving}
+                        onClick={() => setDiscountMode('confirmed')}
+                        className="btn-navy !px-3 !py-2"
+                      >
+                        Confirm discount
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {discountMode === 'confirmed' && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-ink-700">
+                    Discount confirmed: {currencyINR(discountTotal)} ({discountPercent.toFixed(2)}%)
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDiscountMode('editing')}
+                    className="text-sm font-bold text-sidebar-accent hover:underline"
+                  >
+                    Edit discount
+                  </button>
+                </div>
+              )}
+              {discountMode === 'without' && (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-ink-700">Sale without discount</p>
+                  <button
+                    type="button"
+                    onClick={() => setDiscountMode('choose')}
+                    className="text-sm font-bold text-sidebar-accent hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
 
           <div>
             <label className="label" htmlFor="quick-buyer-notes">Notes (optional)</label>

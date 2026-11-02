@@ -80,11 +80,12 @@ function safeFilename(value) {
     .slice(0, 60) || 'report';
 }
 
-function startDocument(title, period) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+function startDocument(title, period, orientation = 'landscape') {
+  const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
   doc.setDisplayMode('fullwidth', 'continuous');
+  const pageWidth = doc.internal.pageSize.getWidth();
   doc.setFillColor(...COLORS.navy);
-  doc.rect(0, 0, 297, 34, 'F');
+  doc.rect(0, 0, pageWidth, 34, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
@@ -100,15 +101,17 @@ function startDocument(title, period) {
 
 function addPageNumbers(doc) {
   const pageCount = doc.getNumberOfPages();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   for (let page = 1; page <= pageCount; page += 1) {
     doc.setPage(page);
     doc.setDrawColor(220, 226, 232);
-    doc.line(14, 197, 283, 197);
+    doc.line(14, pageHeight - 13, pageWidth - 14, pageHeight - 13);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.muted);
-    doc.text('GSM Traders  |  Business report', 14, 202);
-    doc.text(`Page ${page} of ${pageCount}`, 283, 202, { align: 'right' });
+    doc.text('GSM Traders  |  Business report', 14, pageHeight - 8);
+    doc.text(`Page ${page} of ${pageCount}`, pageWidth - 14, pageHeight - 8, { align: 'right' });
   }
 }
 
@@ -160,6 +163,22 @@ const CUSTOMER_TRANSACTION_STYLES = {
   textColor: COLORS.ink,
 };
 
+const BUYER_BILL_TRANSACTION_COLUMN_STYLES = {
+  0: { cellWidth: 17, halign: 'left' },
+  1: { cellWidth: 14, halign: 'left' },
+  2: { cellWidth: 28, halign: 'left' },
+  3: { cellWidth: 21, halign: 'left' },
+  4: { cellWidth: 22, halign: 'left' },
+  5: { cellWidth: 43, halign: 'left' },
+  6: { cellWidth: 30, halign: 'left' },
+};
+
+const BUYER_BILL_TRANSACTION_STYLES = {
+  ...CUSTOMER_TRANSACTION_STYLES,
+  fontSize: 6.5,
+  cellPadding: 1.2,
+};
+
 function table(doc, options) {
   autoTable(doc, {
     theme: 'striped',
@@ -183,7 +202,7 @@ function addBillTotals(doc, tableEndY, billed, paid, pending, rightX = 283, orig
     { label: 'PAID AMOUNT', value: MONEY(paid), color: COLORS.ink },
     { label: 'PENDING CURRENT', value: MONEY(pending), color: COLORS.ink },
   ];
-  if (y + rows.length * 6 > 190) {
+  if (y + rows.length * 6 > doc.internal.pageSize.getHeight() - 20) {
     doc.addPage();
     y = 24;
   }
@@ -470,11 +489,12 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
     : kind === 'monthly'
       ? 'Monthly Bill Summary'
       : 'Bill Statement';
-  const doc = startDocument(title, period);
+  const doc = startDocument(title, period, 'portrait');
   const logoResponse = await fetch(gsmLogoUrl);
   if (!logoResponse.ok) throw new Error('The GSM logo could not be loaded for the PDF.');
   const logoBytes = new Uint8Array(await logoResponse.arrayBuffer());
-  doc.addImage(logoBytes, 'PNG', 258, 3, 25, 25);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.addImage(logoBytes, 'PNG', pageWidth - 39, 3, 25, 25);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -524,7 +544,15 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
           MONEY(row.billed),
         ])
         : [['—', '—', '—', '—', '—', 'No sales recorded for this period']],
-      columnStyles: { 0: { cellWidth: 57 }, 1: { cellWidth: 43 }, 2: { cellWidth: 52 } },
+      columnStyles: {
+        0: { cellWidth: 26 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 32 },
+        3: { cellWidth: 27 },
+        4: { cellWidth: 34 },
+        5: { cellWidth: 27 },
+      },
+      styles: { font: 'helvetica', fontSize: 7, cellPadding: 1.4, textColor: COLORS.ink },
     });
     addBillTotals(
       doc,
@@ -532,7 +560,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
       billed,
       paid,
       balance?.balance_due,
-      283,
+      pageWidth - 14,
       originalBilled,
       balance?.balance_adjustment,
     );
@@ -565,8 +593,8 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
           formatDateCompact(row.date), row.kind, row.product, row.quantity, row.rate, row.amount, row.notes,
         ])
         : [['—', '—', 'No bills or payments recorded', '—', '—', '—', '']],
-      columnStyles: CUSTOMER_TRANSACTION_COLUMN_STYLES,
-      styles: CUSTOMER_TRANSACTION_STYLES,
+      columnStyles: BUYER_BILL_TRANSACTION_COLUMN_STYLES,
+      styles: BUYER_BILL_TRANSACTION_STYLES,
     });
     addBillTotals(
       doc,
@@ -574,7 +602,7 @@ export async function createBuyerBillFile({ buyer, sales, payments, balance, kin
       billed,
       paid,
       balance?.balance_due,
-      283,
+      pageWidth - 14,
       originalBilled,
       balance?.balance_adjustment,
     );
