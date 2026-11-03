@@ -51,7 +51,6 @@ export default function QuickBuyerEntryModal({
   const [rows, setRows] = useState({});
   const [discountMode, setDiscountMode] = useState('choose');
   const [payment, setPayment] = useState('');
-  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [needsDailyCompletion, setNeedsDailyCompletion] = useState(false);
@@ -74,7 +73,6 @@ export default function QuickBuyerEntryModal({
     setRows(Object.fromEntries(activeProducts.map((product) => [product.name, emptyRow(product)])));
     setDiscountMode('choose');
     setPayment('');
-    setNotes('');
     setSaving(false);
     setErrorMessage('');
     setNeedsDailyCompletion(false);
@@ -150,7 +148,6 @@ export default function QuickBuyerEntryModal({
         buyer_id: selectedBuyerId,
         amount_paid: paymentAmount,
         paid_at: saleDate,
-        notes: notes.trim() || null,
       });
       if (paymentResult.error) {
         setSaving(false);
@@ -211,7 +208,6 @@ export default function QuickBuyerEntryModal({
           ? Number((quantity * rate - Number(rows[product.name].discount_amount)).toFixed(2))
           : null,
         sale_date: saleDate,
-        notes: notes.trim() || null,
       });
       if (result.error) {
         const guidance = saleStockGuidance(result.error.message, product.name);
@@ -240,7 +236,6 @@ export default function QuickBuyerEntryModal({
         buyer_id: selectedBuyerId,
         amount_paid: received,
         paid_at: saleDate,
-        notes: notes.trim() || null,
       });
       if (result.error) {
         failedPayment.current = true;
@@ -574,22 +569,6 @@ export default function QuickBuyerEntryModal({
               )}
             </section>
           )}
-
-          <div>
-            <label className="label" htmlFor="quick-buyer-notes">Notes (optional)</label>
-            <input
-              id="quick-buyer-notes"
-              value={notes}
-              disabled={hasSavedSales}
-              onChange={(event) => {
-                setNotes(event.target.value);
-                savedProducts.current = new Set();
-                requestIds.current = newRequestIds(activeProducts);
-              }}
-              placeholder="e.g. weekly order"
-              className="input"
-            />
-          </div>
 
           <div>
             <label className="label" htmlFor="quick-buyer-payment">Buyer Payment — Received (₹)</label>
