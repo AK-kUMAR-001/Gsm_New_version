@@ -51,6 +51,7 @@ export default function QuickBuyerEntryModal({
   const [saleDate, setSaleDate] = useState(todayIST());
   const [rows, setRows] = useState({});
   const [discountMode, setDiscountMode] = useState('choose');
+  const [discountPromptOpen, setDiscountPromptOpen] = useState(false);
   const [payment, setPayment] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -76,6 +77,7 @@ export default function QuickBuyerEntryModal({
     setSaleDate(initialDate || todayIST());
     setRows(Object.fromEntries(activeProducts.map((product) => [product.name, emptyRow(product)])));
     setDiscountMode('choose');
+    setDiscountPromptOpen(false);
     setPayment('');
     setSaving(false);
     setErrorMessage('');
@@ -134,7 +136,7 @@ export default function QuickBuyerEntryModal({
     && validEntries.length > 0
     && !invalidEntries
     && !invalidDiscountEntries
-    && !['choose', 'editing'].includes(discountMode)
+    && discountMode !== 'editing'
     && !saving;
 
   const markDailyBuyerComplete = async (status) => {
@@ -195,17 +197,8 @@ export default function QuickBuyerEntryModal({
     setErrorMessage('');
   };
 
-  const skipDiscount = () => {
-    setRows((current) => Object.fromEntries(Object.entries(current).map(([name, row]) => [
-      name,
-      { ...row, discount_amount: '' },
-    ])));
-    setDiscountMode('without');
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!valid || failedPayment.current) return;
+  const saveSale = async (discountChoice) => {
+    if (!selectedBuyerId || !validEntries.length || invalidEntries || invalidDiscountEntries || saving || failedPayment.current) return;
     setSaving(true);
     setErrorMessage('');
 
@@ -218,7 +211,7 @@ export default function QuickBuyerEntryModal({
         mootais: quantity,
         quantity_unit: rows[product.name]?.quantity_unit || saleInputUnits(product)[0],
         price_per_mootai: rate,
-        discounted_bill_total: discountMode === 'confirmed' && rows[product.name]?.discount_amount
+        discounted_bill_total: discountChoice === 'confirmed' && rows[product.name]?.discount_amount
           ? Number((quantity * rate - Number(rows[product.name].discount_amount)).toFixed(2))
           : null,
         sale_date: saleDate,
@@ -275,7 +268,18 @@ export default function QuickBuyerEntryModal({
     onClose();
   };
 
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!valid || failedPayment.current) return;
+    if (discountMode === 'choose') {
+      setDiscountPromptOpen(true);
+      return;
+    }
+    await saveSale(discountMode);
+  };
+
   return (
+    <>
     <Modal
       open={open}
       onClose={onClose}
@@ -444,34 +448,13 @@ export default function QuickBuyerEntryModal({
             </div>
           </div>
 
-          {validEntries.length > 0 && !invalidEntries && (
+          {validEntries.length > 0 && !invalidEntries && discountMode !== 'choose' && (
             <section className="rounded-xl border border-ink-200 bg-ink-50 p-3" aria-label="Discount options">
-              {discountMode === 'choose' && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-semibold text-ink-700">Add a discount to this sale?</p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDiscountMode('editing')}
-                      className="btn-outline flex-1 justify-center !px-3 !py-2 sm:flex-none"
-                    >
-                      Add discount
-                    </button>
-                    <button
-                      type="button"
-                      onClick={skipDiscount}
-                      className="btn-outline flex-1 justify-center !px-3 !py-2 sm:flex-none"
-                    >
-                      Without discount
-                    </button>
-                  </div>
-                </div>
-              )}
               {discountMode === 'editing' && (
                 <div className="space-y-2">
                   <div>
                     <h4 className="text-sm font-bold text-ink-800">Apply discount</h4>
-                    <p className="text-xs text-ink-500">Enter an amount for each item; percentage and final amount update automatically.</p>
+                    <p className="text-xs text-ink-500">Enter the discount amount for each item. Percentage and final amount update automatically.</p>
                   </div>
                   <div className="max-h-52 space-y-2 overflow-y-auto overscroll-contain pr-1">
                     {validEntries.map(({ product, quantity, rate, original_total: originalTotal, discount_amount: discountAmount }) => {
@@ -482,15 +465,18 @@ export default function QuickBuyerEntryModal({
                         <div key={product.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] items-center gap-x-3 gap-y-1 rounded-lg bg-white px-3 py-2">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-bold text-ink-800">{product.name}</p>
-                            <p className="text-xs text-ink-500">
-                              {quantity} × {currencyINR(rate)} = {currencyINR(originalTotal)}
+                            <p className="text-xs text-ink-600">
+                              Original amount: {quantity} × {currencyINR(rate)} = {currencyINR(originalTotal)}
                             </p>
                             <p className="text-sm font-extrabold text-red-700">
-                              {itemDiscountPercent.toFixed(2)}% discount · Final {currencyINR(finalAmount)}
+                              Discount: {currencyINR(discountAmount)} · {itemDiscountPercent.toFixed(2)}%
+                            </p>
+                            <p className="text-sm font-extrabold text-ink-800">
+                              Final amount: {currencyINR(finalAmount)}
                             </p>
                           </div>
                           <label className="text-[10px] font-bold uppercase text-ink-500">
-                            Discount ₹
+                            Discount amount (₹)
                             <input
                               aria-label={`${product.name} discount amount`}
                               type="number"
@@ -518,8 +504,8 @@ export default function QuickBuyerEntryModal({
                       Total discount: {currencyINR(discountTotal)} ({discountPercent.toFixed(2)}%)
                     </p>
                     <div className="flex gap-2">
-                      <button type="button" onClick={skipDiscount} className="btn-outline !px-3 !py-2">
-                        Without discount
+                      <button type="button" onClick={() => setDiscountMode('choose')} className="btn-outline !px-3 !py-2">
+                        Change choice
                       </button>
                       <button
                         type="button"
@@ -676,7 +662,9 @@ export default function QuickBuyerEntryModal({
           )}
 
           <button type="submit" disabled={!valid || failedPayment.current} className="btn-navy w-full justify-center">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving…' : discountMode === 'confirmed'
+              ? 'Save with discount'
+              : discountMode === 'without' ? 'Save without discount' : 'Save'}
           </button>
           {failedPayment.current && (
             <button type="button" onClick={onClose} className="btn-outline w-full justify-center">
@@ -687,5 +675,39 @@ export default function QuickBuyerEntryModal({
         </form>
       )}
     </Modal>
+    <Modal
+      open={discountPromptOpen}
+      onClose={() => setDiscountPromptOpen(false)}
+      title="Add a discount to this sale?"
+      maxWidth="max-w-sm"
+      contentClassName="!p-4"
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-ink-600">Choose how to save this buyer’s sale.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setDiscountPromptOpen(false);
+            setDiscountMode('editing');
+          }}
+          className="btn-navy w-full justify-center"
+        >
+          Add discount
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setDiscountPromptOpen(false);
+            setDiscountMode('without');
+            void saveSale('without');
+          }}
+          disabled={saving}
+          className="btn-outline w-full justify-center"
+        >
+          Without discount
+        </button>
+      </div>
+    </Modal>
+    </>
   );
 }
