@@ -228,6 +228,7 @@ export default function DailyBusinessWorkflow() {
 
   return (
     <>
+      <div className="space-y-3">
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
         <div className="min-w-[220px] flex-1">
           <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Daily entry sequence</p>
@@ -246,16 +247,23 @@ export default function DailyBusinessWorkflow() {
               Resume this step
             </button>
           )}
-          <BusinessDayLeaveControl
-            date={pending.date}
-            onMarked={() => {
-              setBuyerOpen(false);
-              setRetailOpen(false);
-              setPausedKey('');
-            }}
-          />
         </div>
       </section>
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+        <div>
+          <h2 className="font-bold text-red-900">Mark {formatDateCompact(pending.date)} as leave</h2>
+          <p className="mt-1 text-sm text-red-800">Use this only when there will be no stock or sales entries for the entire date.</p>
+        </div>
+        <BusinessDayLeaveControl
+          date={pending.date}
+          onMarked={() => {
+            setBuyerOpen(false);
+            setRetailOpen(false);
+            setPausedKey('');
+          }}
+        />
+      </section>
+      </div>
 
       <QuickBuyerEntryModal
         open={pending.step === 'buyer' && buyerOpen}
