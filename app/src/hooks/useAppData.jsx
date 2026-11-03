@@ -27,9 +27,9 @@ const OFFLINE = {
 
 const isMissingTableError = (error) => error?.code === 'PGRST205' || error?.code === '42P01';
 
-async function safeFetch(table) {
+async function safeFetch(table, options) {
   try {
-    const res = await fetchAllPaginated(supabase, table);
+    const res = await fetchAllPaginated(supabase, table, options);
     if (res.error) return { data: null, error: res.error };
     return { data: res.data || [], error: null };
   } catch (error) {
@@ -112,9 +112,9 @@ export function AppDataProvider({ children }) {
         orderCol: 'created_at',
         orderAsc: true,
       }),
-      safeFetch('retail_daily_sessions'),
-      safeFetch('business_day_buyer_progress'),
-      safeFetch('business_day_holidays'),
+      safeFetch('retail_daily_sessions', { orderCol: 'sale_date', orderAsc: true }),
+      safeFetch('business_day_buyer_progress', { orderCol: 'sale_date', orderAsc: true }),
+      safeFetch('business_day_holidays', { orderCol: 'sale_date', orderAsc: true }),
       safeFetch('business_day_workflow_settings'),
     ]);
     if (requestId !== loadRequestRef.current) return { data: true, stale: true };
