@@ -36,6 +36,7 @@ import StartRetailDayModal from '../components/StartRetailDayModal.jsx';
 import Modal from '../components/Modal.jsx';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardCheck, Download, FileDown, FileJson, IndianRupee, Pencil, Search } from 'lucide-react';
 import { downloadCsv, downloadJson, exportDateStamp } from '../lib/dataExport.js';
+import { RETAIL_START_WORKFLOW_INTENT } from '../lib/businessDayWorkflow.js';
 
 function dateKey(date) {
   const year = date.getFullYear();
@@ -707,6 +708,7 @@ export default function Reports() {
     inventorySettings, inventoryCounts, inventoryMovements,
     inventoryError, inventoryLoading, loadInventory, offline,
     retailDayPrices, retailDayLoading, loadRetailDay,
+    retailDaySession,
     saveRetailDayPrices,
     businessDayHolidays, removeBusinessDayHoliday,
     showToast,
@@ -740,6 +742,19 @@ export default function Reports() {
       return;
     }
     setRetailPriceModalOpen(false);
+  };
+  const openRetailPrices = () => {
+    setRetailPriceError('');
+    if (selectedDate === realTodayIST() && !retailDaySession) {
+      try {
+        sessionStorage.setItem(RETAIL_START_WORKFLOW_INTENT, '1');
+        navigate('/dashboard');
+      } catch (error) {
+        showToast(`Could not start the daily buyer completion flow: ${error.message || 'Browser storage is unavailable.'}`, 'error');
+      }
+      return;
+    }
+    setRetailPriceModalOpen(true);
   };
 
   const matchesBuyerSale = (sale) => {
@@ -1238,10 +1253,7 @@ export default function Reports() {
               ? `Update retail prices for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`
               : `Enter retail prices for ${formatReportDate(selectedDate, { day: 'numeric', month: 'short' })}`}
             enterDisabled={retailDayLoading || inventoryLoading || !!inventoryError || offline}
-            onEnter={() => {
-              setRetailPriceError('');
-              setRetailPriceModalOpen(true);
-            }}
+            onEnter={openRetailPrices}
           >
             {dailyRetailSales.map((sale) => {
               const quantity = Number(sale.mootais_sold ?? sale.mootais ?? 0);

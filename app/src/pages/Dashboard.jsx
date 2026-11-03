@@ -14,6 +14,10 @@ import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
 import DailyBusinessWorkflow from '../components/DailyBusinessWorkflow.jsx';
 import {
+  RETAIL_START_WORKFLOW_INTENT,
+  RETAIL_START_WORKFLOW_REQUEST_EVENT,
+} from '../lib/businessDayWorkflow.js';
+import {
   Users,
   Store,
   AlertTriangle,
@@ -54,12 +58,21 @@ export default function Dashboard() {
     deleteBuyerSale,
     deleteRetailSale,
     deleteBuyerPayment,
+    showToast,
   } = useAppData();
 
   const [saleOpen, setSaleOpen] = useState(false);
   const [retailOpen, setRetailOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityEditTarget, setActivityEditTarget] = useState(null);
+  const requestRetailWorkflow = () => {
+    try {
+      sessionStorage.setItem(RETAIL_START_WORKFLOW_INTENT, '1');
+      window.dispatchEvent(new Event(RETAIL_START_WORKFLOW_REQUEST_EVENT));
+    } catch (error) {
+      showToast(`Could not start the buyer completion flow: ${error.message || 'Browser storage is unavailable.'}`, 'error');
+    }
+  };
   const allActivities = useMemo(
     () => buildRecentActivity(buyerSales, payments, buyersById, Number.MAX_SAFE_INTEGER, retailSales),
     [buyerSales, payments, buyersById, retailSales],
@@ -287,7 +300,7 @@ export default function Dashboard() {
           </Link>
           <button
             type="button"
-            onClick={() => navigate('/retail?start=1')}
+            onClick={requestRetailWorkflow}
             disabled={inventoryLoading || missingActiveStockCounts.length > 0}
             className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >

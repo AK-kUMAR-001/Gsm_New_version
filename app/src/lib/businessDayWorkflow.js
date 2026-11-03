@@ -1,6 +1,7 @@
 import { shiftDateKey } from './business.js';
 
 export const RETAIL_START_WORKFLOW_INTENT = 'gsm.dailyWorkflow.startRetailAfterBuyers';
+export const RETAIL_START_WORKFLOW_REQUEST_EVENT = 'gsm:request-retail-start-workflow';
 
 function istDate(value) {
   const text = String(value || '');

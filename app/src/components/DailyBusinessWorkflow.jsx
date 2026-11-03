@@ -4,6 +4,7 @@ import { useAppData } from '../hooks/useAppData.jsx';
 import {
   firstIncompleteBusinessDay,
   RETAIL_START_WORKFLOW_INTENT,
+  RETAIL_START_WORKFLOW_REQUEST_EVENT,
 } from '../lib/businessDayWorkflow.js';
 import { formatDateCompact, todayIST } from '../lib/business.js';
 import QuickBuyerEntryModal from './QuickBuyerEntryModal.jsx';
@@ -35,6 +36,7 @@ export default function DailyBusinessWorkflow() {
   const [buyerOpen, setBuyerOpen] = useState(false);
   const [retailOpen, setRetailOpen] = useState(false);
   const [retailError, setRetailError] = useState('');
+  const [retailStartRequest, setRetailStartRequest] = useState(0);
   const retailRedirectStarted = useRef(false);
 
   const trackedProducts = useMemo(() => {
@@ -85,6 +87,23 @@ export default function DailyBusinessWorkflow() {
   const currentKey = buyerKey || retailKey;
 
   useEffect(() => {
+    const handleRetailStartRequest = () => setRetailStartRequest((request) => request + 1);
+    window.addEventListener(RETAIL_START_WORKFLOW_REQUEST_EVENT, handleRetailStartRequest);
+    try {
+      if (sessionStorage.getItem(RETAIL_START_WORKFLOW_INTENT) === '1') {
+        handleRetailStartRequest();
+      }
+    } catch (error) {
+      showToast(`Could not check the retail-start request: ${error.message || 'Browser storage is unavailable.'}`, 'error');
+    }
+    return () => window.removeEventListener(RETAIL_START_WORKFLOW_REQUEST_EVENT, handleRetailStartRequest);
+  }, [showToast]);
+
+  useEffect(() => {
+    if (retailStartRequest > 0) setPausedKey('');
+  }, [retailStartRequest]);
+
+  useEffect(() => {
     if (!businessDayHolidays.some((holiday) => holiday.sale_date === todayIST())) return;
     try {
       sessionStorage.removeItem(RETAIL_START_WORKFLOW_INTENT);
@@ -125,7 +144,18 @@ export default function DailyBusinessWorkflow() {
       }
     }
     setRetailOpen(true);
-  }, [navigate, pausedKey, pending?.date, pending?.step, retailKey, showToast]);
+  }, [navigate, pausedKey, pending?.date, pending?.step, retailKey, retailStartRequest, showToast]);
+
+  useEffect(() => {
+    if (loading || inventoryLoading || pending || retailStartRequest === 0) return;
+    try {
+      if (sessionStorage.getItem(RETAIL_START_WORKFLOW_INTENT) !== '1') return;
+      sessionStorage.removeItem(RETAIL_START_WORKFLOW_INTENT);
+      navigate('/retail?start=1', { replace: true });
+    } catch (error) {
+      showToast(`Could not continue to today's retail setup: ${error.message || 'Browser storage is unavailable.'}`, 'error');
+    }
+  }, [inventoryLoading, loading, navigate, pending, retailStartRequest, showToast]);
 
   const closeBuyer = () => {
     setBuyerOpen(false);
