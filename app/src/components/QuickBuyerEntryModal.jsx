@@ -12,8 +12,9 @@ import {
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from './Modal.jsx';
-import BusinessDayLeaveControl from './BusinessDayLeaveControl.jsx';
 import { Search } from 'lucide-react';
+
+const NO_SALE_CONFIRMATION_CODE = 'gsm1234';
 
 const emptyRow = (product) => ({
   quantity: '',
@@ -54,6 +55,9 @@ export default function QuickBuyerEntryModal({
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [needsDailyCompletion, setNeedsDailyCompletion] = useState(false);
+  const [confirmingNoSale, setConfirmingNoSale] = useState(false);
+  const [noSaleCode, setNoSaleCode] = useState('');
+  const [noSaleError, setNoSaleError] = useState('');
   const requestIds = useRef({});
   const savedProducts = useRef(new Set());
   const failedPayment = useRef(false);
@@ -76,6 +80,9 @@ export default function QuickBuyerEntryModal({
     setSaving(false);
     setErrorMessage('');
     setNeedsDailyCompletion(false);
+    setConfirmingNoSale(false);
+    setNoSaleCode('');
+    setNoSaleError('');
     requestIds.current = newRequestIds(activeProducts);
     savedProducts.current = new Set();
     failedPayment.current = false;
@@ -132,6 +139,10 @@ export default function QuickBuyerEntryModal({
 
   const markDailyBuyerComplete = async (status) => {
     if (!dailyWorkflow || !selectedBuyerId || saving) return;
+    if (status === 'no_sale' && noSaleCode !== NO_SALE_CONFIRMATION_CODE) {
+      setNoSaleError('Enter gsm1234 to confirm no sale.');
+      return;
+    }
     if (status === 'no_sale' && entries.length > 0) {
       setErrorMessage('Remove the sale quantities before marking this buyer as no sale.');
       return;
@@ -162,6 +173,9 @@ export default function QuickBuyerEntryModal({
       setErrorMessage(`Could not mark ${selectedBuyer?.name || 'this buyer'} complete: ${result.error.message}`);
       return;
     }
+    setConfirmingNoSale(false);
+    setNoSaleCode('');
+    setNoSaleError('');
     onClose();
   };
 
@@ -365,12 +379,6 @@ export default function QuickBuyerEntryModal({
               className="input"
             />
           </div>
-          {dailyWorkflow && (
-            <div className="flex justify-end">
-              <BusinessDayLeaveControl date={saleDate} onMarked={onClose} inline />
-            </div>
-          )}
-
           <div>
             <div className="grid grid-cols-[minmax(0,1fr)_64px_64px_68px] gap-1.5 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
               <span>Buyer Sale</span><span className="text-center">Unit</span><span className="text-center">Qty</span><span className="text-center">Rate ₹</span>
@@ -611,14 +619,58 @@ export default function QuickBuyerEntryModal({
                 </button>
               )}
               {existingBuyerDaySales.length === 0 && (
-                <button
-                  type="button"
-                  onClick={() => markDailyBuyerComplete('no_sale')}
-                  disabled={saving || entries.length > 0}
-                  className="btn-outline justify-center border-red-200 text-red-700 hover:bg-red-50"
-                >
-                  No sale — continue to next customer
-                </button>
+                confirmingNoSale ? (
+                  <div className="col-span-full flex flex-wrap items-end gap-2">
+                    <label className="min-w-[140px] flex-1 text-xs font-semibold text-ink-600">
+                      Type gsm1234 to confirm
+                      <input
+                        type="password"
+                        autoComplete="off"
+                        value={noSaleCode}
+                        onChange={(event) => {
+                          setNoSaleCode(event.target.value);
+                          setNoSaleError('');
+                        }}
+                        disabled={saving}
+                        className="input !min-h-9 !px-2 !py-1.5"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => markDailyBuyerComplete('no_sale')}
+                      disabled={saving || entries.length > 0}
+                      className="btn-outline !min-h-9 !px-3 !py-1.5"
+                    >
+                      {saving ? 'Saving…' : 'Confirm no sale'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmingNoSale(false);
+                        setNoSaleCode('');
+                        setNoSaleError('');
+                      }}
+                      disabled={saving}
+                      className="btn-ghost !min-h-9 !px-2 !py-1.5"
+                    >
+                      Cancel
+                    </button>
+                    {noSaleError && <p className="w-full text-xs text-red-700" role="alert">{noSaleError}</p>}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingNoSale(true);
+                      setNoSaleCode('');
+                      setNoSaleError('');
+                    }}
+                    disabled={saving || entries.length > 0}
+                    className="btn-outline justify-center border-red-200 text-red-700 hover:bg-red-50"
+                  >
+                    No sale today
+                  </button>
+                )
               )}
             </div>
           )}
