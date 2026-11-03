@@ -15,9 +15,11 @@ import {
   productStockUnit,
   normalizeStockQuantityInput,
   stockQuantityInputUnits,
+  toISTDateKey,
   todayIST,
 } from '../lib/business.js';
 import Modal from '../components/Modal.jsx';
+import BusinessDayLeaveControl from '../components/BusinessDayLeaveControl.jsx';
 import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
 const ACTION_LABELS = {
@@ -73,12 +75,25 @@ export default function Inventory() {
   const {
     products, suppliers, inventorySettings, inventorySummary, inventoryCounts,
     buyers, buyerSales, retailSales, inventoryMovements, inventoryLoading, inventoryError, loadInventory,
-    startInventoryTracking, recordMorningCount, deleteMorningCount, deleteStockMovement, recordStockReceipt, recordStockAdjustment, setStockQuantity,
+    startInventoryTracking, recordMorningCount, correctHistoricalMorningCount, recordHistoricalMorningCount,
+    deleteMorningCount, deleteStockMovement, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     updateInventoryLowStockThreshold, updateProduct,
     offline,
   } = useAppData();
   const location = useLocation();
   const navigate = useNavigate();
+  const requestedWorkflowDate = new URLSearchParams(location.search).get('workflowDate');
+  const workflowDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedWorkflowDate || '')
+    && requestedWorkflowDate <= todayIST()
+    ? requestedWorkflowDate
+    : '';
+  const countDate = workflowDate || todayIST();
+  const trackingStartDate = (setting) => {
+    const value = String(setting.enabled_at || '');
+    return /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? value.slice(0, 10)
+      : value ? toISTDateKey(new Date(value)) : '';
+  };
   const [action, setAction] = useState(null);
   const [productId, setProductId] = useState('');
   const [form, setForm] = useState({});
@@ -132,13 +147,17 @@ export default function Inventory() {
   const settingsById = useMemo(() => new Map(inventorySettings.map((setting) => [setting.product_id, setting])), [inventorySettings]);
   const summaryById = useMemo(() => new Map(inventorySummary.map((row) => [row.product_id, row])), [inventorySummary]);
   const countedIds = useMemo(() => new Set(
-    inventoryCounts.filter((count) => count.stock_date === todayIST()).map((count) => count.product_id)
-  ), [inventoryCounts]);
+    inventoryCounts.filter((count) => count.stock_date === countDate).map((count) => count.product_id)
+  ), [countDate, inventoryCounts]);
   const countsByProductId = useMemo(() => new Map(
     inventoryCounts
-      .filter((count) => count.stock_date === todayIST())
+      .filter((count) => count.stock_date === countDate)
       .map((count) => [count.product_id, count])
-  ), [inventoryCounts]);
+  ), [countDate, inventoryCounts]);
+
+  useEffect(() => {
+    if (workflowDate) setMovementDate(workflowDate);
+  }, [workflowDate]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -202,13 +221,40 @@ export default function Inventory() {
       unitCost: '', supplierId: '', reason: '', notes: '',
       damagedQuantity: '', damageReason: '',
       stockToSalesFactor: String(productStockToSalesFactor(product)),
-      movementDate: todayIST(),
+      movementDate: countDate,
       quantityUnit: ['count', 'correction'].includes(nextAction)
         ? nextAction === 'count' ? countUnit : productSalesUnit(product)
         : '',
     });
-    setMovementDate(todayIST());
+    setMovementDate(countDate);
   };
+
+  useEffect(() => {
+    if (!workflowDate || !inventoryReady || inventoryLoading || inventoryError || action) return;
+    const activeIds = new Set(stockProducts.map((item) => item.id));
+    const missingProduct = inventorySettings.find((setting) => (
+      activeIds.has(setting.product_id)
+      && trackingStartDate(setting) <= workflowDate
+      && !countedIds.has(setting.product_id)
+    ));
+    if (missingProduct) {
+      const product = productsById.get(missingProduct.product_id);
+      if (product) openAction('count', product);
+      return;
+    }
+    navigate('/dashboard', { replace: true });
+  }, [
+    action,
+    countedIds,
+    inventoryError,
+    inventoryLoading,
+    inventoryReady,
+    inventorySettings,
+    navigate,
+    productsById,
+    stockProducts,
+    workflowDate,
+  ]);
   const closeAction = () => {
     setAction(null);
     setProductId('');
@@ -314,9 +360,15 @@ export default function Inventory() {
         form.quantityUnit || productSalesUnit(productsById.get(productId)),
         form.unitCost,
       );
-      result = countedIds.has(productId)
-        ? await correctMorningCount(productId, countInput.quantity, countInput.unitCost)
-        : await recordMorningCount(productId, countInput.quantity, countInput.unitCost);
+      if (countDate === todayIST()) {
+        result = countedIds.has(productId)
+          ? await correctMorningCount(productId, countInput.quantity, countInput.unitCost)
+          : await recordMorningCount(productId, countInput.quantity, countInput.unitCost);
+      } else {
+        result = countedIds.has(productId)
+          ? await correctHistoricalMorningCount(productId, countDate, countInput.quantity, countInput.unitCost)
+          : await recordHistoricalMorningCount(productId, countDate, countInput.quantity, countInput.unitCost);
+      }
     } else if (action === 'receipt') {
       result = await recordStockReceipt(
         productId, form.supplierId || null, recordedQuantity, Number(recordedUnitCost),
@@ -347,6 +399,18 @@ export default function Inventory() {
 
   const product = productsById.get(productId);
   const currentStock = summaryById.get(productId);
+  const selectedDateStock = useMemo(() => {
+    const balances = new Map();
+    for (const movement of inventoryMovements) {
+      if (movement.movement_date !== countDate) continue;
+      const current = balances.get(movement.product_id) || { quantity: 0, value: 0 };
+      current.quantity += Number(movement.quantity_delta || 0);
+      current.value += Number(movement.cost_delta || 0);
+      balances.set(movement.product_id, current);
+    }
+    return balances;
+  }, [countDate, inventoryMovements]);
+  const selectedProductStock = selectedDateStock.get(productId);
   const quantityInput = Number(form.quantity || 0);
   const damagedQuantity = Number(form.damagedQuantity || 0);
   const isKeerai = String(product?.name || '').trim().toLocaleLowerCase() === 'keerai';
@@ -357,9 +421,11 @@ export default function Inventory() {
   const stockUnitCost = Number(form.unitCost || 0);
   const unitCostRequired = quantityInput > 0 && (
     (action === 'count' && (
-      countedIds.has(productId) || Number(currentStock?.quantity_on_hand || 0) <= 0
+    countDate !== todayIST()
+      || countedIds.has(productId)
+      || Number(selectedProductStock?.quantity || currentStock?.quantity_on_hand || 0) <= 0
     ))
-    || (action === 'correction' && Number(currentStock?.quantity_on_hand || 0) <= 0)
+    || (action === 'correction' && Number(selectedProductStock?.quantity || currentStock?.quantity_on_hand || 0) <= 0)
   );
   const salesUnitCost = stockUnitCost > 0 ? stockUnitCost / stockFactor : 0;
   const movements = inventoryMovements
@@ -377,6 +443,16 @@ export default function Inventory() {
           Refresh
         </button>
       </div>
+
+      {workflowDate && (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <div>
+            <h2 className="font-bold text-blue-950">Catch-up stock · {formatDateCompact(workflowDate)}</h2>
+            <p className="mt-1 text-sm text-blue-900">Record each missing morning count for this date. Sales and stock rules remain enforced.</p>
+          </div>
+          <BusinessDayLeaveControl date={workflowDate} onMarked={() => navigate('/dashboard', { replace: true })} />
+        </section>
+      )}
 
       {(offline || inventoryError) && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex gap-3">
@@ -440,13 +516,15 @@ export default function Inventory() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3 rounded-2xl bg-ink-50 p-4">
                       <div>
-                        <p className="text-xs text-ink-500">Available today</p>
-                        <p className={`mt-1 font-bold ${Number(stock?.quantity_on_hand || 0) < 0 ? 'text-red-700' : 'text-ink-900'}`}>
+                        <p className="text-xs text-ink-500">Available on {formatDateCompact(countDate)}</p>
+                        <p className={`mt-1 font-bold ${Number((countDate === todayIST() ? stock?.quantity_on_hand : selectedDateStock.get(item.id)?.quantity) || 0) < 0 ? 'text-red-700' : 'text-ink-900'}`}>
                           {countedIds.has(item.id) || movements.some((movement) => movement.product_id === item.id)
-                            ? formatProductQuantities(item, stock?.quantity_on_hand)
-                            : 'Not entered today'}
+                            ? formatProductQuantities(item, countDate === todayIST()
+                              ? stock?.quantity_on_hand
+                              : selectedDateStock.get(item.id)?.quantity || 0)
+                            : 'Not entered on this date'}
                         </p>
-                        {Number(stock?.quantity_on_hand || 0) < 0 && (
+                        {Number((countDate === todayIST() ? stock?.quantity_on_hand : selectedDateStock.get(item.id)?.quantity) || 0) < 0 && (
                           <p className="mt-1 text-xs font-medium text-red-700">
                             Recorded sales exceed stock. Reconcile against verified receipts; the morning count has not been changed.
                           </p>
@@ -455,7 +533,15 @@ export default function Inventory() {
                       <div>
                         <p className="text-xs text-ink-500">Average cost / {productSalesUnit(item)}</p>
                         <p className="mt-1 font-bold text-ink-900">
-                          {stock?.average_unit_cost == null ? '—' : currencyINR(stock.average_unit_cost)}
+                          {(countDate === todayIST()
+                            ? stock?.average_unit_cost
+                            : selectedDateStock.get(item.id)?.quantity > 0
+                              ? selectedDateStock.get(item.id).value / selectedDateStock.get(item.id).quantity
+                              : null) == null
+                            ? '—'
+                            : currencyINR(countDate === todayIST()
+                              ? stock.average_unit_cost
+                              : selectedDateStock.get(item.id).value / selectedDateStock.get(item.id).quantity)}
                         </p>
                       </div>
                     </div>
@@ -480,7 +566,7 @@ export default function Inventory() {
                       <button type="button" onClick={() => openAction('correction', item)} className="btn-outline w-full justify-start">
                         <Pencil className="h-4 w-4" /> Edit stock
                       </button>
-                      {hasCount && (
+                      {hasCount && countDate === todayIST() && (
                         <button
                           type="button"
                           onClick={() => removeMorningCount(item)}
@@ -597,6 +683,15 @@ export default function Inventory() {
                 {redirectNotice}
               </p>
             )}
+            {workflowDate && (
+              <div className="flex justify-end">
+                <BusinessDayLeaveControl
+                  date={workflowDate}
+                  onMarked={() => navigate('/dashboard', { replace: true })}
+                  inline
+                />
+              </div>
+            )}
             {action === 'correction' && (
               <p className="text-xs text-ink-500">
                 Enter the corrected total stock balance, including 0 if the product is out of stock.
@@ -605,7 +700,12 @@ export default function Inventory() {
             )}
             {action === 'count' && countedIds.has(productId) && (
               <p className="text-xs text-ink-500">
-                Enter the actual morning stock and its purchase cost. Today’s saved sales are retained, their stock costs are recalculated, and the remaining balance updates automatically.
+                Enter the actual morning stock and its purchase cost for {formatDateCompact(countDate)}. Saved sales are retained, their stock costs are recalculated, and the remaining balance updates automatically.
+              </p>
+            )}
+            {action === 'count' && !countedIds.has(productId) && countDate !== todayIST() && (
+              <p className="text-xs text-ink-500">
+                Enter the physical morning quantity and purchase cost for {formatDateCompact(countDate)}. The count is recorded as a historical stock entry.
               </p>
             )}
             {action === 'opening' && (

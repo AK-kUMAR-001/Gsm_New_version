@@ -155,6 +155,16 @@ order:
     totals on buyer sales. Entered discounts recalculate buyer balances and
     sales revenue; buyer statements and PDF bills show the original amount,
     discount amount and percentage, and final amount.
+27. `202611030001_daily_workflow_and_holidays.sql` starts sequential daily
+    catch-up on the India-time date when the migration is applied. It stores
+    per-buyer completion and leave dates; existing buyer sales on that start
+    date are treated as already entered so the first run does not duplicate
+    them. The Retail Sales Start action sends any pending dates through stock,
+    buyer, and retail steps before returning to Retail. Buyers with no sale can
+    be marked complete without adding a sale row; an entered payment is saved
+    separately. A holiday skips daily entry and database triggers reject new
+    stock, sales, retail-session, or retail-price rows for that date. Run it
+    after the inventory, historical-entry, and retail-price migrations.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
@@ -186,6 +196,13 @@ Historical sale entry requires the selected date's physical count and enough
 recorded stock for the sale. Closing-stock corrections are recorded against
 that date in the ledger and do not carry forward to other dates, matching the
 daily closing report's existing day-by-day balance behavior.
+
+The daily workflow migration records a one-time start date and does not backfill
+dates before installation. From that date onward, the Dashboard resumes the
+oldest incomplete business date in stock-count, active-buyer, and retail-price
+order. Buyers can be explicitly marked as having no sale. A leave date skips the
+workflow and is highlighted in the Retail week picker; removing leave reopens
+that date without deleting its existing sales or stock records.
 
 The product-unit migration sets product-specific sales and stock-entry units.
 Its initial configuration is Pudina: 200 Kattu per Mootai; Malli: 50 Kattu per

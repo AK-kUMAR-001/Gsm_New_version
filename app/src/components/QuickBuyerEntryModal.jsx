@@ -12,6 +12,7 @@ import {
 } from '../lib/business.js';
 import { saleStockGuidance } from '../lib/inventory.js';
 import Modal from './Modal.jsx';
+import BusinessDayLeaveControl from './BusinessDayLeaveControl.jsx';
 import { Search } from 'lucide-react';
 
 const emptyRow = (product) => ({
@@ -25,9 +26,22 @@ function newRequestIds(products) {
   return Object.fromEntries(products.map((product) => [product.name, window.crypto.randomUUID()]));
 }
 
-export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, initialDate = null }) {
+export default function QuickBuyerEntryModal({
+  open,
+  onClose,
+  buyerId = null,
+  initialDate = null,
+  dailyWorkflow = false,
+}) {
   const {
-    activeBuyers, balancesById, activeProducts, insertBuyerSale, insertPayment, showToast,
+    activeBuyers,
+    balancesById,
+    activeProducts,
+    buyerSales,
+    insertBuyerSale,
+    insertPayment,
+    completeBusinessDayBuyer,
+    showToast,
   } = useAppData();
   const navigate = useNavigate();
   const [selectedBuyerId, setSelectedBuyerId] = useState('');
@@ -40,12 +54,16 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [needsDailyCompletion, setNeedsDailyCompletion] = useState(false);
   const requestIds = useRef({});
   const savedProducts = useRef(new Set());
   const failedPayment = useRef(false);
 
   const selectedBuyer = activeBuyers.find((buyer) => buyer.id === selectedBuyerId);
   const buyerBalance = balancesById[selectedBuyerId];
+  const existingBuyerDaySales = buyerSales.filter((sale) => (
+    sale.buyer_id === selectedBuyerId && String(sale.sale_date || '').slice(0, 10) === saleDate
+  ));
 
   useEffect(() => {
     if (!open) return;
@@ -59,6 +77,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
     setNotes('');
     setSaving(false);
     setErrorMessage('');
+    setNeedsDailyCompletion(false);
     requestIds.current = newRequestIds(activeProducts);
     savedProducts.current = new Set();
     failedPayment.current = false;
@@ -112,6 +131,42 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
     && !invalidDiscountEntries
     && !['choose', 'editing'].includes(discountMode)
     && !saving;
+
+  const markDailyBuyerComplete = async (status) => {
+    if (!dailyWorkflow || !selectedBuyerId || saving) return;
+    if (status === 'no_sale' && entries.length > 0) {
+      setErrorMessage('Remove the sale quantities before marking this buyer as no sale.');
+      return;
+    }
+    const paymentAmount = Number(payment);
+    if (payment.trim() && (!Number.isFinite(paymentAmount) || paymentAmount < 0)) {
+      setErrorMessage('Enter a valid non-negative payment amount.');
+      return;
+    }
+    setSaving(true);
+    setErrorMessage('');
+    if (paymentAmount > 0) {
+      const paymentResult = await insertPayment({
+        buyer_id: selectedBuyerId,
+        amount_paid: paymentAmount,
+        paid_at: saleDate,
+        notes: notes.trim() || null,
+      });
+      if (paymentResult.error) {
+        setSaving(false);
+        setErrorMessage(`Payment was not saved: ${paymentResult.error.message}`);
+        return;
+      }
+      setPayment('');
+    }
+    const result = await completeBusinessDayBuyer(saleDate, selectedBuyerId, status);
+    setSaving(false);
+    if (result.error) {
+      setErrorMessage(`Could not mark ${selectedBuyer?.name || 'this buyer'} complete: ${result.error.message}`);
+      return;
+    }
+    onClose();
+  };
 
   const updateRow = (productName, field, value) => {
     setRows((current) => {
@@ -193,6 +248,17 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
         setSaving(false);
         return;
       }
+      setPayment('');
+    }
+
+    if (dailyWorkflow) {
+      const progress = await completeBusinessDayBuyer(saleDate, selectedBuyerId, 'sales_recorded');
+      if (progress.error) {
+        setNeedsDailyCompletion(true);
+        setErrorMessage(`Sale saved, but buyer completion could not be recorded. Do not enter the sale again. Retry completion: ${progress.error.message}`);
+        setSaving(false);
+        return;
+      }
     }
 
     showToast('Buyer entry saved', 'success');
@@ -204,7 +270,7 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
     <Modal
       open={open}
       onClose={onClose}
-      title="Quick Buyer Entry"
+      title={dailyWorkflow ? 'Daily Buyer Entry' : 'Quick Buyer Entry'}
       maxWidth="max-w-lg"
       contentClassName="!p-3 sm:!p-4"
     >
@@ -269,15 +335,22 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
                 {Number(buyerBalance?.balance_due || 0) > 0 ? `${currencyINR(buyerBalance.balance_due)} due` : 'No dues'}
               </span>
             </span>
-            <button
+            {!dailyWorkflow && <button
               type="button"
               onClick={() => setChoosingBuyer(true)}
               disabled={hasSavedSales}
               className="text-sm font-semibold text-sidebar-accent disabled:opacity-50"
             >
               Change
-            </button>
+            </button>}
           </div>
+
+          {dailyWorkflow && existingBuyerDaySales.length > 0 && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+              {existingBuyerDaySales.length} sale line{existingBuyerDaySales.length === 1 ? '' : 's'} already exist for
+              {' '}{saleDate}. Review the entries, then mark this buyer complete if their sales are finished.
+            </div>
+          )}
 
           <div>
             <label className="label" htmlFor="quick-sale-date">Date</label>
@@ -285,8 +358,8 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
               id="quick-sale-date"
               type="date"
               required
-              min={initialDate ? undefined : todayIST()}
-              disabled={hasSavedSales}
+              min={dailyWorkflow || initialDate ? undefined : todayIST()}
+              disabled={dailyWorkflow || hasSavedSales}
               max={todayIST()}
               value={saleDate}
               onChange={(event) => {
@@ -297,6 +370,11 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
               className="input"
             />
           </div>
+          {dailyWorkflow && (
+            <div className="flex justify-end">
+              <BusinessDayLeaveControl date={saleDate} onMarked={onClose} inline />
+            </div>
+          )}
 
           <div>
             <div className="grid grid-cols-[minmax(0,1fr)_64px_64px_68px] gap-1.5 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
@@ -538,6 +616,31 @@ export default function QuickBuyerEntryModal({ open, onClose, buyerId = null, in
               <p>{errorMessage || (invalidDiscountEntries
                 ? 'A discount amount must be between zero and that product’s original bill total.'
                 : 'For each product, enter both quantity and rate, or leave both as zero.')}</p>
+            </div>
+          )}
+
+          {dailyWorkflow && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {existingBuyerDaySales.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => markDailyBuyerComplete('sales_recorded')}
+                  disabled={saving}
+                  className="btn-outline justify-center"
+                >
+                  {needsDailyCompletion ? 'Retry completion' : 'Sales done — next buyer'}
+                </button>
+              )}
+              {existingBuyerDaySales.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => markDailyBuyerComplete('no_sale')}
+                  disabled={saving || entries.length > 0}
+                  className="btn-outline justify-center border-red-200 text-red-700 hover:bg-red-50"
+                >
+                  No sale — continue to next customer
+                </button>
+              )}
             </div>
           )}
 

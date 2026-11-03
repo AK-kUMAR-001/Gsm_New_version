@@ -12,6 +12,7 @@ import {
 import QuickBuyerEntryModal from '../components/QuickBuyerEntryModal.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import LowStockAlerts from '../components/LowStockAlerts.jsx';
+import DailyBusinessWorkflow from '../components/DailyBusinessWorkflow.jsx';
 import {
   Users,
   Store,
@@ -146,6 +147,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      <DailyBusinessWorkflow />
       <LowStockAlerts />
       <div>
         <h1 className="text-2xl font-extrabold text-ink-900 tracking-tight sm:text-3xl">GSM Traders</h1>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
@@ -485,9 +485,10 @@ function ActivityEntry({ title, subtitle, amount, timestamp, emoji, note, onEdit
   );
 }
 
-function WeekDatePicker({ value, onChange, active }) {
+function WeekDatePicker({ value, onChange, active, holidays }) {
   const dates = getWeekDates(value);
   const today = realTodayIST();
+  const holidayDates = new Set((holidays || []).map((holiday) => holiday.sale_date));
   const firstDate = parseDateStr(dates[0]);
   const nextWeek = new Date(firstDate);
   nextWeek.setDate(nextWeek.getDate() + 7);
@@ -539,6 +540,7 @@ function WeekDatePicker({ value, onChange, active }) {
         {dates.map((day) => {
           const selected = active && day === value;
           const future = day > today;
+          const holiday = holidayDates.has(day);
           return (
             <button
               key={day}
@@ -548,8 +550,12 @@ function WeekDatePicker({ value, onChange, active }) {
               onClick={() => onChange(day)}
               className={`min-w-0 rounded-2xl border px-2 py-2.5 text-center transition ${
                 selected
-                  ? 'border-sidebar-accent bg-sidebar-accent text-white shadow-sm'
-                  : 'border-ink-100 bg-ink-50 text-ink-700 hover:border-sidebar-accent/40 hover:bg-white'
+                  ? holiday
+                    ? 'border-red-700 bg-red-600 text-white shadow-sm'
+                    : 'border-sidebar-accent bg-sidebar-accent text-white shadow-sm'
+                  : holiday
+                    ? 'border-red-300 bg-red-50 text-red-800 hover:border-red-500 hover:bg-red-100'
+                    : 'border-ink-100 bg-ink-50 text-ink-700 hover:border-sidebar-accent/40 hover:bg-white'
               } ${future ? 'cursor-not-allowed opacity-40' : ''}`}
             >
               <span className={`block text-[11px] font-semibold ${selected ? 'text-white/80' : 'text-ink-500'}`}>
@@ -679,6 +685,7 @@ function topBuyersForPeriod(buyerSalesInPeriod, buyerBalances, products) {
 }
 
 export default function Reports() {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState('week');
   const [viewMode, setViewMode] = useState('period');
   const [selectedDate, setSelectedDate] = useState(realTodayIST);
@@ -693,6 +700,7 @@ export default function Reports() {
   const [retailPriceBusy, setRetailPriceBusy] = useState(false);
   const [retailPriceError, setRetailPriceError] = useState('');
   const [stockEditTarget, setStockEditTarget] = useState(null);
+  const [holidayBusy, setHolidayBusy] = useState(false);
   const app = useAppData();
   const {
     buyerSales, retailSales, payments, buyers, products, activeProducts, balances,
@@ -700,6 +708,7 @@ export default function Reports() {
     inventoryError, inventoryLoading, loadInventory, offline,
     retailDayPrices, retailDayLoading, loadRetailDay,
     saveRetailDayPrices,
+    businessDayHolidays, removeBusinessDayHoliday,
     showToast,
     updateBuyerSale, updateRetailSale, updateBuyerPayment,
     deleteBuyerSale, deleteRetailSale, deleteBuyerPayment,
@@ -714,6 +723,13 @@ export default function Reports() {
   const trackedActiveProducts = activeProducts.filter((product) => (
     inventorySettings.some((setting) => setting.product_id === product.id)
   ));
+  const selectedHoliday = businessDayHolidays.some((holiday) => holiday.sale_date === selectedDate);
+  const reopenSelectedHoliday = async () => {
+    setHolidayBusy(true);
+    const result = await removeBusinessDayHoliday(selectedDate);
+    setHolidayBusy(false);
+    if (!result.error) navigate('/dashboard');
+  };
   const handleSaveRetailPrices = async (prices) => {
     setRetailPriceError('');
     setRetailPriceBusy(true);
@@ -1116,6 +1132,7 @@ export default function Reports() {
         <WeekDatePicker
           value={selectedDate}
           active={viewMode === 'day'}
+          holidays={businessDayHolidays}
           onChange={(date) => {
             setSelectedDate(date);
             setViewMode('day');
@@ -1129,6 +1146,22 @@ export default function Reports() {
           }}
         />
       </section>
+      {viewMode === 'day' && selectedHoliday && (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-300 bg-red-50 p-4">
+          <div>
+            <h2 className="font-bold text-red-900">Holiday · {formatReportDate(selectedDate, { day: 'numeric', month: 'long', year: 'numeric' })}</h2>
+            <p className="mt-1 text-sm text-red-800">Stock and sales entry are skipped while this date is marked as leave.</p>
+          </div>
+          <button
+            type="button"
+            onClick={reopenSelectedHoliday}
+            disabled={holidayBusy}
+            className="inline-flex min-h-10 items-center justify-center rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-60"
+          >
+            {holidayBusy ? 'Reopening…' : 'Remove leave and reopen date'}
+          </button>
+        </section>
+      )}
 
       <section className="grid grid-cols-1 gap-3 rounded-3xl border border-ink-100 bg-white p-4 shadow-sm md:grid-cols-3">
         <label className="relative min-w-0">

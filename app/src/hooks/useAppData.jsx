@@ -77,9 +77,14 @@ export function AppDataProvider({ children }) {
   const [inventoryLoading, setInventoryLoading] = useState(true);
   const [inventoryError, setInventoryError] = useState('');
   const [retailDaySession, setRetailDaySession] = useState(null);
+  const [retailDaySessions, setRetailDaySessions] = useState([]);
   const [retailDayPrices, setRetailDayPrices] = useState([]);
   const [retailDayLoading, setRetailDayLoading] = useState(false);
   const [retailDayError, setRetailDayError] = useState('');
+  const [dailyBuyerProgress, setDailyBuyerProgress] = useState([]);
+  const [businessDayHolidays, setBusinessDayHolidays] = useState([]);
+  const [businessDayStartDate, setBusinessDayStartDate] = useState('');
+  const [businessDayWorkflowError, setBusinessDayWorkflowError] = useState('');
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [dataLoadError, setDataLoadError] = useState('');
@@ -107,9 +112,17 @@ export function AppDataProvider({ children }) {
         orderCol: 'created_at',
         orderAsc: true,
       }),
+      safeFetch('retail_daily_sessions'),
+      safeFetch('business_day_buyer_progress'),
+      safeFetch('business_day_holidays'),
+      safeFetch('business_day_workflow_settings'),
     ]);
     if (requestId !== loadRequestRef.current) return { data: true, stale: true };
     const balanceAdjustments = results[6];
+    const retailSessions = results[7];
+    const buyerProgress = results[8];
+    const holidays = results[9];
+    const workflowSettings = results[10];
     const failed = results.slice(0, 6).find((result) => result.error)
       || (balanceAdjustments.error && !isMissingTableError(balanceAdjustments.error)
         ? balanceAdjustments
@@ -150,6 +163,17 @@ export function AppDataProvider({ children }) {
         ? 'Apply the buyer balance adjustment migration before editing balances.'
         : '',
     );
+    setRetailDaySessions(retailSessions.error ? [] : retailSessions.data || []);
+    setDailyBuyerProgress(buyerProgress.error ? [] : buyerProgress.data || []);
+    setBusinessDayHolidays(holidays.error ? [] : holidays.data || []);
+    setBusinessDayStartDate(workflowSettings.error ? '' : workflowSettings.data?.[0]?.start_date || '');
+    const workflowError = [retailSessions, buyerProgress, holidays, workflowSettings]
+      .find((result) => result.error);
+    setBusinessDayWorkflowError(workflowError
+      ? isMissingTableError(workflowError.error)
+        ? 'Apply the daily workflow and holidays migration before using daily catch-up.'
+        : `Daily workflow data could not load: ${workflowError.error.message || 'Database request failed.'}`
+      : '');
     setLoading(false);
     return loadError ? { error: loadError } : { data: true };
   }, []);
@@ -168,9 +192,14 @@ export function AppDataProvider({ children }) {
       setBuyerBalanceAdjustments([]);
       setBuyerBalanceAdjustmentError('');
       setRetailDaySession(null);
+      setRetailDaySessions([]);
       setRetailDayPrices([]);
       setRetailDayLoading(false);
       setRetailDayError('');
+      setDailyBuyerProgress([]);
+      setBusinessDayHolidays([]);
+      setBusinessDayStartDate('');
+      setBusinessDayWorkflowError('');
       setOffline(false);
       setDataLoadError('');
       setLoading(false);
@@ -659,6 +688,11 @@ export function AppDataProvider({ children }) {
 
   const insertBuyerSale = async (row) => {
     if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
+    if (businessDayHolidays.some((holiday) => holiday.sale_date === row.sale_date)) {
+      const error = new Error('This date is marked as a holiday. Remove the holiday from Retail before entering sales.');
+      showToast(error.message, 'error');
+      return { error };
+    }
     const rpcResult = await supabase.rpc('inventory_record_buyer_sale_with_unit', {
       p_id: row.id,
       p_buyer_id: row.buyer_id,
@@ -705,8 +739,95 @@ export function AppDataProvider({ children }) {
     return { error };
   };
 
+  const completeBusinessDayBuyer = async (saleDate, buyerId, status) => {
+    if (offline) {
+      const error = new Error('Daily buyer progress requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(saleDate || ''))
+      || !buyerId
+      || !['sales_recorded', 'no_sale'].includes(status)) {
+      const error = new Error('Choose a valid business date, buyer, and completion status.');
+      showToast(error.message, 'error');
+      return { error };
+    }
+    const { data, error } = await supabase
+      .from('business_day_buyer_progress')
+      .upsert({ sale_date: saleDate, buyer_id: buyerId, status }, { onConflict: 'sale_date,buyer_id' })
+      .select()
+      .single();
+    if (error) {
+      showToast(`Could not save buyer completion: ${error.message}`, 'error');
+      return { error };
+    }
+    setDailyBuyerProgress((previous) => [
+      data,
+      ...previous.filter((row) => !(row.sale_date === saleDate && row.buyer_id === buyerId)),
+    ]);
+    return { data };
+  };
+
+  const markBusinessDayHoliday = async (saleDate) => {
+    if (offline) {
+      const error = new Error('Marking a holiday requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(saleDate || '')) || saleDate > todayIST()) {
+      const error = new Error('Choose today or a past date to mark as a holiday.');
+      showToast(error.message, 'error');
+      return { error };
+    }
+    const { data, error } = await supabase
+      .from('business_day_holidays')
+      .upsert({ sale_date: saleDate }, { onConflict: 'sale_date' })
+      .select()
+      .single();
+    if (error) {
+      showToast(`Could not mark the holiday: ${error.message}`, 'error');
+      return { error };
+    }
+    setBusinessDayHolidays((previous) => [
+      data,
+      ...previous.filter((row) => row.sale_date !== saleDate),
+    ]);
+    showToast('Date marked as a holiday; daily entries are skipped.', 'success');
+    return { data };
+  };
+
+  const removeBusinessDayHoliday = async (saleDate) => {
+    if (offline) {
+      const error = new Error('Removing a holiday requires the live database.');
+      showToast(error.message, 'warn');
+      return { error };
+    }
+    const { data, error } = await supabase
+      .from('business_day_holidays')
+      .delete()
+      .eq('sale_date', saleDate)
+      .select('sale_date');
+    if (error) {
+      showToast(`Could not remove the holiday: ${error.message}`, 'error');
+      return { error };
+    }
+    if (!data?.length) {
+      const missingError = new Error('The holiday was not found. Refresh the date and try again.');
+      showToast(missingError.message, 'error');
+      return { error: missingError };
+    }
+    setBusinessDayHolidays((previous) => previous.filter((row) => row.sale_date !== saleDate));
+    showToast('Holiday removed; this date is available for normal entry again.', 'success');
+    return { data: true };
+  };
+
   const insertRetailSale = async (row, { showSuccessToast = true } = {}) => {
     if (offline) { showToast('Offline mode — edits are disabled until the database connection is restored.', 'warn'); return { error: new Error('offline') }; }
+    if (businessDayHolidays.some((holiday) => holiday.sale_date === row.sale_date)) {
+      const error = new Error('This date is marked as a holiday. Remove the holiday from Retail before entering sales.');
+      showToast(error.message, 'error');
+      return { error };
+    }
     const { data, error } = await supabase.rpc('inventory_record_retail_sale_with_unit', {
       p_id: row.id,
       p_product: row.product,
@@ -743,6 +864,12 @@ export function AppDataProvider({ children }) {
       loadRetailDay(saleDate),
       loadInventory(),
     ]);
+    if (data) {
+      setRetailDaySessions((previous) => [
+        data,
+        ...previous.filter((session) => session.sale_date !== saleDate),
+      ]);
+    }
     if (retailRefresh.error || inventoryRefresh.error) {
       showToast('Retail prices saved, but some page data could not refresh.', 'warn');
     } else {
@@ -769,6 +896,12 @@ export function AppDataProvider({ children }) {
       loadRetailDay(saleDate),
       loadInventory(),
     ]);
+    if (data) {
+      setRetailDaySessions((previous) => [
+        data,
+        ...previous.filter((session) => session.sale_date !== saleDate),
+      ]);
+    }
     if (retailRefresh.error || inventoryRefresh.error) {
       showToast('Retail prices saved, but some page data could not refresh.', 'warn');
     } else {
@@ -942,11 +1075,13 @@ export function AppDataProvider({ children }) {
   const value = {
     buyers, activeBuyers, products, suppliers, buyerSales, retailSales, payments,
     inventorySettings, inventorySummary, inventoryCounts, inventoryMovements,
-    retailDaySession, retailDayPrices, retailDayLoading, retailDayError,
+    retailDaySession, retailDaySessions, retailDayPrices, retailDayLoading, retailDayError,
+    dailyBuyerProgress, businessDayHolidays, businessDayStartDate, businessDayWorkflowError,
     buyersById, balances, balancesById, productRevenue, today, recent, activeProducts,
     loading, offline, dataLoadError, toast, showToast, load,
     inventoryLoading, inventoryError, loadInventory, updateInventoryLowStockThreshold,
     loadRetailDay, startRetailDay, saveRetailDayPrices,
+    completeBusinessDayBuyer, markBusinessDayHoliday, removeBusinessDayHoliday,
     buyerBalanceAdjustments, buyerBalanceAdjustmentError, updateBuyerBalance,
     insertBuyer, updateBuyer, setBuyerArchived, deleteArchivedBuyer, updateProduct, insertProduct, deleteProduct,
     insertBuyerSale, insertPayment, insertRetailSale, updateBuyerSale, updateRetailSale, updateBuyerPayment,

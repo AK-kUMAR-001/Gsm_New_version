@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { currencyINR, productSalesUnit, getProductEmoji, todayIST } from '../lib/business.js';
 import Modal from './Modal.jsx';
+import BusinessDayLeaveControl from './BusinessDayLeaveControl.jsx';
 
 export default function StartRetailDayModal({
   open,
@@ -11,6 +12,8 @@ export default function StartRetailDayModal({
   saleDate = todayIST(),
   initialPrices = [],
   onStart,
+  onLeave,
+  allowLeave = false,
   busy,
   error,
 }) {
@@ -69,6 +72,11 @@ export default function StartRetailDayModal({
           Set the retail price for each active stock item for {dateLabel}. After saving, stock left after buyer and
           recorded retail sales is counted as an automatic bulk retail sale at these prices.
         </p>
+        {allowLeave && (
+          <div className="flex justify-end">
+            <BusinessDayLeaveControl date={saleDate} onMarked={onLeave} inline />
+          </div>
+        )}
 
         <div className="space-y-2">
           {products.map((product) => {

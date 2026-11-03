@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData.jsx';
 import {
   currencyINR,
@@ -17,6 +17,7 @@ import PeriodPills, { PERIOD_OPTIONS } from '../components/PeriodPills.jsx';
 import RecordRetailSaleModal from '../components/RecordRetailSaleModal.jsx';
 import StartRetailDayModal from '../components/StartRetailDayModal.jsx';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw, TrendingUp, Package, ShoppingBag, Store } from 'lucide-react';
+import { RETAIL_START_WORKFLOW_INTENT } from '../lib/businessDayWorkflow.js';
 
 function parseDateKey(value) {
   const [year, month, day] = value.split('-').map(Number);
@@ -37,9 +38,10 @@ function getWeekDates(value) {
   });
 }
 
-function RetailDatePicker({ value, active, onChange }) {
+function RetailDatePicker({ value, active, onChange, holidays }) {
   const dates = getWeekDates(value);
   const today = todayIST();
+  const holidayDates = new Set((holidays || []).map((holiday) => holiday.sale_date));
   const firstDate = parseDateKey(dates[0]);
   const nextWeekStart = new Date(firstDate);
   nextWeekStart.setDate(nextWeekStart.getDate() + 7);
@@ -89,6 +91,7 @@ function RetailDatePicker({ value, active, onChange }) {
         {dates.map((day) => {
           const future = day > today;
           const selected = active && day === value;
+          const holiday = holidayDates.has(day);
           return (
             <button
               key={day}
@@ -98,8 +101,12 @@ function RetailDatePicker({ value, active, onChange }) {
               onClick={() => onChange(day)}
               className={`min-w-0 rounded-2xl border px-2 py-2.5 text-center transition ${
                 selected
-                  ? 'border-brand-purple bg-brand-purple text-white shadow-sm'
-                  : 'border-ink-100 bg-ink-50 text-ink-700 hover:border-brand-purple/40 hover:bg-white'
+                  ? holiday
+                    ? 'border-red-700 bg-red-600 text-white shadow-sm'
+                    : 'border-brand-purple bg-brand-purple text-white shadow-sm'
+                  : holiday
+                    ? 'border-red-300 bg-red-50 text-red-800 hover:border-red-500 hover:bg-red-100'
+                    : 'border-ink-100 bg-ink-50 text-ink-700 hover:border-brand-purple/40 hover:bg-white'
               } ${future ? 'cursor-not-allowed opacity-40' : ''}`}
             >
               <span className={`block text-[11px] font-semibold ${selected ? 'text-white/80' : 'text-ink-500'}`}>
@@ -133,9 +140,15 @@ export default function Retail() {
     retailDayError,
     loadRetailDay,
     startRetailDay,
+    businessDayHolidays,
+    businessDayStartDate,
+    businessDayWorkflowError,
+    removeBusinessDayHoliday,
     filterByPeriod,
     load,
+    showToast,
   } = useAppData();
+  const navigate = useNavigate();
 
   const [period, setPeriod] = useState('week');
   const [viewMode, setViewMode] = useState('day');
@@ -145,6 +158,7 @@ export default function Retail() {
   const [dayActionBusy, setDayActionBusy] = useState(false);
   const [retailDayReady, setRetailDayReady] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [removingHoliday, setRemovingHoliday] = useState(false);
   const [expandedDate, setExpandedDate] = useState(null);
   const cardRefs = useRef({});
   const [searchParams, setSearchParams] = useSearchParams();
@@ -221,6 +235,14 @@ export default function Retail() {
   const retailDayActive = retailDaySession?.status === 'active';
   const retailDayFinished = retailDaySession?.status === 'finished';
   const selectedToday = selectedDate === todayIST();
+  const selectedHoliday = businessDayHolidays.some((holiday) => holiday.sale_date === selectedDate);
+
+  const reopenHoliday = async () => {
+    setRemovingHoliday(true);
+    const result = await removeBusinessDayHoliday(selectedDate);
+    setRemovingHoliday(false);
+    if (!result.error) navigate('/dashboard');
+  };
 
   const automaticRetailSales = useMemo(() => (
     retailDayPrices.flatMap((price) => {
@@ -249,6 +271,22 @@ export default function Retail() {
       return;
     }
     setStartModalOpen(false);
+  };
+
+  const requestRetailStart = () => {
+    if (businessDayWorkflowError || !businessDayStartDate) {
+      showToast(
+        businessDayWorkflowError || 'Daily catch-up is not configured. Refresh or contact the administrator before starting retail.',
+        'error',
+      );
+      return;
+    }
+    try {
+      sessionStorage.setItem(RETAIL_START_WORKFLOW_INTENT, '1');
+      navigate('/dashboard');
+    } catch (error) {
+      showToast(`Could not start the daily buyer check: ${error.message || 'Browser storage is unavailable.'}`, 'error');
+    }
   };
 
   const filtered = useMemo(() => {
@@ -401,7 +439,7 @@ export default function Retail() {
         >
           <RefreshCw className="w-4 h-4" />
         </button>
-        <button onClick={() => setModalOpen(true)} className="btn-green">
+        <button onClick={() => setModalOpen(true)} disabled={selectedHoliday} className="btn-green disabled:cursor-not-allowed disabled:opacity-50">
           <Plus className="w-4 h-4" />
           Record Retail Sale
         </button>
@@ -441,16 +479,34 @@ export default function Retail() {
                       : 'Balances below are calculated from this date’s stock movements only. Retail prices are shown only if a session was started for this date.'}
               </p>
             </div>
-            {selectedToday && !retailDayActive && !retailDayFinished && (
+            {selectedToday && !selectedHoliday && !retailDayActive && !retailDayFinished && (
               <button
                 type="button"
-                onClick={() => setStartModalOpen(true)}
+                onClick={requestRetailStart}
                 disabled={retailDayLoading || missingSelectedDateCounts.length > 0 || trackedActiveProducts.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Complete any pending buyer entries in order before setting retail prices."
               >
                 <Store className="h-4 w-4" />
                 Retail Sales Start
               </button>
+            )}
+
+            {selectedHoliday && (
+              <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-300 bg-red-50 p-4">
+                <div>
+                  <h2 className="font-bold text-red-900">Holiday · {formatDate(selectedDate, { day: 'numeric', month: 'short', year: 'numeric' })}</h2>
+                  <p className="mt-1 text-sm text-red-800">Stock and sales entry were skipped for this date.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={reopenHoliday}
+                  disabled={removingHoliday}
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-60"
+                >
+                  {removingHoliday ? 'Reopening…' : 'Remove leave and reopen date'}
+                </button>
+              </section>
             )}
           </div>
 
@@ -526,6 +582,7 @@ export default function Retail() {
         <RetailDatePicker
           value={selectedDate}
           active={viewMode === 'day'}
+          holidays={businessDayHolidays}
           onChange={(date) => {
             setSelectedDate(date);
             setViewMode('day');
