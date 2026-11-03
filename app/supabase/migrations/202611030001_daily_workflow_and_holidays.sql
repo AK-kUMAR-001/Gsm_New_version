@@ -25,14 +25,6 @@ create table if not exists public.business_day_holidays (
   marked_by uuid references auth.users(id) on delete set null
 );
 
-insert into public.business_day_buyer_progress (sale_date, buyer_id, status)
-select settings.start_date, sale.buyer_id, 'sales_recorded'
-from public.business_day_workflow_settings settings
-join public.buyer_sales sale on sale.sale_date = settings.start_date
-where settings.singleton
-group by settings.start_date, sale.buyer_id
-on conflict (sale_date, buyer_id) do nothing;
-
 alter table public.business_day_workflow_settings enable row level security;
 alter table public.business_day_buyer_progress enable row level security;
 alter table public.business_day_holidays enable row level security;

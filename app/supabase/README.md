@@ -157,14 +157,20 @@ order:
     discount amount and percentage, and final amount.
 27. `202611030001_daily_workflow_and_holidays.sql` starts sequential daily
     catch-up on the India-time date when the migration is applied. It stores
-    per-buyer completion and leave dates; existing buyer sales on that start
-    date are treated as already entered so the first run does not duplicate
-    them. The Retail Sales Start action sends any pending dates through stock,
-    buyer, and retail steps before returning to Retail. Buyers with no sale can
-    be marked complete without adding a sale row; an entered payment is saved
-    separately. A holiday skips daily entry and database triggers reject new
-    stock, sales, retail-session, or retail-price rows for that date. Run it
-    after the inventory, historical-entry, and retail-price migrations.
+    per-buyer completion and leave dates. Every active buyer must be explicitly
+    confirmed for the start date, including buyers who already have a sale;
+    existing sale rows remain unchanged and are shown for review. The Retail
+    Sales Start action sends pending dates through stock, buyer, and retail
+    steps before returning to Retail. Buyers with no sale can be marked
+    complete without adding a sale row; an entered payment is saved separately.
+    A holiday skips daily entry and database triggers reject new stock, sales,
+    retail-session, or retail-price rows for that date. Run it after the
+    inventory, historical-entry, and retail-price migrations.
+28. `202611030002_require_explicit_buyer_completion.sql` clears the initial
+    start-date buyer progress so every active buyer is explicitly reviewed.
+    It preserves all buyer sales, payments, stock counts, and stock movements.
+    Run it after `202611030001_daily_workflow_and_holidays.sql`, especially if
+    that migration was already applied with its original auto-completion seed.
 
 The inventory migration is additive and changes tracked sales to require a
 same-day physical stock count before insertion. The final enforcement migration
