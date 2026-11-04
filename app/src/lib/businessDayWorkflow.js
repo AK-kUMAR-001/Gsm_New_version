@@ -19,6 +19,7 @@ export function firstIncompleteBusinessDay({
   holidays,
   activeBuyers,
   buyerProgress,
+  buyerSales,
   trackedProducts,
   inventoryCounts,
   retailDaySessions,
@@ -29,6 +30,10 @@ export function firstIncompleteBusinessDay({
 
   const holidayDates = new Set((holidays || []).map((holiday) => holiday.sale_date));
   const completedBuyers = new Set((buyerProgress || []).map((row) => `${row.sale_date}:${row.buyer_id}`));
+  for (const sale of buyerSales || []) {
+    const saleDate = String(sale.sale_date || '').slice(0, 10);
+    if (saleDate && sale.buyer_id) completedBuyers.add(`${saleDate}:${sale.buyer_id}`);
+  }
   const countedProducts = new Set((inventoryCounts || []).map((row) => `${row.stock_date}:${row.product_id}`));
   const retailSessions = new Set((retailDaySessions || []).map((session) => session.sale_date));
 

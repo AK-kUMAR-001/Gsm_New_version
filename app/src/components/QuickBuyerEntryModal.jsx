@@ -384,7 +384,7 @@ export default function QuickBuyerEntryModal({
             />
           </div>
           <div>
-            <div className="grid grid-cols-[minmax(0,1fr)_64px_64px_68px] gap-1.5 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+            <div className="grid grid-cols-[minmax(0,1fr)_64px_88px_88px] gap-1.5 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
               <span>Buyer Sale</span><span className="text-center">Unit</span><span className="text-center">Qty</span><span className="text-center">Rate ₹</span>
             </div>
             <div className="space-y-1">
@@ -397,7 +397,7 @@ export default function QuickBuyerEntryModal({
                 const quantity = Number(row.quantity || 0);
                 const rate = Number(row.rate || 0);
                 return (
-                  <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_64px_64px_68px] items-center gap-1.5 rounded-xl px-2 py-0.5 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
+                  <div key={product.id} className={`grid grid-cols-[minmax(0,1fr)_64px_88px_88px] items-center gap-1.5 rounded-xl px-2 py-0.5 ${active ? 'border border-green-300 bg-green-50' : ''}`}>
                     <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink-800">
                       <span>{getProductEmoji(product.name, activeProducts)}</span>
                       <span className="min-w-0 truncate">

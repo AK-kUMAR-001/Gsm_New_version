@@ -17,6 +17,7 @@ export default function DailyBusinessWorkflow() {
   const navigate = useNavigate();
   const {
     activeBuyers,
+    buyerSales,
     activeProducts,
     inventorySettings,
     inventoryCounts,
@@ -51,6 +52,7 @@ export default function DailyBusinessWorkflow() {
     today: todayIST(),
     holidays: businessDayHolidays,
     activeBuyers,
+    buyerSales,
     buyerProgress: dailyBuyerProgress,
     trackedProducts,
     inventoryCounts,
@@ -59,6 +61,7 @@ export default function DailyBusinessWorkflow() {
     activeBuyers,
     businessDayHolidays,
     businessDayStartDate,
+    buyerSales,
     dailyBuyerProgress,
     inventoryCounts,
     retailDaySessions,
