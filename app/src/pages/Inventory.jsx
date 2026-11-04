@@ -21,6 +21,7 @@ import {
 import Modal from '../components/Modal.jsx';
 import BusinessDayLeaveControl from '../components/BusinessDayLeaveControl.jsx';
 import { AlertTriangle, Check, ClipboardCheck, PackagePlus, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { firstIncompleteBusinessDay } from '../lib/businessDayWorkflow.js';
 
 const ACTION_LABELS = {
   opening: 'Enter opening stock',
@@ -74,14 +75,17 @@ function LowStockThreshold({ productId, value, product, onSave, disabled }) {
 export default function Inventory() {
   const {
     products, suppliers, inventorySettings, inventorySummary, inventoryCounts,
-    buyers, buyerSales, retailSales, inventoryMovements, inventoryLoading, inventoryError, loadInventory,
+    buyers, activeBuyers, buyerSales, retailSales, inventoryMovements, inventoryLoading, inventoryError, loadInventory,
     startInventoryTracking, recordMorningCount, correctHistoricalMorningCount, recordHistoricalMorningCount,
     deleteMorningCount, deleteStockMovement, recordStockReceipt, recordStockAdjustment, setStockQuantity,
     updateInventoryLowStockThreshold, updateProduct,
+    dailyBuyerProgress, businessDayHolidays, businessDayStartDate, businessDayWorkflowError,
+    retailDaySessions, showToast,
     offline,
   } = useAppData();
   const location = useLocation();
   const navigate = useNavigate();
+  const today = todayIST();
   const requestedWorkflowDate = new URLSearchParams(location.search).get('workflowDate');
   const workflowDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedWorkflowDate || '')
     && requestedWorkflowDate <= todayIST()
@@ -154,15 +158,72 @@ export default function Inventory() {
       .filter((count) => count.stock_date === countDate)
       .map((count) => [count.product_id, count])
   ), [countDate, inventoryCounts]);
+  const trackedWorkflowProducts = useMemo(() => {
+    const activeIds = new Set(products.filter((product) => product.active !== false).map((product) => product.id));
+    return inventorySettings
+      .filter((setting) => activeIds.has(setting.product_id))
+      .map((setting) => ({ id: setting.product_id, enabled_at: setting.enabled_at }));
+  }, [inventorySettings, products]);
+  const pendingBusinessDay = useMemo(() => firstIncompleteBusinessDay({
+    startDate: businessDayStartDate,
+    today,
+    holidays: businessDayHolidays,
+    activeBuyers,
+    buyerProgress: dailyBuyerProgress,
+    trackedProducts: trackedWorkflowProducts,
+    inventoryCounts,
+    retailDaySessions,
+  }), [
+    activeBuyers,
+    businessDayHolidays,
+    businessDayStartDate,
+    dailyBuyerProgress,
+    inventoryCounts,
+    retailDaySessions,
+    today,
+    trackedWorkflowProducts,
+  ]);
+  const isPendingWorkflowStockEntry = Boolean(
+    workflowDate
+      && pendingBusinessDay?.date === workflowDate
+      && pendingBusinessDay.step === 'stock',
+  );
+  const blockedByPriorWorkflow = Boolean(
+    pendingBusinessDay
+      && pendingBusinessDay.date < today
+      && !isPendingWorkflowStockEntry,
+  );
 
   useEffect(() => {
     if (workflowDate) setMovementDate(workflowDate);
   }, [workflowDate]);
 
   useEffect(() => {
+    if (!inventoryReady || inventoryLoading || offline || businessDayWorkflowError || !businessDayStartDate) return;
+    if (workflowDate && !isPendingWorkflowStockEntry) {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    if (!workflowDate && pendingBusinessDay?.date < today) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [
+    businessDayStartDate,
+    businessDayWorkflowError,
+    inventoryLoading,
+    inventoryReady,
+    isPendingWorkflowStockEntry,
+    navigate,
+    offline,
+    pendingBusinessDay?.date,
+    today,
+    workflowDate,
+  ]);
+
+  useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const targetName = location.state?.stockProductName || searchParams.get('stockProductName');
-    if (!targetName || !inventoryReady || inventoryError || !products.length ||
+    if (blockedByPriorWorkflow || !targetName || !inventoryReady || inventoryError || !products.length ||
       handledRedirectKey.current === location.key) return;
     const target = products.find((item) => item.name === targetName);
     if (!target) return;
@@ -205,9 +266,14 @@ export default function Inventory() {
       pathname: location.pathname,
       search: remainingQuery ? `?${remainingQuery}` : '',
     }, { replace: true, state: null });
-  }, [countedIds, countsByProductId, inventoryError, inventoryReady, location.key, location.pathname, location.search, location.state, navigate, products, settingsById]);
+  }, [blockedByPriorWorkflow, countedIds, countsByProductId, inventoryError, inventoryReady, location.key, location.pathname, location.search, location.state, navigate, products, settingsById]);
 
   const openAction = (nextAction, product) => {
+    if (blockedByPriorWorkflow) {
+      showToast(`Complete ${formatDateCompact(pendingBusinessDay.date)} before entering today's stock.`, 'warn');
+      navigate('/dashboard');
+      return;
+    }
     setAction(nextAction);
     setProductId(product.id);
     setRedirectNotice('');
@@ -265,12 +331,23 @@ export default function Inventory() {
   };
 
   const removeMorningCount = async (product) => {
+    if (blockedByPriorWorkflow) {
+      showToast(`Complete ${formatDateCompact(pendingBusinessDay.date)} before changing today's stock.`, 'warn');
+      navigate('/dashboard');
+      return;
+    }
     setDeleteCountTarget(product);
     setDeleteCountConfirmation('');
   };
 
   const confirmDeleteMorningCount = async (event) => {
     event.preventDefault();
+    if (blockedByPriorWorkflow) {
+      showToast(`Complete ${formatDateCompact(pendingBusinessDay.date)} before changing today's stock.`, 'warn');
+      setDeleteCountTarget(null);
+      navigate('/dashboard');
+      return;
+    }
     if (!deleteCountTarget || deleteCountConfirmation.trim().toUpperCase() !== 'YES') return;
     const target = deleteCountTarget;
     setDeletingCountProductId(target.id);
@@ -287,6 +364,12 @@ export default function Inventory() {
 
   const confirmDeleteStockMovement = async (event) => {
     event.preventDefault();
+    if (blockedByPriorWorkflow && deleteMovementTarget?.movement_date === today) {
+      showToast(`Complete ${formatDateCompact(pendingBusinessDay.date)} before changing today's stock.`, 'warn');
+      setDeleteMovementTarget(null);
+      navigate('/dashboard');
+      return;
+    }
     if (!deleteMovementTarget || deleteMovementConfirmation.trim().toUpperCase() !== 'YES') return;
     const target = deleteMovementTarget;
     setDeletingMovementId(target.id);
@@ -304,6 +387,12 @@ export default function Inventory() {
   const submitAction = async (event) => {
     event.preventDefault();
     if (!action || !productId) return;
+    if (blockedByPriorWorkflow) {
+      showToast(`Complete ${formatDateCompact(pendingBusinessDay.date)} before entering today's stock.`, 'warn');
+      closeAction();
+      navigate('/dashboard');
+      return;
+    }
     setSaving(true);
     const quantity = Number(form.quantity);
     const damagedQuantity = Number(form.damagedQuantity || 0);
@@ -453,6 +542,19 @@ export default function Inventory() {
           <BusinessDayLeaveControl date={workflowDate} onMarked={() => navigate('/dashboard', { replace: true })} />
         </section>
       )}
+      {blockedByPriorWorkflow && (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4" role="status">
+          <div>
+            <h2 className="font-bold text-amber-950">Earlier date still needs completion</h2>
+            <p className="mt-1 text-sm text-amber-900">
+              Complete {formatDateCompact(pendingBusinessDay.date)} before entering or changing today's stock. Existing entries are kept.
+            </p>
+          </div>
+          <button type="button" onClick={() => navigate('/dashboard')} className="btn-navy">
+            Continue earlier date
+          </button>
+        </section>
+      )}
 
       {(offline || inventoryError) && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex gap-3">
@@ -553,24 +655,24 @@ export default function Inventory() {
                       disabled={offline}
                     />
                     <div className="flex flex-col items-stretch gap-2">
-                      <button type="button" onClick={() => openAction('count', item)} className="btn-navy w-full justify-start">
+                      <button type="button" onClick={() => openAction('count', item)} disabled={blockedByPriorWorkflow} className="btn-navy w-full justify-start disabled:cursor-not-allowed disabled:opacity-50">
                         <ClipboardCheck className="w-4 h-4" />
                         {hasCount ? 'Correct morning count' : 'Morning count'}
                       </button>
-                      <button type="button" onClick={() => openAction('receipt', item)} className="btn-outline w-full justify-start">
+                      <button type="button" onClick={() => openAction('receipt', item)} disabled={blockedByPriorWorkflow} className="btn-outline w-full justify-start disabled:cursor-not-allowed disabled:opacity-50">
                         <PackagePlus className="w-4 h-4" /> Add extra stock
                       </button>
-                      <button type="button" onClick={() => openAction('damaged', item)} className="btn-outline w-full justify-start">
+                      <button type="button" onClick={() => openAction('damaged', item)} disabled={blockedByPriorWorkflow} className="btn-outline w-full justify-start disabled:cursor-not-allowed disabled:opacity-50">
                         <AlertTriangle className="w-4 h-4" /> Damaged stock
                       </button>
-                      <button type="button" onClick={() => openAction('correction', item)} className="btn-outline w-full justify-start">
+                      <button type="button" onClick={() => openAction('correction', item)} disabled={blockedByPriorWorkflow} className="btn-outline w-full justify-start disabled:cursor-not-allowed disabled:opacity-50">
                         <Pencil className="h-4 w-4" /> Edit stock
                       </button>
                       {hasCount && countDate === todayIST() && (
                         <button
                           type="button"
                           onClick={() => removeMorningCount(item)}
-                          disabled={offline || saving || deletingCountProductId !== ''}
+                          disabled={offline || blockedByPriorWorkflow || saving || deletingCountProductId !== ''}
                           className="btn-outline w-full justify-start border-red-200 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -585,7 +687,7 @@ export default function Inventory() {
                     <p className="text-xs text-ink-500">
                       Enter opening stock to enable sales. You can record damage on arrival here or record it later.
                     </p>
-                    <button type="button" onClick={() => openAction('opening', item)} className="btn-navy">
+                    <button type="button" onClick={() => openAction('opening', item)} disabled={blockedByPriorWorkflow} className="btn-navy disabled:cursor-not-allowed disabled:opacity-50">
                       <PackagePlus className="w-4 h-4" /> Enter opening stock
                     </button>
                   </div>
@@ -650,7 +752,7 @@ export default function Inventory() {
                               setDeleteMovementTarget(movement);
                               setDeleteMovementConfirmation('');
                             }}
-                            disabled={!!deletingMovementId}
+                            disabled={!!deletingMovementId || (blockedByPriorWorkflow && movement.movement_date === today)}
                             className="mt-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                           >
                             <Trash2 className="h-3.5 w-3.5" /> Delete movement

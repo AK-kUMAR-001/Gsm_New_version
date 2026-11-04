@@ -652,7 +652,7 @@ export default function QuickBuyerEntryModal({
                       setNoSaleError('');
                     }}
                     disabled={saving || entries.length > 0}
-                    className="btn-outline justify-center border-red-200 text-red-700 hover:bg-red-50"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     No sale today
                   </button>
