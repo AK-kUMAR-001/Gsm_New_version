@@ -37,6 +37,15 @@ async function safeFetch(table, options) {
   }
 }
 
+async function saveBuyerSaleRpc(rpcName, args) {
+  const result = await supabase.rpc(rpcName, args);
+  if (result.error?.code !== 'PGRST202' || args.p_discounted_bill_total != null) return result;
+
+  const legacyArgs = { ...args };
+  delete legacyArgs.p_discounted_bill_total;
+  return supabase.rpc(rpcName, legacyArgs);
+}
+
 async function fetchPayments() {
   try {
     const primary = await fetchAllPaginated(supabase, 'buyer_payments');
@@ -576,7 +585,7 @@ export function AppDataProvider({ children }) {
 
   const updateBuyerSale = async (id, row) => {
     if (offline) return { error: new Error('Buyer sale edits require the live database.') };
-    const { data, error } = await supabase.rpc('inventory_update_buyer_sale', {
+    const { data, error } = await saveBuyerSaleRpc('inventory_update_buyer_sale', {
       p_id: id,
       p_buyer_id: row.buyer_id,
       p_product: row.product,
@@ -584,11 +593,14 @@ export function AppDataProvider({ children }) {
       p_quantity_unit: row.quantity_unit,
       p_price_per_unit: row.price_per_mootai,
       p_sale_date: row.sale_date,
-      p_notes: row.notes,
+      p_notes: row.notes ?? null,
       p_discounted_bill_total: row.discounted_bill_total ?? null,
     });
     if (error) {
-      showToast(`Could not update buyer sale: ${error.message}`, 'error');
+      const guidance = error.code === 'PGRST202' && row.discounted_bill_total != null
+        ? ' Apply 202611020003_buyer_sale_discounts.sql in Supabase and reload the schema cache before saving discounted sales.'
+        : '';
+      showToast(`Could not update buyer sale: ${error.message}${guidance}`, 'error');
       return { error };
     }
     const updated = Array.isArray(data) ? data[0] : data;
@@ -613,7 +625,7 @@ export function AppDataProvider({ children }) {
       p_quantity_unit: row.quantity_unit,
       p_price_per_unit: row.price_per_mootai,
       p_sale_date: row.sale_date,
-      p_notes: row.notes,
+      p_notes: row.notes ?? null,
     });
     if (error) {
       showToast(`Could not update retail sale: ${error.message}`, 'error');
@@ -693,7 +705,7 @@ export function AppDataProvider({ children }) {
       showToast(error.message, 'error');
       return { error };
     }
-    const rpcResult = await supabase.rpc('inventory_record_buyer_sale_with_unit', {
+    const rpcResult = await saveBuyerSaleRpc('inventory_record_buyer_sale_with_unit', {
       p_id: row.id,
       p_buyer_id: row.buyer_id,
       p_product: row.product,
@@ -705,7 +717,13 @@ export function AppDataProvider({ children }) {
       p_discounted_bill_total: row.discounted_bill_total ?? null,
     });
     const { data, error } = rpcResult;
-    if (error) { showToast('Could not save sale: ' + error.message, 'error'); return { error }; }
+    if (error) {
+      const guidance = error.code === 'PGRST202' && row.discounted_bill_total != null
+        ? ' Apply 202611020003_buyer_sale_discounts.sql in Supabase and reload the schema cache before saving discounted sales.'
+        : '';
+      showToast(`Could not save sale: ${error.message}${guidance}`, 'error');
+      return { error };
+    }
     if (data) {
       setBuyerSales((prev) => [data, ...prev.filter((sale) => sale.id !== data.id)]);
       await refreshInventoryAfterSale();
