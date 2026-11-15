@@ -60,7 +60,7 @@ const PERIOD_NAMES = {
 };
 const BILL_GREEN = [0, 130, 0];
 const BILL_PRODUCT_NAMES_TA = {
-  karuvepillai: 'கறிவேப்பிலை',
+  karuvepillai: 'கருவேப்பிலை',
   keerai: 'கீரை',
   malli: 'மல்லி',
   pudina: 'புதினா',
