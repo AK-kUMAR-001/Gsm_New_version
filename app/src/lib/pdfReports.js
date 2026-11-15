@@ -710,6 +710,7 @@ export async function createBuyerBillFile({
       : [['', '', 'No sales recorded for this period', '', '', formatBillMoney(0)]],
     foot: [['', '', 'Total', totalQuantityLines, '', formatBillMoney(billed)]],
     showFoot: 'lastPage',
+    rowPageBreak: 'avoid',
     margin: { left: margin, right: margin, top: 24, bottom: 24 },
     columnStyles: {
       0: { cellWidth: 58, halign: 'left', cellPadding: 3, fontSize: 8 },
@@ -742,6 +743,9 @@ export async function createBuyerBillFile({
     },
     alternateRowStyles: { fillColor: [250, 250, 250] },
     didParseCell: (cellData) => {
+      if (cellData.section === 'head' && [3, 4].includes(cellData.column.index)) {
+        cellData.cell.styles.fontSize = 9;
+      }
       if (cellData.section !== 'head' && cellData.column.index === 3) {
         cellData.cell.styles.fontSize = 9;
       }
