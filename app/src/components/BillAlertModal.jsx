@@ -94,7 +94,15 @@ function createTextBillUrl({ buyer, sales, payments, balance, period, selectedDa
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
-export default function BillAlertModal({ open, onClose, buyers, balances, buyerSales, payments }) {
+export default function BillAlertModal({
+  open,
+  onClose,
+  buyers,
+  balances,
+  buyerSales,
+  payments,
+  balanceAdjustments,
+}) {
   const [selectedBuyerId, setSelectedBuyerId] = useState('');
   const [sendMode, setSendMode] = useState('');
   const [textPeriod, setTextPeriod] = useState('today');
@@ -162,11 +170,15 @@ export default function BillAlertModal({ open, onClose, buyers, balances, buyerS
   const selectedRow = rows.find((row) => row.buyer.id === selectedBuyerId);
   const selectedBuyerSales = (buyerSales || []).filter((sale) => sale.buyer_id === selectedBuyerId);
   const selectedBuyerPayments = (payments || []).filter((payment) => payment.buyer_id === selectedBuyerId);
+  const selectedBuyerBalanceAdjustments = (balanceAdjustments || []).filter(
+    (adjustment) => adjustment.buyer_id === selectedBuyerId,
+  );
   const textBillUrl = selectedRow
     ? createTextBillUrl({
       buyer: selectedRow.buyer,
       sales: selectedBuyerSales,
       payments: selectedBuyerPayments,
+      balanceAdjustments: selectedBuyerBalanceAdjustments,
       balance: selectedRow.balance,
       period: textPeriod,
       selectedDate,

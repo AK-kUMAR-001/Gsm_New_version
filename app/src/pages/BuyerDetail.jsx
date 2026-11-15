@@ -97,6 +97,7 @@ export default function BuyerDetail() {
         buyer,
         sales: buyerSales.filter((sale) => sale.buyer_id === id),
         payments: payments.filter((payment) => payment.buyer_id === id),
+        balanceAdjustments: buyerBalanceAdjustments.filter((entry) => entry.buyer_id === id),
         balance,
         kind: {
           today: 'custom',
@@ -438,6 +439,7 @@ export default function BuyerDetail() {
             balances={{ list: balance ? [{ ...balance, id }] : [] }}
             buyerSales={buyerSales}
             payments={payments}
+            balanceAdjustments={buyerBalanceAdjustments.filter((entry) => entry.buyer_id === id)}
           />
           <BuyerBalanceAdjustmentModal
             open={balanceEditorOpen}

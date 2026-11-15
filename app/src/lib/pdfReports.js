@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import gsmLogoUrl from '../assets/Gsm_logo.png';
+import notoSansTamilRegularUrl from '../assets/fonts/NotoSansTamil-Regular.ttf?url';
+import notoSansTamilBoldUrl from '../assets/fonts/NotoSansTamil-Bold.ttf?url';
 import {
   formatDateCompact,
   formatQuantityByUnit,
@@ -32,7 +33,6 @@ const MONEY_CENTS = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })}`;
-const RATE = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 6 })}`;
 const billAmountDetails = (sale) => {
   const discount = buyerSaleDiscountTotal(sale);
   if (discount <= 0) return MONEY_CENTS(buyerSaleFinalTotal(sale));
@@ -48,10 +48,6 @@ const quantitiesByUnit = (sales) => (sales || []).reduce((quantities, sale) => {
   }
   return quantities;
 }, {});
-const billSaleQuantity = (sale) => (
-  `${Number(sale.mootais ?? sale.mootais_sold ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${saleQuantityUnit(sale)}`
-);
-const billSaleRate = (sale) => `${RATE(sale.price_per_mootai)}/${saleQuantityUnit(sale)}`;
 const sumFinalBills = (sales) => (sales || []).reduce((sum, sale) => sum + buyerSaleFinalTotal(sale), 0);
 const sumOriginalBills = (sales) => (sales || []).reduce((sum, sale) => sum + buyerSaleOriginalTotal(sale), 0);
 const sumBillDiscounts = (sales) => (sales || []).reduce((sum, sale) => sum + buyerSaleDiscountTotal(sale), 0);
@@ -62,6 +58,94 @@ const PERIOD_NAMES = {
   all: 'All Time',
   today: 'Today',
 };
+const BILL_GREEN = [0, 130, 0];
+const BILL_PRODUCT_NAMES_TA = {
+  karuvepillai: 'கறிவேப்பிலை',
+  keerai: 'கீரை',
+  malli: 'மல்லி',
+  pudina: 'புதினா',
+};
+
+function billProductName(product) {
+  const name = String(product || '').trim();
+  return BILL_PRODUCT_NAMES_TA[name.toLocaleLowerCase()] || name || 'Sale';
+}
+
+function formatBillMoney(amount) {
+  return `₹ ${Math.round(Number(amount || 0)).toLocaleString('en-IN')}`;
+}
+
+function formatBillRate(amount) {
+  return `₹ ${Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 4 })}`;
+}
+
+function formatBillBalance(amount) {
+  const value = Number(amount || 0);
+  return value < 0 ? `- ${formatBillMoney(Math.abs(value))}` : formatBillMoney(value);
+}
+
+function billAmountInWords(amount) {
+  const ones = [
+    'Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+    'Seventeen', 'Eighteen', 'Nineteen',
+  ];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const underThousand = (value) => {
+    const words = [];
+    if (value >= 100) {
+      words.push(`${ones[Math.floor(value / 100)]} Hundred`);
+      value %= 100;
+      if (value) words.push('and');
+    }
+    if (value >= 20) {
+      words.push(tens[Math.floor(value / 10)]);
+      value %= 10;
+    }
+    if (value) words.push(ones[value]);
+    return words.join(' ');
+  };
+  let value = Math.max(0, Math.round(Number(amount || 0)));
+  if (!value) return 'Zero Rupees only';
+  const scales = ['', 'Thousand', 'Lakh', 'Crore', 'Arab', 'Kharab', 'Neel', 'Padma'];
+  const chunks = [value % 1000];
+  value = Math.floor(value / 1000);
+  while (value > 0) {
+    chunks.push(value % 100);
+    value = Math.floor(value / 100);
+  }
+  const words = chunks
+    .map((chunk, index) => (chunk ? `${underThousand(chunk)} ${scales[index] || ''}`.trim() : ''))
+    .filter(Boolean)
+    .reverse();
+  return `${words.join(' ')} Rupees only`;
+}
+
+function formatBillDate(value) {
+  const match = String(value || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+}
+
+function fontFileBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
+
+async function registerTamilBillFonts(doc) {
+  for (const [url, fileName, style] of [
+    [notoSansTamilRegularUrl, 'NotoSansTamil-Regular.ttf', 'normal'],
+    [notoSansTamilBoldUrl, 'NotoSansTamil-Bold.ttf', 'bold'],
+  ]) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Tamil font files could not be loaded for the bill PDF.');
+    doc.addFileToVFS(fileName, fontFileBase64(await response.arrayBuffer()));
+    doc.addFont(fileName, 'NotoSansTamil', style);
+  }
+}
 
 function periodLabel(period) {
   const today = realTodayIST();
@@ -72,13 +156,13 @@ function periodLabel(period) {
   return PERIOD_NAMES[period] || period;
 }
 
-function safeFilename(value) {
-  return String(value || 'report')
+function safeFilename(value, fallback = 'report') {
+  return String(value || '')
     .normalize('NFKD')
     .replace(/[^\w -]/g, '')
     .trim()
     .replace(/\s+/g, '_')
-    .slice(0, 60) || 'report';
+    .slice(0, 60) || fallback;
 }
 
 function startDocument(title, period, orientation = 'landscape') {
@@ -170,18 +254,6 @@ const CUSTOMER_TRANSACTION_STYLES = {
   textColor: COLORS.ink,
 };
 
-const BUYER_BILL_TRANSACTION_COLUMN_STYLES = {
-  0: { cellWidth: 22, halign: 'left' },
-  1: { cellWidth: 94, halign: 'left' },
-  2: { cellWidth: 66, halign: 'left' },
-};
-
-const BUYER_BILL_TRANSACTION_STYLES = {
-  ...CUSTOMER_TRANSACTION_STYLES,
-  fontSize: 9,
-  cellPadding: 2,
-};
-
 function buyerTransactionDetails(row) {
   const details = [row.details || ''];
   if (row.quantity && row.quantity !== '—') details.push(`Quantity: ${row.quantity}`);
@@ -206,30 +278,6 @@ function table(doc, options) {
     alternateRowStyles: { fillColor: [247, 249, 251] },
     margin: { left: 14, right: 14, bottom: 14 },
     ...options,
-  });
-}
-
-function addBillTotals(doc, tableEndY, billed, paid, pending, rightX = 283, originalBilled = billed, balanceAdjustment = 0) {
-  let y = tableEndY + 10;
-  const rows = [
-    { label: 'ORIGINAL BILL', value: MONEY(originalBilled), color: COLORS.ink },
-    { label: 'DISCOUNT', value: MONEY(originalBilled - billed), color: COLORS.ink },
-    { label: 'FINAL BILL', value: MONEY(billed), color: [185, 28, 28] },
-    ...(Number(balanceAdjustment) !== 0
-      ? [{ label: 'BALANCE CORRECTION', value: MONEY(balanceAdjustment), color: COLORS.ink }]
-      : []),
-    { label: 'PAID AMOUNT', value: MONEY(paid), color: COLORS.ink },
-    { label: 'PENDING CURRENT', value: MONEY(pending), color: COLORS.ink },
-  ];
-  if (y + rows.length * 6 > doc.internal.pageSize.getHeight() - 20) {
-    doc.addPage();
-    y = 24;
-  }
-  rows.forEach((row, index) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...row.color);
-    doc.text(`${row.label}: ${row.value}`, rightX, y + index * 6, { align: 'right' });
   });
 }
 
@@ -460,6 +508,7 @@ export async function createBuyerBillFile({
   sales,
   payments,
   balance,
+  balanceAdjustments = [],
   kind,
   selectedDate,
   anchorDate = realTodayIST(),
@@ -503,122 +552,204 @@ export async function createBuyerBillFile({
   const billed = sumFinalBills(billSales);
   const originalBilled = sumOriginalBills(billSales);
   const paid = billPayments.reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0);
-  const title = kind === 'full'
-    ? 'Complete Detailed Bill'
-    : kind === 'monthly'
-      ? 'Monthly Bill Summary'
-      : 'Bill Statement';
-  const doc = startDocument(title, period, 'portrait');
-  const logoResponse = await fetch(gsmLogoUrl);
-  if (!logoResponse.ok) throw new Error('The GSM logo could not be loaded for the PDF.');
-  const logoBytes = new Uint8Array(await logoResponse.arrayBuffer());
+  const groupedSales = new Map();
+  const quantities = {};
+  for (const sale of billSales) {
+    const unit = saleQuantityUnit(sale);
+    const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
+    const rate = Number(sale.price_per_mootai || 0);
+    const product = sale.product || 'Sale';
+    const key = `${product}\u0000${unit}\u0000${rate.toFixed(6)}`;
+    const row = groupedSales.get(key) || {
+      product,
+      unit,
+      quantity: 0,
+      rate,
+      amount: 0,
+    };
+    row.quantity += quantity;
+    row.amount += buyerSaleFinalTotal(sale);
+    groupedSales.set(key, row);
+    quantities[unit] = (quantities[unit] || 0) + quantity;
+  }
+  const billRows = [...groupedSales.values()];
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [420, 595] });
+  await registerTamilBillFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
-  doc.addImage(logoBytes, 'PNG', pageWidth - 39, 3, 25, 25);
+  const margin = 24;
+  const sectionWidth = pageWidth - margin * 2;
+  const periodDate = startDate && startDate === endDate
+    ? formatBillDate(startDate)
+    : period;
+  const createdTime = new Date().toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).replace(/\b(am|pm)\b/i, (meridiem) => meridiem.toUpperCase());
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFillColor(...BILL_GREEN);
+  doc.rect(margin, 24, sectionWidth, 36, 'F');
+  doc.setFont('NotoSansTamil', 'bold');
+  let billTitle = `${buyer.name || 'Customer'} VEGETABLES`;
+  let billTitleSize = 23;
+  doc.setFontSize(billTitleSize);
+  while (doc.getTextWidth(billTitle) > sectionWidth - 16 && billTitleSize > 12) {
+    billTitleSize -= 1;
+    doc.setFontSize(billTitleSize);
+  }
+  doc.setTextColor(255, 255, 255);
+  doc.text(billTitle, pageWidth / 2, 49, { align: 'center' });
+  doc.setFontSize(17);
+  doc.setTextColor(...BILL_GREEN);
+  doc.text('Bill', pageWidth / 2, 82, { align: 'center' });
+
+  doc.setFillColor(...BILL_GREEN);
+  doc.rect(margin, 102, sectionWidth, 22, 'F');
+  doc.setFont('NotoSansTamil', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Bill From', margin + 5, 118);
+  doc.text('Bill Details', 248, 118);
+
   doc.setTextColor(...COLORS.ink);
-  doc.text(`Customer: ${buyer.name}  |  Phone: ${buyer.phone || 'Not recorded'}`, 14, 39);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.muted);
-  doc.text(`Hi ${buyer.name}, please find your GSM Traders bill for ${period} below.`, 14, 45);
+  doc.setFontSize(13);
+  doc.text('MIDHUN SAKTHI', margin + 4, 146);
+  doc.setFont('NotoSansTamil', 'normal');
+  doc.setFontSize(12);
+  doc.text('UKKADAM', margin + 4, 165);
+  doc.text('Contact No.: +91 63740 97754', margin + 4, 184);
+  doc.setFontSize(12);
+  const billDateLines = doc.splitTextToSize(`Date: ${periodDate}`, 166);
+  doc.text(billDateLines, 250, 146);
+  doc.text(`Time: ${createdTime}`, 250, 146 + billDateLines.length * 16);
 
-  if (kind === 'monthly') {
-    const byProduct = new Map();
-    for (const sale of billSales) {
-      const key = sale.product || 'Sale';
-      const row = byProduct.get(key) || {
-        quantities: {},
-        originalRevenueByUnit: {},
-        originalBilled: 0,
-        discount: 0,
-        billed: 0,
-      };
-      const saleQuantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
-      const originalRevenue = buyerSaleOriginalTotal(sale);
-      const saleRevenue = buyerSaleFinalTotal(sale);
-      const unit = saleQuantityUnit(sale);
-      row.quantities[unit] = (row.quantities[unit] || 0) + saleQuantity;
-      row.originalRevenueByUnit[unit] = (row.originalRevenueByUnit[unit] || 0) + originalRevenue;
-      row.originalBilled += originalRevenue;
-      row.discount += buyerSaleDiscountTotal(sale);
-      row.billed += saleRevenue;
-      byProduct.set(key, row);
-    }
-    table(doc, {
-      startY: 52,
-      head: [['Product', 'Quantity and bill breakdown']],
-      body: byProduct.size
-        ? Array.from(byProduct.entries()).map(([product, row]) => [
-          product,
-          [
-            `Quantity: ${formatQuantityByUnit(row.quantities)}`,
-            `Average rate: ${Object.entries(row.quantities)
-              .map(([unit, quantity]) => `${RATE(quantity ? row.originalRevenueByUnit[unit] / quantity : 0)}/${unit}`)
-              .join(' · ')}`,
-            `Original: ${MONEY(row.originalBilled)}`,
-            `Discount: ${MONEY(row.discount)} (${row.originalBilled > 0 ? ((row.discount / row.originalBilled) * 100).toFixed(2) : '0.00'}%)`,
-            `Final: ${MONEY(row.billed)}`,
-          ].join('\n'),
-        ])
-        : [['—', 'No sales recorded for this period']],
-      columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 148 } },
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, textColor: COLORS.ink },
-    });
-    addBillTotals(
-      doc,
-      doc.lastAutoTable?.finalY || 60,
-      billed,
-      paid,
-      balance?.balance_due,
-      pageWidth - 14,
-      originalBilled,
-      balance?.balance_adjustment,
-    );
-  } else {
-    const transactions = [
-      ...billSales.map((sale) => ({
-        date: sale.sale_date,
-        kind: 'Bill',
-        product: sale.product || 'Sale',
-        quantity: billSaleQuantity(sale),
-        rate: billSaleRate(sale),
-        amount: billAmountDetails(sale),
-        notes: sale.notes || '',
-      })),
-      ...billPayments.map((paymentRow) => ({
-        date: paymentRow.paid_at,
-        kind: 'Payment',
-        product: 'Payment received',
-        quantity: '—',
-        rate: '—',
-        amount: MONEY(paymentRow.amount_paid),
-        notes: paymentRow.notes || '',
-      })),
-    ].sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
-    table(doc, {
-      startY: 52,
-      head: [['Date', 'Bill or payment details', 'Amount']],
-      body: transactions.length
-        ? buyerTransactionTableRows(transactions.map((row) => ({ ...row, details: `${row.kind}: ${row.product}` })))
-        : [['—', 'No bills or payments recorded', '—']],
-      columnStyles: BUYER_BILL_TRANSACTION_COLUMN_STYLES,
-      styles: BUYER_BILL_TRANSACTION_STYLES,
-    });
-    addBillTotals(
-      doc,
-      doc.lastAutoTable?.finalY || 60,
-      billed,
-      paid,
-      balance?.balance_due,
-      pageWidth - 14,
-      originalBilled,
-      balance?.balance_adjustment,
-    );
+  doc.setFillColor(...BILL_GREEN);
+  doc.rect(margin, 198, sectionWidth, 22, 'F');
+  doc.setFont('NotoSansTamil', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Bill To', margin + 5, 214);
+  doc.setFont('NotoSansTamil', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(...COLORS.ink);
+  const buyerDetails = [buyer.name || 'Customer', buyer.phone ? `Phone: ${buyer.phone}` : '']
+    .filter(Boolean)
+    .join('  |  ');
+  doc.text(doc.splitTextToSize(buyerDetails, sectionWidth - 8), margin + 4, 239);
+
+  table(doc, {
+    startY: 252,
+    head: [['#', 'Item name', 'Quantity', 'Price/unit', 'Amount']],
+    body: billRows.length
+      ? billRows.map((row, index) => [
+        String(index + 1),
+        billProductName(row.product),
+        `${row.quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${row.unit}`,
+        `${formatBillRate(row.rate)}/${row.unit}`,
+        formatBillMoney(row.amount),
+      ])
+      : [['', 'No sales recorded for this period', '', '', formatBillMoney(0)]],
+    foot: [['', 'Total', formatQuantityByUnit(quantities), '', formatBillMoney(billed)]],
+    showFoot: 'lastPage',
+    margin: { left: margin, right: margin, top: 24, bottom: 24 },
+    columnStyles: {
+      0: { cellWidth: 24, halign: 'left' },
+      1: { cellWidth: 120, halign: 'left' },
+      2: { cellWidth: 75, halign: 'right' },
+      3: { cellWidth: 80, halign: 'right' },
+      4: { cellWidth: 73, halign: 'right' },
+    },
+    styles: {
+      font: 'NotoSansTamil',
+      fontSize: 11,
+      cellPadding: 7,
+      textColor: COLORS.ink,
+      lineColor: [150, 150, 150],
+      lineWidth: 0.5,
+      overflow: 'linebreak',
+    },
+    headStyles: {
+      fillColor: BILL_GREEN,
+      textColor: 255,
+      font: 'NotoSansTamil',
+      fontStyle: 'bold',
+      fontSize: 12,
+    },
+    footStyles: {
+      fillColor: [245, 249, 245],
+      textColor: COLORS.ink,
+      fontStyle: 'bold',
+    },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+  });
+
+  doc.addPage([420, 595], 'portrait');
+  const summaryLeftWidth = 200;
+  const summaryRightX = 232;
+  const summaryRightWidth = pageWidth - margin - summaryRightX;
+  const drawSectionTitle = (x, y, width, title) => {
+    doc.setFillColor(...BILL_GREEN);
+    doc.rect(x, y, width, 22, 'F');
+    doc.setFont('NotoSansTamil', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, x + 5, y + 15);
+  };
+  drawSectionTitle(margin, 24, summaryLeftWidth, 'Bill Amount In Words');
+  drawSectionTitle(summaryRightX, 24, summaryRightWidth, 'Amounts');
+
+  doc.setFont('NotoSansTamil', 'normal');
+  doc.setFontSize(13);
+  doc.setTextColor(...COLORS.ink);
+  doc.text(doc.splitTextToSize(billAmountInWords(billed), summaryLeftWidth - 8), margin + 4, 61);
+  drawSectionTitle(margin, 130, summaryLeftWidth, 'Terms and conditions');
+  doc.setFontSize(13);
+  doc.text(
+    doc.splitTextToSize('Thank you for doing business with us.', summaryLeftWidth - 8),
+    margin + 4,
+    167,
+  );
+
+  const currentNetBalance = Number(balance?.balance_due || 0) - Number(balance?.credit_balance || 0);
+  const adjustmentDate = (adjustment) => String(adjustment.created_at || '').slice(0, 10);
+  const salesAfterPeriod = sales
+    .filter((sale) => String(sale.sale_date || '').slice(0, 10) > endDate)
+    .reduce((sum, sale) => sum + buyerSaleFinalTotal(sale), 0);
+  const paymentsAfterPeriod = payments
+    .filter((payment) => String(payment.paid_at || '').slice(0, 10) > endDate)
+    .reduce((sum, payment) => sum + Number(payment.amount_paid || 0), 0);
+  const adjustmentsAfterPeriod = balanceAdjustments
+    .filter((adjustment) => adjustmentDate(adjustment) > endDate)
+    .reduce((sum, adjustment) => sum + Number(adjustment.adjustment_amount || 0), 0);
+  const adjustmentsInPeriod = balanceAdjustments
+    .filter((adjustment) => adjustmentDate(adjustment) <= endDate
+      && (!startDate || adjustmentDate(adjustment) >= startDate))
+    .reduce((sum, adjustment) => sum + Number(adjustment.adjustment_amount || 0), 0);
+  const periodEndBalance = currentNetBalance - salesAfterPeriod + paymentsAfterPeriod - adjustmentsAfterPeriod;
+  const previousBalance = periodEndBalance - billed + paid - adjustmentsInPeriod;
+  const totals = [
+    { label: 'Sub Total', value: formatBillMoney(originalBilled) },
+    ...(originalBilled !== billed
+      ? [{ label: 'Discount', value: formatBillMoney(originalBilled - billed) }]
+      : []),
+    { label: 'Total', value: formatBillMoney(billed), bold: true },
+    { label: 'Paid', value: formatBillMoney(paid) },
+    { label: 'Balance', value: formatBillBalance(billed - paid) },
+    { label: 'Previous Balance', value: formatBillBalance(previousBalance) },
+    { label: 'Current Balance', value: formatBillBalance(periodEndBalance), bold: true },
+  ];
+  let totalsY = 62;
+  for (const row of totals) {
+    doc.setFont('NotoSansTamil', row.bold ? 'bold' : 'normal');
+    doc.setFontSize(13);
+    doc.setTextColor(...COLORS.ink);
+    doc.text(row.label, summaryRightX + 5, totalsY);
+    doc.text(row.value, pageWidth - margin - 5, totalsY, { align: 'right' });
+    doc.setDrawColor(190, 190, 190);
+    doc.line(summaryRightX, totalsY + 6, pageWidth - margin, totalsY + 6);
+    totalsY += 24;
   }
 
-  addPageNumbers(doc);
-  const filename = `GSM_${safeFilename(buyer.name)}_${kind === 'full' ? 'Complete_Bill' : 'Bill'}_${safeFilename(period)}.pdf`;
+  const filename = `${safeFilename(buyer.name, 'Customer')}_VEGETABLES_Bill_${safeFilename(period)}.pdf`;
   return new File([doc.output('blob')], filename, { type: 'application/pdf' });
 }
