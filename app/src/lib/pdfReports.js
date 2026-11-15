@@ -517,6 +517,16 @@ export async function createBuyerBillFile({
   let startDate = '';
   let endDate = today;
   let period = 'All Time';
+  if (kind === 'full') {
+    const recordDates = [
+      ...sales.map((sale) => String(sale.sale_date || '').slice(0, 10)),
+      ...payments.map((payment) => String(payment.paid_at || '').slice(0, 10)),
+      ...balanceAdjustments.map((adjustment) => String(adjustment.created_at || '').slice(0, 10)),
+    ].filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today).sort();
+    period = recordDates.length
+      ? `Complete bill (${formatDateCompact(recordDates[0])} - ${formatDateCompact(today)})`
+      : `Complete bill (through ${formatDateCompact(today)})`;
+  }
   if (kind === 'custom') {
     if (!selectedDate) throw new Error('Choose a bill date.');
     startDate = selectedDate;
@@ -555,12 +565,14 @@ export async function createBuyerBillFile({
   const groupedSales = new Map();
   const quantities = {};
   for (const sale of billSales) {
+    const date = String(sale.sale_date || '').slice(0, 10);
     const unit = saleQuantityUnit(sale);
     const quantity = Number(sale.mootais ?? sale.mootais_sold ?? 0);
     const rate = Number(sale.price_per_mootai || 0);
     const product = sale.product || 'Sale';
-    const key = `${product}\u0000${unit}\u0000${rate.toFixed(6)}`;
+    const key = `${date}\u0000${product}\u0000${unit}\u0000${rate.toFixed(6)}`;
     const row = groupedSales.get(key) || {
+      date,
       product,
       unit,
       quantity: 0,
@@ -572,7 +584,8 @@ export async function createBuyerBillFile({
     groupedSales.set(key, row);
     quantities[unit] = (quantities[unit] || 0) + quantity;
   }
-  const billRows = [...groupedSales.values()];
+  const billRows = [...groupedSales.values()]
+    .sort((first, second) => first.date.localeCompare(second.date));
   const totalQuantityLines = Object.entries(quantities)
     .map(([unit, quantity]) => `${quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })}\n${unit}`)
     .join('\n');
@@ -644,25 +657,27 @@ export async function createBuyerBillFile({
 
   table(doc, {
     startY: 252 + Math.max(0, buyerDetailsLines.length - 1) * 14,
-    head: [['#', 'Item name', 'Quantity', 'Price/unit', 'Amount']],
+    head: [['Date', '#', 'Item name', 'Quantity', 'Price/unit', 'Amount']],
     body: billRows.length
       ? billRows.map((row, index) => [
+        formatBillDate(row.date) || '—',
         String(index + 1),
         billProductName(row.product),
         `${row.quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })}\n${row.unit}`,
         `${formatBillRate(row.rate)}\n/${row.unit}`,
         formatBillMoney(row.amount),
       ])
-      : [['', 'No sales recorded for this period', '', '', formatBillMoney(0)]],
-    foot: [['', 'Total', totalQuantityLines, '', formatBillMoney(billed)]],
+      : [['', '', 'No sales recorded for this period', '', '', formatBillMoney(0)]],
+    foot: [['', '', 'Total', totalQuantityLines, '', formatBillMoney(billed)]],
     showFoot: 'lastPage',
     margin: { left: margin, right: margin, top: 24, bottom: 24 },
     columnStyles: {
-      0: { cellWidth: 22, halign: 'left' },
-      1: { cellWidth: 104, halign: 'left' },
-      2: { cellWidth: 70, halign: 'right' },
-      3: { cellWidth: 76, halign: 'right' },
-      4: { cellWidth: 100, halign: 'right', fontSize: 9 },
+      0: { cellWidth: 58, halign: 'left', cellPadding: 3, fontSize: 8 },
+      1: { cellWidth: 20, halign: 'left', cellPadding: 3, fontSize: 9 },
+      2: { cellWidth: 82, halign: 'left' },
+      3: { cellWidth: 62, halign: 'right' },
+      4: { cellWidth: 70, halign: 'right' },
+      5: { cellWidth: 80, halign: 'right', fontSize: 9 },
     },
     styles: {
       font: 'NotoSansTamil',
@@ -687,7 +702,7 @@ export async function createBuyerBillFile({
     },
     alternateRowStyles: { fillColor: [250, 250, 250] },
     didParseCell: (cellData) => {
-      if (cellData.section !== 'head' && cellData.column.index === 2) {
+      if (cellData.section !== 'head' && cellData.column.index === 3) {
         cellData.cell.styles.fontSize = 9;
       }
     },
