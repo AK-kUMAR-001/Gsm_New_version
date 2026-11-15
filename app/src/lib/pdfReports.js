@@ -573,6 +573,9 @@ export async function createBuyerBillFile({
     quantities[unit] = (quantities[unit] || 0) + quantity;
   }
   const billRows = [...groupedSales.values()];
+  const totalQuantityLines = Object.entries(quantities)
+    .map(([unit, quantity]) => `${quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })}\n${unit}`)
+    .join('\n');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [420, 595] });
   await registerTamilBillFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -597,8 +600,9 @@ export async function createBuyerBillFile({
     billTitleSize -= 1;
     doc.setFontSize(billTitleSize);
   }
+  const billTitleLines = doc.splitTextToSize(billTitle, sectionWidth - 16);
   doc.setTextColor(255, 255, 255);
-  doc.text(billTitle, pageWidth / 2, 49, { align: 'center' });
+  doc.text(billTitleLines, pageWidth / 2, billTitleLines.length > 1 ? 40 : 49, { align: 'center' });
   doc.setFontSize(17);
   doc.setTextColor(...BILL_GREEN);
   doc.text('Bill', pageWidth / 2, 82, { align: 'center' });
@@ -635,29 +639,30 @@ export async function createBuyerBillFile({
   const buyerDetails = [buyer.name || 'Customer', buyer.phone ? `Phone: ${buyer.phone}` : '']
     .filter(Boolean)
     .join('  |  ');
-  doc.text(doc.splitTextToSize(buyerDetails, sectionWidth - 8), margin + 4, 239);
+  const buyerDetailsLines = doc.splitTextToSize(buyerDetails, sectionWidth - 8);
+  doc.text(buyerDetailsLines, margin + 4, 239);
 
   table(doc, {
-    startY: 252,
+    startY: 252 + Math.max(0, buyerDetailsLines.length - 1) * 14,
     head: [['#', 'Item name', 'Quantity', 'Price/unit', 'Amount']],
     body: billRows.length
       ? billRows.map((row, index) => [
         String(index + 1),
         billProductName(row.product),
-        `${row.quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${row.unit}`,
-        `${formatBillRate(row.rate)}/${row.unit}`,
+        `${row.quantity.toLocaleString('en-IN', { maximumFractionDigits: 3 })}\n${row.unit}`,
+        `${formatBillRate(row.rate)}\n/${row.unit}`,
         formatBillMoney(row.amount),
       ])
       : [['', 'No sales recorded for this period', '', '', formatBillMoney(0)]],
-    foot: [['', 'Total', formatQuantityByUnit(quantities), '', formatBillMoney(billed)]],
+    foot: [['', 'Total', totalQuantityLines, '', formatBillMoney(billed)]],
     showFoot: 'lastPage',
     margin: { left: margin, right: margin, top: 24, bottom: 24 },
     columnStyles: {
-      0: { cellWidth: 24, halign: 'left' },
-      1: { cellWidth: 120, halign: 'left' },
-      2: { cellWidth: 75, halign: 'right' },
-      3: { cellWidth: 80, halign: 'right' },
-      4: { cellWidth: 73, halign: 'right' },
+      0: { cellWidth: 22, halign: 'left' },
+      1: { cellWidth: 104, halign: 'left' },
+      2: { cellWidth: 70, halign: 'right' },
+      3: { cellWidth: 76, halign: 'right' },
+      4: { cellWidth: 100, halign: 'right', fontSize: 9 },
     },
     styles: {
       font: 'NotoSansTamil',
@@ -681,6 +686,11 @@ export async function createBuyerBillFile({
       fontStyle: 'bold',
     },
     alternateRowStyles: { fillColor: [250, 250, 250] },
+    didParseCell: (cellData) => {
+      if (cellData.section !== 'head' && cellData.column.index === 2) {
+        cellData.cell.styles.fontSize = 9;
+      }
+    },
   });
 
   doc.addPage([420, 595], 'portrait');
@@ -741,13 +751,23 @@ export async function createBuyerBillFile({
   let totalsY = 62;
   for (const row of totals) {
     doc.setFont('NotoSansTamil', row.bold ? 'bold' : 'normal');
-    doc.setFontSize(13);
+    doc.setFontSize(11);
     doc.setTextColor(...COLORS.ink);
-    doc.text(row.label, summaryRightX + 5, totalsY);
-    doc.text(row.value, pageWidth - margin - 5, totalsY, { align: 'right' });
+    const labelLines = doc.splitTextToSize(row.label, 72);
+    let valueFontSize = 11;
+    while (doc.getTextWidth(row.value) > 78 && valueFontSize > 8) {
+      valueFontSize -= 1;
+      doc.setFontSize(valueFontSize);
+    }
+    const valueLines = doc.splitTextToSize(row.value, 78);
+    const rowHeight = Math.max(labelLines.length * 13, valueLines.length * (valueFontSize + 2)) + 8;
+    doc.setFontSize(11);
+    doc.text(labelLines, summaryRightX + 5, totalsY + 12);
+    doc.setFontSize(valueFontSize);
+    doc.text(valueLines, pageWidth - margin - 5, totalsY + 12, { align: 'right' });
     doc.setDrawColor(190, 190, 190);
-    doc.line(summaryRightX, totalsY + 6, pageWidth - margin, totalsY + 6);
-    totalsY += 24;
+    doc.line(summaryRightX, totalsY + rowHeight - 2, pageWidth - margin, totalsY + rowHeight - 2);
+    totalsY += rowHeight;
   }
 
   const filename = `${safeFilename(buyer.name, 'Customer')}_VEGETABLES_Bill_${safeFilename(period)}.pdf`;
