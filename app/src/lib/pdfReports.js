@@ -142,9 +142,43 @@ async function registerTamilBillFonts(doc) {
   ]) {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Tamil font files could not be loaded for the bill PDF.');
-    doc.addFileToVFS(fileName, fontFileBase64(await response.arrayBuffer()));
+    const fontData = await response.arrayBuffer();
+    doc.addFileToVFS(fileName, fontFileBase64(fontData));
     doc.addFont(fileName, 'NotoSansTamil', style);
+    if (style === 'normal') {
+      if (typeof FontFace === 'undefined' || !document.fonts) {
+        throw new Error('This browser cannot render Tamil text correctly in the bill PDF.');
+      }
+      const fontFace = new FontFace('NotoSansTamilBill', fontData);
+      await fontFace.load();
+      document.fonts.add(fontFace);
+    }
   }
+}
+
+function renderTamilBillLabel(text, fontSize) {
+  const scale = 3;
+  const padding = 2;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Tamil text could not be rendered for the bill PDF.');
+  const font = `${fontSize}px "NotoSansTamilBill"`;
+  context.font = font;
+  const metrics = context.measureText(text);
+  const ascent = metrics.actualBoundingBoxAscent || fontSize;
+  const descent = metrics.actualBoundingBoxDescent || fontSize * 0.4;
+  const width = Math.ceil(metrics.width + padding * 2);
+  const height = Math.ceil(ascent + descent + padding * 2);
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const scaledContext = canvas.getContext('2d');
+  if (!scaledContext) throw new Error('Tamil text could not be rendered for the bill PDF.');
+  scaledContext.scale(scale, scale);
+  scaledContext.font = font;
+  scaledContext.fillStyle = `rgb(${COLORS.ink.join(',')})`;
+  scaledContext.textBaseline = 'alphabetic';
+  scaledContext.fillText(text, padding, padding + ascent);
+  return { data: canvas.toDataURL('image/png'), width, height };
 }
 
 function periodLabel(period) {
@@ -654,6 +688,12 @@ export async function createBuyerBillFile({
     .join('  |  ');
   const buyerDetailsLines = doc.splitTextToSize(buyerDetails, sectionWidth - 8);
   doc.text(buyerDetailsLines, margin + 4, 239);
+  const tamilProductNames = new Set(Object.values(BILL_PRODUCT_NAMES_TA));
+  const renderedTamilProductNames = new Map(
+    [...new Set(billRows.map((row) => billProductName(row.product)))]
+      .filter((name) => tamilProductNames.has(name))
+      .map((name) => [name, renderTamilBillLabel(name, 11)]),
+  );
 
   table(doc, {
     startY: 252 + Math.max(0, buyerDetailsLines.length - 1) * 14,
@@ -705,6 +745,27 @@ export async function createBuyerBillFile({
       if (cellData.section !== 'head' && cellData.column.index === 3) {
         cellData.cell.styles.fontSize = 9;
       }
+      if (cellData.section === 'body' && cellData.column.index === 2) {
+        const text = String(cellData.cell.raw || '');
+        if (renderedTamilProductNames.has(text)) {
+          const fillColor = cellData.cell.styles.fillColor;
+          cellData.cell.styles.textColor = Array.isArray(fillColor) ? fillColor : [255, 255, 255];
+        }
+      }
+    },
+    didDrawCell: (cellData) => {
+      if (cellData.section !== 'body' || cellData.column.index !== 2) return;
+      const image = renderedTamilProductNames.get(String(cellData.cell.raw || ''));
+      if (!image) return;
+      const cell = cellData.cell;
+      const left = cell.padding('left');
+      const availableWidth = cell.width - left - cell.padding('right');
+      const availableHeight = cell.height - cell.padding('top') - cell.padding('bottom');
+      const scale = Math.min(1, availableWidth / image.width, availableHeight / image.height);
+      if (scale <= 0) throw new Error('Tamil product name does not fit in the bill PDF table.');
+      const width = image.width * scale;
+      const height = image.height * scale;
+      doc.addImage(image.data, 'PNG', cell.x + left, cell.y + (cell.height - height) / 2, width, height);
     },
   });
 
